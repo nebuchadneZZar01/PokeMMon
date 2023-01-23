@@ -1,12 +1,15 @@
-from pokemon import Pokemon
+from pokemon import Pokemon, Move
 import gui
 import time
 
-char = Pokemon('Charmander', 'FIRE', 100, [39, 52, 43, 60, 50, 65])
+ember = Move('Ember', 'FIRE', 40, 25, False)
+char_moves = [ember, None, None, None]
+char = Pokemon('Charmander', char_moves, 'FIRE', 100, [39, 52, 43, 60, 50, 65])
 
-bulba = Pokemon('Bulbasaur', ['GRASS', 'POISON'], 100, [39, 52, 43, 60, 50, 65])
+bulba_moves = [None, None, None, None]
+bulba = Pokemon('Bulbasaur', bulba_moves, ['GRASS', 'POISON'], 100, [39, 52, 43, 60, 50, 65])
 
-game_gui = gui.GameWindow(char, bulba, False)
+game_gui = gui.GameWindow(char, bulba, True)
 
 while True:
     clock = gui.pygame.time.Clock()

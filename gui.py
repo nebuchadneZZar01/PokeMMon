@@ -38,6 +38,22 @@ col_dragon = (80, 96, 225)
 col_dark = (80, 65, 63)
 col_fairy = (239, 112, 239)
 
+class TextBox:
+    def __init__(self, x, y, text, player, enemy):
+        self.x = x
+        self.y = y
+        self.clicked = False
+        self.text = text
+        self.font = pygame.font.SysFont(None, 24)
+        self.rendered_text = self.font.render(text, True, black)
+
+    def draw(self):
+        border = pygame.Rect(self.x, self.y, 500, 120)
+        inner = pygame.Rect(self.x+5, self.y+5, 490, 110)
+        pygame.draw.rect(screen, black, border)
+        pygame.draw.rect(screen, white, inner)
+        screen.blit(self.rendered_text, (self.x+10, self.y+10))
+
 class Button:
     def __init__(self, x, y, text, player, enemy):
         self.x = x
@@ -72,6 +88,7 @@ class GameWindow:
         
         self.font = pygame.font.SysFont(None, 24)
         self.hp_text = self.font.render('HP :', True, gold)
+        self.lv_text = self.font.render('L. :', True, black)
 
         self.player = player
         self.player_mon_name = self.font.render(player.name, True, black)
@@ -79,6 +96,7 @@ class GameWindow:
         self.player_mon = pygame.transform.scale(self.player_mon, (mon_size, mon_size))
         self.hp_player = [player.hp, player.max_hp]
         self.hp_player_text = self.font.render(str(self.hp_player[0]) + '/' + str(self.hp_player[1]), True, black)
+        self.lv_player_text = self.font.render(str(self.player.level), True, black)
         self.enemy_type1_text = self.font.render('FIR', True, white)
 
         self.enemy = enemy
@@ -87,6 +105,7 @@ class GameWindow:
         self.enemy_mon = pygame.transform.scale(self.enemy_mon, (mon_size, mon_size))
         self.hp_enemy = [enemy.hp, enemy.max_hp]
         self.hp_enemy_text = self.font.render(str(self.hp_enemy[0]) + '/' + str(self.hp_enemy[1]), True, black)
+        self.lv_enemy_text = self.font.render(str(self.enemy.level), True, black)
         self.enemy_type1_text = self.font.render('GRA', True, white)
         self.enemy_type2_text = self.font.render('PSN', True, white)
 
@@ -94,7 +113,8 @@ class GameWindow:
         if sound == True:
             pygame.mixer.music.play(-1)
 
-        self.attack_button = Button(250, 400, 'Attack', player, enemy)
+        self.textbox = TextBox(0, 380, 'Prova testo', self.player, self.enemy)
+        self.attack_button = Button(250, 400, 'Attack', self.player, self.enemy)
     
     def update_text(self):
         self.hp_player = [self.player.hp, self.player.max_hp]
@@ -107,11 +127,14 @@ class GameWindow:
         self.update_text()
 
         screen.fill(white)
+        self.textbox.draw()
         self.attack_button.draw()
         
         # ENEMY GUI
         # Enemy arrow
         screen.blit(self.enemy_mon_name, (20, 10))
+        screen.blit(self.lv_text, (200, 10))
+        screen.blit(self.lv_enemy_text, (230, 10))
         pygame.draw.rect(screen, black, pygame.Rect(20, 30, 10, 60))
         pygame.draw.rect(screen, black, pygame.Rect(270, 80, 5, 10))
         pygame.draw.rect(screen, black, pygame.Rect(275, 84, 5, 6))
@@ -154,32 +177,35 @@ class GameWindow:
         screen.blit(self.enemy_mon, (325,0))
 
         # PLAYER GUI
-        screen.blit(self.player_mon_name, (255,295))
+        screen.blit(self.player_mon_name, (255,245))
+        screen.blit(self.lv_text, (420, 245))
+        screen.blit(self.lv_player_text, (450, 245))
 
         #Player bar
-        pygame.draw.rect(screen, black, pygame.Rect(255, 315, 40, 15))
-        pygame.draw.rect(screen, black, pygame.Rect(255, 330, 215, 2))
-        pygame.draw.rect(screen, black, pygame.Rect(460, 315, 10, 15))
-        pygame.draw.rect(screen, black, pygame.Rect(470, 315, 10, 60))
-        screen.blit(self.hp_text, (260,316))
-        screen.blit(self.hp_player_text, (255, 335))
+        pygame.draw.rect(screen, black, pygame.Rect(255, 265, 40, 15))
+        pygame.draw.rect(screen, black, pygame.Rect(255, 270, 215, 2))
+        pygame.draw.rect(screen, black, pygame.Rect(460, 265, 10, 15))
+        pygame.draw.rect(screen, black, pygame.Rect(470, 265, 10, 60))
+        screen.blit(self.hp_text, (260,266))
+        screen.blit(self.hp_player_text, (255, 285))
 
         # player health bar
-        pygame.draw.rect(screen, green, pygame.Rect(295, 320, 165, 5))
-        
+        pygame.draw.rect(screen, green, pygame.Rect(295, 270, 165, 5))
+        pygame.draw.rect(screen, black, pygame.Rect(255, 280, 225, 2))
+
         # Player arrow
-        pygame.draw.rect(screen, black, pygame.Rect(230, 375, 250, 2))
-        pygame.draw.rect(screen, black, pygame.Rect(235, 373, 5, 2))
-        pygame.draw.rect(screen, black, pygame.Rect(240, 369, 5, 6))
-        pygame.draw.rect(screen, black, pygame.Rect(245, 365, 5, 10))
+        pygame.draw.rect(screen, black, pygame.Rect(230, 325, 250, 2))
+        pygame.draw.rect(screen, black, pygame.Rect(235, 323, 5, 2))
+        pygame.draw.rect(screen, black, pygame.Rect(240, 319, 5, 6))
+        pygame.draw.rect(screen, black, pygame.Rect(245, 315, 5, 10))
 
         # player mons
-        pygame.draw.circle(screen, red, (350, 365), 5)
-        pygame.draw.circle(screen, red, (370, 365), 5)
-        pygame.draw.circle(screen, red, (390, 365), 5)
-        pygame.draw.circle(screen, gray, (410, 365), 5)
-        pygame.draw.circle(screen, gold, (430, 365), 5)
-        pygame.draw.circle(screen, gray, (450, 365), 5)
+        pygame.draw.circle(screen, red, (350, 315), 5)
+        pygame.draw.circle(screen, red, (370, 315), 5)
+        pygame.draw.circle(screen, red, (390, 315), 5)
+        pygame.draw.circle(screen, gray, (410, 315), 5)
+        pygame.draw.circle(screen, gold, (430, 315), 5)
+        pygame.draw.circle(screen, gray, (450, 315), 5)
 
         screen.blit(self.player_mon, (0, 205))
 

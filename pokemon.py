@@ -14,7 +14,7 @@ class Move:
         self.physical = physical
 
 class Pokemon:
-    def __init__(self, name, typing, level, base_stats):
+    def __init__(self, name, moves, typing, level, base_stats):
         # PKMN generals
         self.name = name
         
@@ -26,8 +26,11 @@ class Pokemon:
              self.level = level
 
         self.typing = typing
+        self.moves = moves
+
         self.status = None
         self.temp_status = None
+        self.in_battle = True
         self.fainted = False
 
         # Base stats, given to instanciate
@@ -91,7 +94,7 @@ class Pokemon:
             print(self.name, 'fainted!')
 
     def atk(self, enemy):
-        power = 5                                                           # move base power
+        power = self.moves[0].power                                         # move base power
         stab = 2                                                            # same-type attack bonus
         a = self.attack                                                     # attacking pkmn atk stat if physical move, sp_atk stat otherwise
         d = enemy.defense                                                   # target pkmn def stat if physical move, sp_def stat otherwise
@@ -103,7 +106,6 @@ class Pokemon:
         else:
             crit = self.calculate_crit_multiplier()                             # critical-hit multiplier
             
-
         rand_list = [random.randint(217, 255) for i in range(9)]
         rand = 1
         for r in rand_list:
@@ -112,11 +114,11 @@ class Pokemon:
 
         damage = int(((((2*self.level*crit)/5 + 2) * power) /50 + 2) * stab * type1 * type2 * rand)
         print(damage)
-
         
         if self.temp_status != "CONF":
             if enemy != self: 
                 enemy.hit(damage)
+                self.moves[0].pp = self.moves[0].pp-1
         else:
             # if attacking pkmn is confused, it can hit hitself
             prob = random.random()
