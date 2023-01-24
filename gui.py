@@ -45,14 +45,36 @@ class TextBox:
         self.clicked = False
         self.text = text
         self.font = pygame.font.SysFont(None, 24)
-        self.rendered_text = self.font.render(text, True, black)
+        #rendered_text = self.font.render(text, True, black)
 
-    def draw(self):
+    def blit_text(self, box, text, pos):
+        words = [word.split(' ') for word in text.splitlines()]
+        space = self.font.size(' ')[0]
+        max_width = box.width/2
+        height = box.height
+
+        x, y = pos
+        
+        for line in words:
+            for word in line:
+                word_surface = self.font.render(word, 1, black)
+                word_width, word_height = word_surface.get_size()
+                if x + word_width >= max_width:
+                    x = pos[0]
+                    y += word_height
+                screen.blit(word_surface, (x, y))
+                x += word_width + space
+            x = pos[0]
+            y += word_height
+
+    def draw(self, text):
         border = pygame.Rect(self.x, self.y, 500, 120)
         inner = pygame.Rect(self.x+5, self.y+5, 490, 110)
         pygame.draw.rect(screen, black, border)
         pygame.draw.rect(screen, white, inner)
-        screen.blit(self.rendered_text, (self.x+10, self.y+10))
+        #screen.blit(self.rendered_text, (self.x+10, self.y+10))
+        self.blit_text(inner, text, (self.x+10, self.y+10))
+    
 
 class Button:
     def __init__(self, x, y, text, player, enemy):
@@ -125,9 +147,10 @@ class GameWindow:
 
     def draw(self):
         self.update_text()
-
+        text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum."
+        
         screen.fill(white)
-        self.textbox.draw()
+        self.textbox.draw(text)
         self.attack_button.draw()
         
         # ENEMY GUI
