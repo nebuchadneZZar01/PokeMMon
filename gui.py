@@ -1,10 +1,10 @@
 import pygame, os
-from pokemon import Pokemon
+from player import *
 
 width = 500
 height = 500
 
-mon_size = 175
+mon_size = 150
 
 size = (width, height)
 screen = pygame.display.set_mode(size)
@@ -98,14 +98,14 @@ class Button:
 
         if rect.collidepoint(mouse):
             if pygame.mouse.get_pressed()[0] == 1 and self.clicked == False:
-                self.player.atk(self.enemy)
+                self.player_mon.atk(self.enemy)
                 self.clicked = True
 
         if pygame.mouse.get_pressed()[0] == 0:
             self.clicked = False
         
 class GameWindow:
-    def __init__(self, player: Pokemon = None, enemy: Pokemon = None, sound=True):
+    def __init__(self, player: Trainer = None, enemy: Trainer = None, sound=True):
         pygame.init()
         
         self.font = pygame.font.SysFont(None, 24)
@@ -113,21 +113,23 @@ class GameWindow:
         self.lv_text = self.font.render('L. :', True, black)
 
         self.player = player
-        self.player_mon_name = self.font.render(player.name, True, black)
-        self.player_mon = pygame.image.load(os.path.join('assets/sprites/Sproacd004.png'))
-        self.player_mon = pygame.transform.scale(self.player_mon, (mon_size, mon_size))
-        self.hp_player = [player.hp, player.max_hp]
+        self.player_mon = self.player.in_battle
+        self.player_mon_name = self.font.render(self.player_mon.name, True, black)
+        self.player_mon_sprite = pygame.image.load(os.path.join('assets/sprites/back/{id}.png'.format(id = self.player_mon.id)))
+        self.player_mon_sprite = pygame.transform.scale(self.player_mon_sprite, (mon_size, mon_size))
+        self.hp_player = [self.player_mon.hp, self.player_mon.max_hp]
         self.hp_player_text = self.font.render(str(self.hp_player[0]) + '/' + str(self.hp_player[1]), True, black)
-        self.lv_player_text = self.font.render(str(self.player.level), True, black)
+        self.lv_player_text = self.font.render(str(self.player_mon.level), True, black)
         self.enemy_type1_text = self.font.render('FIR', True, white)
 
         self.enemy = enemy
-        self.enemy_mon_name = self.font.render(enemy.name, True, black)
-        self.enemy_mon = pygame.image.load(os.path.join('assets/sprites/Spror001.png'))
-        self.enemy_mon = pygame.transform.scale(self.enemy_mon, (mon_size, mon_size))
-        self.hp_enemy = [enemy.hp, enemy.max_hp]
+        self.enemy_mon = self.enemy.in_battle
+        self.enemy_mon_name = self.font.render(self.enemy_mon.name, True, black)
+        self.enemy_mon_sprite = pygame.image.load(os.path.join('assets/sprites/front/{id}.png').format(id = self.enemy_mon.id))
+        self.enemy_mon_sprite = pygame.transform.scale(self.enemy_mon_sprite, (mon_size, mon_size))
+        self.hp_enemy = [self.enemy_mon.hp, self.enemy_mon.max_hp]
         self.hp_enemy_text = self.font.render(str(self.hp_enemy[0]) + '/' + str(self.hp_enemy[1]), True, black)
-        self.lv_enemy_text = self.font.render(str(self.enemy.level), True, black)
+        self.lv_enemy_text = self.font.render(str(self.enemy_mon.level), True, black)
         self.enemy_type1_text = self.font.render('GRA', True, white)
         self.enemy_type2_text = self.font.render('PSN', True, white)
 
@@ -139,10 +141,10 @@ class GameWindow:
         self.attack_button = Button(250, 400, 'Attack', self.player, self.enemy)
     
     def update_text(self):
-        self.hp_player = [self.player.hp, self.player.max_hp]
+        self.hp_player = [self.player_mon.hp, self.player_mon.max_hp]
         self.hp_player_text = self.font.render(str(self.hp_player[0]) + '/' + str(self.hp_player[1]), True, black)
 
-        self.hp_enemy = [self.enemy.hp, self.enemy.max_hp]
+        self.hp_enemy = [self.enemy_mon.hp, self.enemy_mon.max_hp]
         self.hp_enemy_text = self.font.render(str(self.hp_enemy[0]) + '/' + str(self.hp_enemy[1]), True, black)
 
     def draw(self):
@@ -182,12 +184,12 @@ class GameWindow:
         pygame.draw.rect(screen, health_color, pygame.Rect(85, 40, perc*165, 5))
 
         # enemy mons
-        pygame.draw.circle(screen, red, (50, 80), 5)
-        pygame.draw.circle(screen, red, (70, 80), 5)
-        pygame.draw.circle(screen, red, (90, 80), 5)
-        pygame.draw.circle(screen, gray, (110, 80), 5)
-        pygame.draw.circle(screen, gold, (130, 80), 5)
-        pygame.draw.circle(screen, gray, (150, 80), 5)
+        for i in (range(len(self.enemy.team))):
+            color = red
+            if self.enemy.team[i].fainted:
+                color = gray
+
+            pygame.draw.circle(screen, color, (50+(i*20), 80), 5)
 
         # enemy types
         pygame.draw.rect(screen, col_grass, pygame.Rect(170, 72, 40, 15))
@@ -197,7 +199,7 @@ class GameWindow:
         screen.blit(self.enemy_type2_text, (220, 72))
 
         # enemy sprite
-        screen.blit(self.enemy_mon, (325,0))
+        screen.blit(self.enemy_mon_sprite, (320,20))
 
         # PLAYER GUI
         screen.blit(self.player_mon_name, (255,245))
@@ -223,13 +225,13 @@ class GameWindow:
         pygame.draw.rect(screen, black, pygame.Rect(245, 315, 5, 10))
 
         # player mons
-        pygame.draw.circle(screen, red, (350, 315), 5)
-        pygame.draw.circle(screen, red, (370, 315), 5)
-        pygame.draw.circle(screen, red, (390, 315), 5)
-        pygame.draw.circle(screen, gray, (410, 315), 5)
-        pygame.draw.circle(screen, gold, (430, 315), 5)
-        pygame.draw.circle(screen, gray, (450, 315), 5)
+        for i in (range(len(self.player.team))):
+            color = red
+            if self.player.team[i].fainted:
+                color = gray
 
-        screen.blit(self.player_mon, (0, 205))
+            pygame.draw.circle(screen, color, (350+(i*20), 315), 5)
+
+        screen.blit(self.player_mon_sprite, (30, 220))
 
         pygame.display.update()

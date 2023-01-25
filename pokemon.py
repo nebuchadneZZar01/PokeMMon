@@ -14,8 +14,9 @@ class Move:
         self.physical = physical
 
 class Pokemon:
-    def __init__(self, name, moves, typing, level, base_stats):
+    def __init__(self, id, name, typing, level, base_stats):
         # PKMN generals
+        self.id = id
         self.name = name
         
         if level < 1: 
@@ -26,7 +27,7 @@ class Pokemon:
              self.level = level
 
         self.typing = typing
-        self.moves = moves
+        #self.moves = moves
 
         self.status = None
         self.temp_status = None
@@ -125,16 +126,3 @@ class Pokemon:
             if prob <= 0.5: 
                 print(self.name, 'is so confused to hit itself!')
                 self.hit(damage)
-
-
-# char = Pokemon('Charmander', 'FIRE', 100, [39, 52, 43, 60, 50, 65])
-
-# # char.get_stats()
-
-# bulba = Pokemon('Bulbasaur', ['GRASS', 'POISON'], 100, [39, 52, 43, 60, 50, 65])
-# # bulba.get_stats()
-
-# # char.atk(bulba)
-
-# # bulba.get_stats()
-# # char.get_stats()

@@ -392,5 +392,3 @@ def get_effectiveness(attacking_type, defending_type):
         print('It has no effect...')
 
     return eff
-
-get_effectiveness('FIGHTING', 'ICE')
