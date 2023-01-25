@@ -1,8 +1,8 @@
 import pygame, os
 from player import *
 
-width = 500
-height = 500
+width = 700
+height = 600
 
 mon_size = 150
 
@@ -50,7 +50,7 @@ class TextBox:
     def blit_text(self, box, text, pos):
         words = [word.split(' ') for word in text.splitlines()]
         space = self.font.size(' ')[0]
-        max_width = box.width/2
+        max_width = box.width
         height = box.height
 
         x, y = pos
@@ -77,28 +77,31 @@ class TextBox:
     
 
 class Button:
-    def __init__(self, x, y, text, player, enemy):
+    def __init__(self, x, y, move: Move = None, player: Pokemon = None, enemy: Pokemon = None):
         self.x = x
         self.y = y
         self.clicked = False
-        self.text = text
+        self.move = move
+        self.text = move.name
         self.font = pygame.font.SysFont(None, 24)
-        self.rendered_text = self.font.render(text, True, white)
+        self.rendered_text = self.font.render(self.text, True, black)
 
         self.player = player
         self.enemy = enemy
 
     def draw(self):
-        rect = pygame.Rect(self.x, self.y, 50, 15)
-        pygame.draw.rect(screen, black, rect)
-        screen.blit(self.rendered_text, (self.x, self.y))
+        outer = pygame.Rect(self.x, self.y, 125, 100)
+        inner = pygame.Rect(self.x+5, self.y+5, 115, 90)
+        pygame.draw.rect(screen, black, outer)
+        pygame.draw.rect(screen, white, inner)
+        screen.blit(self.rendered_text, (self.x+10, self.y+45))
 
         mouse = pygame.mouse.get_pos()
         #print(mouse)
 
-        if rect.collidepoint(mouse):
+        if inner.collidepoint(mouse):
             if pygame.mouse.get_pressed()[0] == 1 and self.clicked == False:
-                self.player.atk(self.enemy)
+                self.player.atk(self.move, self.enemy)
                 self.clicked = True
 
         if pygame.mouse.get_pressed()[0] == 0:
@@ -138,7 +141,10 @@ class GameWindow:
             pygame.mixer.music.play(-1)
 
         self.textbox = TextBox(0, 380, 'Prova testo', self.player, self.enemy)
-        self.attack_button = Button(250, 400, 'Attack', self.player_mon, self.enemy_mon)
+        self.move1_btn = Button(0, 500, self.player_mon.moves[0], self.player_mon, self.enemy_mon)
+        self.move2_btn = Button(125, 500, self.player_mon.moves[1], self.player_mon, self.enemy_mon)
+        self.move3_btn = Button(250, 500, self.player_mon.moves[2], self.player_mon, self.enemy_mon)
+        self.move4_btn = Button(375, 500, self.player_mon.moves[3], self.player_mon, self.enemy_mon)
     
     def update_text(self):
         self.hp_player = [self.player_mon.hp, self.player_mon.max_hp]
@@ -149,11 +155,15 @@ class GameWindow:
 
     def draw(self):
         self.update_text()
-        text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum."
+        text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book."
         
         screen.fill(white)
         self.textbox.draw(text)
-        self.attack_button.draw()
+        self.move1_btn.draw()
+        self.move2_btn.draw()
+        self.move3_btn.draw()
+        self.move4_btn.draw()
+
         
         # ENEMY GUI
         # Enemy arrow

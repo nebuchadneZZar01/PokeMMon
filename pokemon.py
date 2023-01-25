@@ -12,6 +12,7 @@ class Move:
         self.typing = typing
         self.power = power
         self.pp = pp
+        self.max_pp = pp
         self.physical = physical
         self.accuracy = accuracy
 
@@ -117,15 +118,29 @@ class Pokemon:
             self.fainted = True
             print(self.name, 'fainted!')
 
-    def atk(self, enemy):
-        power = self.moves[0].power                                         # move base power
-        stab = 2                                                            # same-type attack bonus
+    def atk(self, move, enemy):
+        print(self.name, 'uses', move.name)
+        power = move.power                                                              # move base power
+        # same-type attack bonus      
+        if len(self.typing) == 2:     
+            # if attacker has two types                            
+            if move.typing == self.typing[0] or self.typing[1]:
+                stab = 2         
+            else:
+                stab = 1  
+        else:
+            # if attacker has only one type
+            if move.typing == self.typing:
+                stab = 2   
+            else:
+                stab = 1
+
         a = self.attack                                                     # attacking pkmn atk stat if physical move, sp_atk stat otherwise
         d = enemy.defense                                                   # target pkmn def stat if physical move, sp_def stat otherwise
-        type1 = pkmn_types.get_effectiveness(self.moves[0].typing, enemy.typing[0])             # effectiveness vs enemy's type1
         type2 = 1
         if len(enemy.typing) == 2:
-            type2 = pkmn_types.get_effectiveness(self.moves[0].typing, enemy.typing[1])       # effectiveness vs enemy's type2
+            type2 = pkmn_types.get_effectiveness(move.typing, enemy.typing[1])       # effectiveness vs enemy's type2
+        type1 = pkmn_types.get_effectiveness(move.typing, enemy.typing[0])             # effectiveness vs enemy's type1
         
         if type1 == 0 or type2 == 0:
             crit = 0
@@ -140,6 +155,7 @@ class Pokemon:
 
         damage = int(((((2*self.level*crit)/5 + 2) * power) /50 + 2) * stab * type1 * type2 * rand)
         print(damage)
+        self.moves[0].pp =- 1
         
         if self.temp_status != "CONF":
             if enemy != self: 
