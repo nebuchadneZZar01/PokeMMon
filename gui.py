@@ -44,7 +44,7 @@ class TextBox:
         self.y = y
         self.clicked = False
         self.text = text
-        self.font = pygame.font.SysFont(None, 24)
+        self.font = pygame.font.Font('assets/font/RBYGSC.ttf', 14)
         #rendered_text = self.font.render(text, True, black)
 
     def blit_text(self, box, text, pos):
@@ -108,7 +108,7 @@ class GameWindow:
     def __init__(self, player: Trainer = None, enemy: Trainer = None, sound=True):
         pygame.init()
         
-        self.font = pygame.font.SysFont(None, 24)
+        self.font = pygame.font.Font('assets/font/RBYGSC.ttf', 14)
         self.hp_text = self.font.render('HP :', True, gold)
         self.lv_text = self.font.render('L. :', True, black)
 
@@ -158,8 +158,8 @@ class GameWindow:
         # ENEMY GUI
         # Enemy arrow
         screen.blit(self.enemy_mon_name, (20, 10))
-        screen.blit(self.lv_text, (200, 10))
-        screen.blit(self.lv_enemy_text, (230, 10))
+        screen.blit(self.lv_text, (185, 10))
+        screen.blit(self.lv_enemy_text, (220, 10))
         pygame.draw.rect(screen, black, pygame.Rect(20, 30, 10, 60))
         pygame.draw.rect(screen, black, pygame.Rect(270, 80, 5, 10))
         pygame.draw.rect(screen, black, pygame.Rect(275, 84, 5, 6))
@@ -170,7 +170,7 @@ class GameWindow:
         pygame.draw.rect(screen, black, pygame.Rect(45, 35, 40, 15))
         pygame.draw.rect(screen, black, pygame.Rect(45, 50, 215, 2))
         pygame.draw.rect(screen, black, pygame.Rect(250, 35, 10, 15))
-        screen.blit(self.hp_text, (50,36))
+        screen.blit(self.hp_text, (47,36))
         screen.blit(self.hp_enemy_text, (45, 55))
 
         # enemy health bar
@@ -203,15 +203,15 @@ class GameWindow:
 
         # PLAYER GUI
         screen.blit(self.player_mon_name, (255,245))
-        screen.blit(self.lv_text, (420, 245))
-        screen.blit(self.lv_player_text, (450, 245))
+        screen.blit(self.lv_text, (405, 245))
+        screen.blit(self.lv_player_text, (440, 245))
 
         #Player bar
         pygame.draw.rect(screen, black, pygame.Rect(255, 265, 40, 15))
         pygame.draw.rect(screen, black, pygame.Rect(255, 270, 215, 2))
         pygame.draw.rect(screen, black, pygame.Rect(460, 265, 10, 15))
         pygame.draw.rect(screen, black, pygame.Rect(470, 265, 10, 60))
-        screen.blit(self.hp_text, (260,266))
+        screen.blit(self.hp_text, (257,266))
         screen.blit(self.hp_player_text, (255, 285))
 
         # player health bar
