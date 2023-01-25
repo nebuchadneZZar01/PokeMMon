@@ -5,6 +5,7 @@ width = 700
 height = 600
 
 mon_size = 150
+mon_type_size = 15
 
 size = (width, height)
 screen = pygame.display.set_mode(size)
@@ -123,7 +124,11 @@ class GameWindow:
         self.hp_player = [self.player_mon.hp, self.player_mon.max_hp]
         self.hp_player_text = self.font.render(str(self.hp_player[0]) + '/' + str(self.hp_player[1]), True, black)
         self.lv_player_text = self.font.render(str(self.player_mon.level), True, black)
-        self.enemy_type1_text = self.font.render('FIR', True, white)
+        self.player_mon_type1_img = pygame.image.load(os.path.join('assets/sprites/types/{type1}.png'.format(type1 = self.player_mon.typing[0].lower())))
+        self.player_mon_type1_img = pygame.transform.scale(self.player_mon_type1_img, (mon_type_size, mon_type_size))
+        if len(self.player_mon.typing) == 2:
+            self.player_mon_type2_img = pygame.image.load(os.path.join('assets/sprites/types/{type2}.png'.format(type2 = self.player_mon.typing[1].lower())))
+            self.player_mon_type2_img = pygame.transform.scale(self.player_mon_type2_img, (mon_type_size, mon_type_size))
 
         self.enemy = enemy
         self.enemy_mon = self.enemy.in_battle
@@ -133,8 +138,11 @@ class GameWindow:
         self.hp_enemy = [self.enemy_mon.hp, self.enemy_mon.max_hp]
         self.hp_enemy_text = self.font.render(str(self.hp_enemy[0]) + '/' + str(self.hp_enemy[1]), True, black)
         self.lv_enemy_text = self.font.render(str(self.enemy_mon.level), True, black)
-        self.enemy_type1_text = self.font.render('GRA', True, white)
-        self.enemy_type2_text = self.font.render('PSN', True, white)
+        self.enemy_mon_type1_img = pygame.image.load(os.path.join('assets/sprites/types/{type1}.png'.format(type1 = self.enemy_mon.typing[0].lower())))
+        self.enemy_mon_type1_img = pygame.transform.scale(self.enemy_mon_type1_img, (mon_type_size, mon_type_size))
+        if len(self.enemy_mon.typing) == 2:
+            self.enemy_mon_type2_img = pygame.image.load(os.path.join('assets/sprites/types/{type2}.png'.format(type2 = self.enemy_mon.typing[1].lower())))
+            self.enemy_mon_type2_img = pygame.transform.scale(self.enemy_mon_type2_img, (mon_type_size, mon_type_size))
 
         pygame.mixer.music.load(os.path.join('assets/sounds/battle.mp3'))
         if sound == True:
@@ -202,11 +210,9 @@ class GameWindow:
             pygame.draw.circle(screen, color, (50+(i*20), 80), 5)
 
         # enemy types
-        pygame.draw.rect(screen, col_grass, pygame.Rect(170, 72, 40, 15))
-        screen.blit(self.enemy_type1_text, (170, 72))
-
-        pygame.draw.rect(screen, col_poison, pygame.Rect(220, 72, 40, 15))
-        screen.blit(self.enemy_type2_text, (220, 72))
+        screen.blit(self.enemy_mon_type1_img, (220, 72))
+        if len(self.enemy_mon.typing) == 2:
+            screen.blit(self.enemy_mon_type2_img, (240, 72))
 
         # enemy sprite
         screen.blit(self.enemy_mon_sprite, (320,20))
@@ -233,6 +239,11 @@ class GameWindow:
         pygame.draw.rect(screen, black, pygame.Rect(235, 323, 5, 2))
         pygame.draw.rect(screen, black, pygame.Rect(240, 319, 5, 6))
         pygame.draw.rect(screen, black, pygame.Rect(245, 315, 5, 10))
+
+        # enemy types
+        screen.blit(self.player_mon_type1_img, (260, 308))
+        if len(self.player_mon.typing) == 2:
+            screen.blit(self.player_mon_type2_img, (280, 308))
 
         # player mons
         for i in (range(len(self.player.team))):
