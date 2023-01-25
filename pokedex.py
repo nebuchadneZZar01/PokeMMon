@@ -1,3 +1,4 @@
+# Pokedex class helper to instantiate pokemons in trainer's team
 class DexSlot:
 	def __init__(self, num, species, elements, base_stats):
 		self.num = num
@@ -89,7 +90,7 @@ pokedex_list = {
     "SLOWBRO" : DexSlot(80,"Slowbro",["WATER","PSYCHIC"],[95,75,110,80,80,30]),
     "MAGNEMITE" : DexSlot(81,"Magnemite",["ELECTRIC"],[25,35,70,95,95,45]),
     "MAGNETON" : DexSlot(82,"Magneton",["ELECTRIC"],[50,60,95,120,120,70]),
-    "FARFETCHD" : DexSlot(83,"Farfetch'd",["NORMAL","FLYING"],[52,65,55,58,58,60]),
+    "FARFETCH\'D" : DexSlot(83,"Farfetch'd",["NORMAL","FLYING"],[52,65,55,58,58,60]),
     "DODUO" : DexSlot(84,"Doduo",["NORMAL","FLYING"],[35,85,45,35,35,75]),
     "DODRIO" : DexSlot(85,"Dodrio",["NORMAL","FLYING"],[60,110,70,60,60,100]),
     "SEEL" : DexSlot(86,"Seel",["WATER"],[65,45,55,70,70,45]),

@@ -98,7 +98,7 @@ class Button:
 
         if rect.collidepoint(mouse):
             if pygame.mouse.get_pressed()[0] == 1 and self.clicked == False:
-                self.player_mon.atk(self.enemy)
+                self.player.atk(self.enemy)
                 self.clicked = True
 
         if pygame.mouse.get_pressed()[0] == 0:
@@ -138,7 +138,7 @@ class GameWindow:
             pygame.mixer.music.play(-1)
 
         self.textbox = TextBox(0, 380, 'Prova testo', self.player, self.enemy)
-        self.attack_button = Button(250, 400, 'Attack', self.player, self.enemy)
+        self.attack_button = Button(250, 400, 'Attack', self.player_mon, self.enemy_mon)
     
     def update_text(self):
         self.hp_player = [self.player_mon.hp, self.player_mon.max_hp]

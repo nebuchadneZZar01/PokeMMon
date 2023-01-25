@@ -2,7 +2,7 @@ from player import *
 import gui
 import time
 
-ember = Move('Ember', 'FIRE', 40, 25, False)
+ember = Move('Ember', 'FIRE', 40, 25, False, 1)
 # char_moves = [ember, None, None, None]
 # char = Pokemon('Charmander', char_moves, 'FIRE', 100, [39, 52, 43, 60, 50, 65])
 
@@ -11,6 +11,8 @@ ember = Move('Ember', 'FIRE', 40, 25, False)
 
 player = Trainer()
 ai = Trainer()
+
+player.get_team()
 
 game_gui = gui.GameWindow(player, ai, True)
 

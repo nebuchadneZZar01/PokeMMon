@@ -1,22 +1,32 @@
 import math
 import random
+import moves
 import pkmn_types
 
 def calculate_max_stat(base_stat, level):
     return math.floor((base_stat*2*level)/100) + 5
 
 class Move:
-    def __init__(self, name, typing, power, pp, physical):
+    def __init__(self, name, typing, power, pp, physical, accuracy):
         self.name = name
         self.typing = typing
         self.power = power
         self.pp = pp
         self.physical = physical
+        self.accuracy = accuracy
+
+    def get_info(self):
+        print(self.name)
+        print('Typing:', self.typing)
+        print('Power:', self.power)
+        print('PP:', self.pp)
+        print('Category:', self.physical)
+        print('Accuracy:', self.accuracy)
 
 class Pokemon:
-    def __init__(self, id, name, typing, level, base_stats):
+    def __init__(self, pkmn_id, name, typing, level, base_stats):
         # PKMN generals
-        self.id = id
+        self.id = pkmn_id
         self.name = name
         
         if level < 1: 
@@ -27,7 +37,7 @@ class Pokemon:
              self.level = level
 
         self.typing = typing
-        #self.moves = moves
+        self.moves = [None, None, None, None]
 
         self.status = None
         self.temp_status = None
@@ -65,6 +75,13 @@ class Pokemon:
         self.sp_def_mult = 0
         self.speed_mult = 0
 
+        # moves random injection
+        for i in range(len(self.moves)):
+            while self.moves[i] == None:
+                move = random.choice(moves.attacks)
+                if moves.check_compatibility(move['name'], self.name):
+                    self.moves[i] = Move(move['name'], move['type'], move['power'], move['pp'], move['category'], move['accuracy'])
+
     def get_stats(self):
         print('Name:', self.name, '\tType:', self.typing, '\tLevel:', self.level)
         print('Hp:', self.hp)
@@ -73,6 +90,12 @@ class Pokemon:
         print('Sp Atk:', self.sp_atk)
         print('Sp Def:', self.sp_def)
         print('Spe:', self.speed, '\n')
+
+    def get_moves(self):
+        for move in self.moves:
+            move.get_info()
+            print('\n')
+
 
     # calculates the critical multiplier taking a random number
     # if the random number is higher than a treshold, then critical
@@ -99,8 +122,10 @@ class Pokemon:
         stab = 2                                                            # same-type attack bonus
         a = self.attack                                                     # attacking pkmn atk stat if physical move, sp_atk stat otherwise
         d = enemy.defense                                                   # target pkmn def stat if physical move, sp_def stat otherwise
-        type1 = pkmn_types.get_effectiveness('FIRE', enemy.typing[0])       # effectiveness vs enemy's type1
-        type2 = pkmn_types.get_effectiveness('FIRE', enemy.typing[1])       # effectiveness vs enemy's type2
+        type1 = pkmn_types.get_effectiveness(self.moves[0].typing, enemy.typing[0])             # effectiveness vs enemy's type1
+        type2 = 1
+        if len(enemy.typing) == 2:
+            type2 = pkmn_types.get_effectiveness(self.moves[0].typing, enemy.typing[1])       # effectiveness vs enemy's type2
         
         if type1 == 0 or type2 == 0:
             crit = 0

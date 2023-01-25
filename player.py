@@ -4,7 +4,9 @@ import random
 
 class Trainer:
     def __init__(self):
-        self.team = [None, None, None, None, None, None]
+        self.team = [None, None, None, None, None, None]    # Trainer Pokemon team
+
+        self.token = True                                   # token used to assingnate actual turn
 
         for i in range(len(self.team)):
             tmp = random.choice(list(pokedex_list.items()))[1]
@@ -16,6 +18,13 @@ class Trainer:
     def get_team(self):
         print('Player Team')
         for pkmn in self.team:
-            print(pkmn.get_stats())
+            pkmn.get_stats()
+            pkmn.get_moves()
+
+    def is_turn(self):
+        return token
+
+    def set_turn(self, _token):
+        self.token = token
 
         
