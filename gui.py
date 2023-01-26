@@ -83,19 +83,23 @@ class Button:
         self.y = y
         self.clicked = False
         self.move = move
-        self.text = move.name
-        self.font = pygame.font.SysFont(None, 24)
-        self.rendered_text = self.font.render(self.text, True, black)
+        self.name = move.name
+        self.font = pygame.font.Font(None, 24)
+
+        self.rendered_name = self.font.render(self.name, True, black)
 
         self.player = player
         self.enemy = enemy
 
     def draw(self):
+        rendered_pp = self.font.render('{pp}/{max_pp}'.format(pp = self.move.pp, max_pp = self.move.max_pp), True, black)
+
         outer = pygame.Rect(self.x, self.y, 125, 100)
         inner = pygame.Rect(self.x+5, self.y+5, 115, 90)
         pygame.draw.rect(screen, black, outer)
         pygame.draw.rect(screen, white, inner)
-        screen.blit(self.rendered_text, (self.x+10, self.y+45))
+        screen.blit(self.rendered_name, (self.x+10, self.y+45))
+        screen.blit(rendered_pp, (self.x+10, self.y+10))
 
         mouse = pygame.mouse.get_pos()
         #print(mouse)

@@ -7,7 +7,7 @@ ai = Trainer()
 
 player.get_team()
 
-game_gui = gui.GameWindow(player, ai, True)
+game_gui = gui.GameWindow(player, ai, False)
 
 while True:
     clock = gui.pygame.time.Clock()

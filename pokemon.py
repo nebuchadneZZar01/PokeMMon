@@ -155,12 +155,11 @@ class Pokemon:
 
         damage = int(((((2*self.level*crit)/5 + 2) * power) /50 + 2) * stab * type1 * type2 * rand)
         print(damage)
-        self.moves[0].pp =- 1
         
         if self.temp_status != "CONF":
             if enemy != self: 
                 enemy.hit(damage)
-                self.moves[0].pp = self.moves[0].pp-1
+                move.pp = move.pp - 1
         else:
             # if attacking pkmn is confused, it can hit hitself
             prob = random.random()
