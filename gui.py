@@ -87,6 +87,8 @@ class Button:
         self.font = pygame.font.Font(None, 24)
 
         self.rendered_name = self.font.render(self.name, True, black)
+        self.type_img = pygame.image.load(os.path.join('assets/sprites/move_types/{type}.png'.format(type = self.move.typing.lower())))
+        self.type_img = pygame.transform.scale(self.type_img, (self.type_img.get_width()/1.5, self.type_img.get_height()/1.5))
 
         self.player = player
         self.enemy = enemy
@@ -98,8 +100,10 @@ class Button:
         inner = pygame.Rect(self.x+5, self.y+5, 115, 90)
         pygame.draw.rect(screen, black, outer)
         pygame.draw.rect(screen, white, inner)
+
         screen.blit(self.rendered_name, (self.x+10, self.y+45))
-        screen.blit(rendered_pp, (self.x+10, self.y+10))
+        screen.blit(rendered_pp, (self.x+75, self.y+75))
+        screen.blit(self.type_img, (self.x+11, self.y+10))
 
         mouse = pygame.mouse.get_pos()
         #print(mouse)
