@@ -83,18 +83,21 @@ class Button:
         self.y = y
         self.clicked = False
         self.move = move
-        self.name = move.name
+        self.name = move.name if move is not None else '-'
         self.font = pygame.font.Font(None, 24)
 
         self.rendered_name = self.font.render(self.name, True, black)
-        self.type_img = pygame.image.load(os.path.join('assets/sprites/move_types/{type}.png'.format(type = self.move.typing.lower())))
-        self.type_img = pygame.transform.scale(self.type_img, (self.type_img.get_width()/1.5, self.type_img.get_height()/1.5))
+
+        if self.move is not None:
+            self.type_img = pygame.image.load(os.path.join('assets/sprites/move_types/{type}.png'.format(type = self.move.typing.lower())))
+            self.type_img = pygame.transform.scale(self.type_img, (self.type_img.get_width()/1.5, self.type_img.get_height()/1.5))
 
         self.player = player
         self.enemy = enemy
 
     def draw(self):
-        rendered_pp = self.font.render('{pp}/{max_pp}'.format(pp = self.move.pp, max_pp = self.move.max_pp), True, black)
+        if self.move is not None:
+            rendered_pp = self.font.render('{pp}/{max_pp}'.format(pp = self.move.pp, max_pp = self.move.max_pp), True, black)
 
         outer = pygame.Rect(self.x, self.y, 125, 100)
         inner = pygame.Rect(self.x+5, self.y+5, 115, 90)
@@ -102,8 +105,10 @@ class Button:
         pygame.draw.rect(screen, white, inner)
 
         screen.blit(self.rendered_name, (self.x+10, self.y+45))
-        screen.blit(rendered_pp, (self.x+75, self.y+75))
-        screen.blit(self.type_img, (self.x+11, self.y+10))
+
+        if self.move is not None:
+            screen.blit(rendered_pp, (self.x+75, self.y+75))
+            screen.blit(self.type_img, (self.x+11, self.y+10))
 
         mouse = pygame.mouse.get_pos()
         #print(mouse)
@@ -111,6 +116,67 @@ class Button:
         if inner.collidepoint(mouse):
             if pygame.mouse.get_pressed()[0] == 1 and self.clicked == False:
                 self.player.atk(self.move, self.enemy)
+                self.clicked = True
+
+        if pygame.mouse.get_pressed()[0] == 0:
+            self.clicked = False
+
+class TeamButton:
+    def __init__(self, x, y, pkmn: Pokemon = None):
+        self.x = x
+        self.y = y
+        self.clicked = False
+        self.pkmn = pkmn
+        self.name = pkmn.name
+
+        self.font = pygame.font.Font('assets/font/RBYGSC.ttf', 14)
+
+        self.rendered_name = self.font.render(self.name, True, black)
+        self.rendered_lv = self.font.render('L. : {level}'.format(level = self.pkmn.level), True, black)
+
+        self.pkmn_img = pygame.image.load(os.path.join('assets/sprites/front/{id}.png'.format(id = self.pkmn.id)))
+        self.pkmn_img = pygame.transform.scale(self.pkmn_img, (self.pkmn_img.get_width()/1.25, self.pkmn_img.get_height()/1.25))
+
+        self.pkmn_type1_img = pygame.image.load(os.path.join('assets/sprites/types/{type1}.png'.format(type1 = self.pkmn.typing[0].lower())))
+        self.pkmn_type1_img = pygame.transform.scale(self.pkmn_type1_img, (mon_type_size, mon_type_size))
+        if len(self.pkmn.typing) == 2:
+            self.pkmn_type2_img = pygame.image.load(os.path.join('assets/sprites/types/{type2}.png'.format(type2 = self.pkmn.typing[1].lower())))
+            self.pkmn_type2_img = pygame.transform.scale(self.pkmn_type2_img, (mon_type_size, mon_type_size))
+
+    def draw(self):
+        outer = pygame.Rect(self.x, self.y, 200, 100)
+        inner = pygame.Rect(self.x+5, self.y+5, 190, 90)
+        pygame.draw.rect(screen, black, outer)
+        pygame.draw.rect(screen, white, inner)
+
+        rendered_hp = self.font.render('{hp}/{max_hp}'.format(hp = self.pkmn.hp, max_hp = self.pkmn.max_hp), True, black)
+
+        screen.blit(self.pkmn_img, (self.x+10, self.y+10))
+        screen.blit(self.rendered_name, (self.x+65, self.y+10))
+        screen.blit(self.rendered_lv, (self.x+10, self.y+75))
+        screen.blit(rendered_hp, (self.x+65, self.y+40))
+
+        if len(self.pkmn.typing) == 2:
+            screen.blit(self.pkmn_type1_img, (self.x+155, self.y+75))
+            screen.blit(self.pkmn_type2_img, (self.x+175, self.y+75))
+        else:
+            screen.blit(self.pkmn_type1_img, (self.x+175, self.y+75))
+
+        # health bar
+        perc = (self.pkmn.hp/self.pkmn.max_hp)
+        health_color = green
+        if perc < 0.4 and perc > 0.2:
+            health_color = yellow
+        elif perc < 0.2:
+            health_color = red
+
+        pygame.draw.rect(screen, health_color, pygame.Rect(self.x+65, self.y+30, perc*120, 5))
+
+        mouse = pygame.mouse.get_pos()
+
+        if inner.collidepoint(mouse):
+            if pygame.mouse.get_pressed()[0] == 1 and self.clicked == False:
+                # replace pkmn
                 self.clicked = True
 
         if pygame.mouse.get_pressed()[0] == 0:
@@ -161,6 +227,8 @@ class GameWindow:
         self.move2_btn = Button(125, 500, self.player_mon.moves[1], self.player_mon, self.enemy_mon)
         self.move3_btn = Button(250, 500, self.player_mon.moves[2], self.player_mon, self.enemy_mon)
         self.move4_btn = Button(375, 500, self.player_mon.moves[3], self.player_mon, self.enemy_mon)
+
+        self.team1_btn = TeamButton(500, 200, self.player.team[0])
     
     def update_text(self):
         self.hp_player = [self.player_mon.hp, self.player_mon.max_hp]
@@ -179,6 +247,8 @@ class GameWindow:
         self.move2_btn.draw()
         self.move3_btn.draw()
         self.move4_btn.draw()
+
+        self.team1_btn.draw()
 
         
         # ENEMY GUI
@@ -200,14 +270,14 @@ class GameWindow:
         screen.blit(self.hp_enemy_text, (45, 55))
 
         # enemy health bar
-        perc = (self.hp_enemy[0]/self.hp_enemy[1])
-        health_color = green
-        if perc < 0.4 and perc > 0.2:
-            health_color = yellow
-        elif perc < 0.2:
-            health_color = red
+        perc_en = (self.hp_enemy[0]/self.hp_enemy[1])
+        health_en_color = green
+        if perc_en < 0.4 and perc_en > 0.2:
+            health_en_color = yellow
+        elif perc_en < 0.2:
+            health_en_color = red
 
-        pygame.draw.rect(screen, health_color, pygame.Rect(85, 40, perc*165, 5))
+        pygame.draw.rect(screen, health_en_color, pygame.Rect(85, 40, perc_en*165, 5))
 
         # enemy mons
         for i in (range(len(self.enemy.team))):
@@ -232,15 +302,21 @@ class GameWindow:
 
         #Player bar
         pygame.draw.rect(screen, black, pygame.Rect(255, 265, 40, 15))
-        pygame.draw.rect(screen, black, pygame.Rect(255, 270, 215, 2))
         pygame.draw.rect(screen, black, pygame.Rect(460, 265, 10, 15))
         pygame.draw.rect(screen, black, pygame.Rect(470, 265, 10, 60))
+        pygame.draw.rect(screen, black, pygame.Rect(255, 280, 225, 2))
         screen.blit(self.hp_text, (257,266))
         screen.blit(self.hp_player_text, (255, 285))
 
         # player health bar
-        pygame.draw.rect(screen, green, pygame.Rect(295, 270, 165, 5))
-        pygame.draw.rect(screen, black, pygame.Rect(255, 280, 225, 2))
+        perc_pl = (self.hp_player[0]/self.hp_player[1])
+        health_pl_color = green
+        if perc_pl < 0.4 and perc_pl > 0.2:
+            health_pl_color = yellow
+        elif perc_pl < 0.2:
+            health_pl_color = red
+
+        pygame.draw.rect(screen, health_pl_color, pygame.Rect(295, 270, perc_pl*165, 5))
 
         # Player arrow
         pygame.draw.rect(screen, black, pygame.Rect(230, 325, 250, 2))

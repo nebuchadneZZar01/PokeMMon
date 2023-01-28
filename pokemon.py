@@ -2,6 +2,7 @@ import math
 import random
 import moves
 import pkmn_types
+from itertools import combinations
 
 def calculate_max_stat(base_stat, level):
     return math.floor((base_stat*2*level)/100) + 5
@@ -76,12 +77,45 @@ class Pokemon:
         self.sp_def_mult = 0
         self.speed_mult = 0
 
-        # moves random injection
-        for i in range(len(self.moves)):
-            while self.moves[i] == None:
-                move = random.choice(moves.attacks)
-                if moves.check_compatibility(move['name'], self.name):
-                    self.moves[i] = Move(move['name'], move['type'], move['power'], move['pp'], move['category'], move['accuracy'])
+        # random move injection
+        while True:
+            move = random.choice(moves.attacks)
+            if moves.check_compatibility(move['name'], self.name): 
+                self.moves[0] = Move(move['name'], move['type'], move['power'], move['pp'], move['category'], move['accuracy'])
+                break
+
+        while True:
+            move = random.choice(moves.attacks)
+            if moves.check_compatibility(move['name'], self.name): 
+                if move['name'] != self.moves[0].name:
+                    self.moves[1] = Move(move['name'], move['type'], move['power'], move['pp'], move['category'], move['accuracy'])
+                    break
+                else:
+                    break
+
+        while True:
+            move = random.choice(moves.attacks)
+            if self.moves[1] is not None:
+                if moves.check_compatibility(move['name'], self.name): 
+                    if move['name'] != self.moves[1].name and move['name'] != self.moves[0].name:
+                        self.moves[2] = Move(move['name'], move['type'], move['power'], move['pp'], move['category'], move['accuracy'])
+                        break
+                    else:
+                        break
+            else:
+                break
+
+        while True:
+            move = random.choice(moves.attacks)
+            if self.moves[2] is not None:
+                if moves.check_compatibility(move['name'], self.name): 
+                    if move['name'] != self.moves[2].name and move['name'] != self.moves[1].name and move['name'] != self.moves[0].name:
+                        self.moves[3] = Move(move['name'], move['type'], move['power'], move['pp'], move['category'], move['accuracy'])
+                        break
+                    else:
+                        break
+            else:
+                break
 
     def get_stats(self):
         print('Name:', self.name, '\tType:', self.typing, '\tLevel:', self.level)
@@ -94,8 +128,10 @@ class Pokemon:
 
     def get_moves(self):
         for move in self.moves:
-            move.get_info()
-            print('\n')
+            if move is not None:
+                move.get_info()
+                print('\n')
+            else: print('None\n')
 
 
     # calculates the critical multiplier taking a random number
@@ -119,50 +155,53 @@ class Pokemon:
             print(self.name, 'fainted!')
 
     def atk(self, move, enemy):
-        print(self.name, 'uses', move.name)
-        power = move.power                                                              # move base power
-        # same-type attack bonus      
-        if len(self.typing) == 2:     
-            # if attacker has two types                            
-            if move.typing == self.typing[0] or self.typing[1]:
-                stab = 2         
+        if move.pp > 0:
+            print(self.name, 'uses', move.name)
+            power = move.power                                                              # move base power
+            # same-type attack bonus      
+            if len(self.typing) == 2:     
+                # if attacker has two types                            
+                if move.typing == self.typing[0] or self.typing[1]:
+                    stab = 2         
+                else:
+                    stab = 1  
             else:
-                stab = 1  
-        else:
-            # if attacker has only one type
-            if move.typing == self.typing:
-                stab = 2   
-            else:
-                stab = 1
+                # if attacker has only one type
+                if move.typing == self.typing:
+                    stab = 2   
+                else:
+                    stab = 1
 
-        a = self.attack                                                     # attacking pkmn atk stat if physical move, sp_atk stat otherwise
-        d = enemy.defense                                                   # target pkmn def stat if physical move, sp_def stat otherwise
-        type2 = 1
-        if len(enemy.typing) == 2:
-            type2 = pkmn_types.get_effectiveness(move.typing, enemy.typing[1])       # effectiveness vs enemy's type2
-        type1 = pkmn_types.get_effectiveness(move.typing, enemy.typing[0])             # effectiveness vs enemy's type1
-        
-        if type1 == 0 or type2 == 0:
-            crit = 0
-        else:
-            crit = self.calculate_crit_multiplier()                             # critical-hit multiplier
+            a = self.attack                                                     # attacking pkmn atk stat if physical move, sp_atk stat otherwise
+            d = enemy.defense                                                   # target pkmn def stat if physical move, sp_def stat otherwise
+            type2 = 1
+            if len(enemy.typing) == 2:
+                type2 = pkmn_types.get_effectiveness(move.typing, enemy.typing[1])       # effectiveness vs enemy's type2
+            type1 = pkmn_types.get_effectiveness(move.typing, enemy.typing[0])             # effectiveness vs enemy's type1
             
-        rand_list = [random.randint(217, 255) for i in range(9)]
-        rand = 1
-        for r in rand_list:
-            rand *= r
-        rand = r/255
+            if type1 == 0 or type2 == 0:
+                crit = 0
+            else:
+                crit = self.calculate_crit_multiplier()                             # critical-hit multiplier
+                
+            rand_list = [random.randint(217, 255) for i in range(9)]
+            rand = 1
+            for r in rand_list:
+                rand *= r
+            rand = r/255
 
-        damage = int(((((2*self.level*crit)/5 + 2) * power) /50 + 2) * stab * type1 * type2 * rand)
-        print(damage)
-        
-        if self.temp_status != "CONF":
-            if enemy != self: 
-                enemy.hit(damage)
-                move.pp = move.pp - 1
+            damage = int(((((2*self.level*crit)/5 + 2) * power) /50 + 2) * stab * type1 * type2 * rand)
+            print(damage)
+            
+            if self.temp_status != "CONF":
+                if enemy != self: 
+                    enemy.hit(damage)
+                    move.pp = move.pp - 1
+            else:
+                # if attacking pkmn is confused, it can hit hitself
+                prob = random.random()
+                if prob <= 0.5: 
+                    print(self.name, 'is so confused to hit itself!')
+                    self.hit(damage)
         else:
-            # if attacking pkmn is confused, it can hit hitself
-            prob = random.random()
-            if prob <= 0.5: 
-                print(self.name, 'is so confused to hit itself!')
-                self.hit(damage)
+            print('This move has any pp!\n')
