@@ -176,11 +176,27 @@ class TeamButton:
 
         if inner.collidepoint(mouse):
             if pygame.mouse.get_pressed()[0] == 1 and self.clicked == False:
-                # replace pkmn
                 self.clicked = True
 
         if pygame.mouse.get_pressed()[0] == 0:
             self.clicked = False
+            return self.pkmn
+
+class TeamSelector:
+    def __init__(self, player: Trainer = None):
+        self.font = pygame.font.Font('assets/font/RBYGSC.ttf', 14)
+        self.team = player.team
+
+        self.rendered_text = self.font.render('YOUR TEAM:', True, black)
+
+        self.pkmn = [None] * 6
+
+        for i in range(len(self.pkmn)):
+            self.pkmn[i] = TeamButton(500, i*100, self.team[i])
+
+    def draw(self):
+        for p in self.pkmn:
+            p.draw()
         
 class GameWindow:
     def __init__(self, player: Trainer = None, enemy: Trainer = None, sound=True):
@@ -228,7 +244,9 @@ class GameWindow:
         self.move3_btn = Button(250, 500, self.player_mon.moves[2], self.player_mon, self.enemy_mon)
         self.move4_btn = Button(375, 500, self.player_mon.moves[3], self.player_mon, self.enemy_mon)
 
-        self.team1_btn = TeamButton(500, 200, self.player.team[0])
+        self.team_selector = TeamSelector(self.player)
+
+        #self.team1_btn = TeamButton(500, 200, self.player.team[0])
     
     def update_text(self):
         self.hp_player = [self.player_mon.hp, self.player_mon.max_hp]
@@ -248,8 +266,7 @@ class GameWindow:
         self.move3_btn.draw()
         self.move4_btn.draw()
 
-        self.team1_btn.draw()
-
+        self.team_selector.draw()
         
         # ENEMY GUI
         # Enemy arrow
