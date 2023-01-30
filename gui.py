@@ -19,26 +19,6 @@ gold = (242, 219, 152)
 red = (255, 0, 0)
 gray = (46, 52, 64)
 
-# type colors
-col_normal = (159, 161, 159)
-col_fighting = (255, 128, 0)
-col_flying = (129, 185, 239)
-col_poison = (145, 65, 203)
-col_ground = (145, 81, 33)
-col_rock = (175, 169, 129)
-col_bug = (145, 161, 25)
-col_ghost = (112, 65, 112)
-col_steel = (96, 161, 184)
-col_fire = (230, 40, 41)
-col_water = (41, 128, 239)
-col_grass = (63, 161, 41)
-col_electric = (250, 192, 0)
-col_psichic = (239, 65, 121)
-col_ice = (63, 216, 255)
-col_dragon = (80, 96, 225)
-col_dark = (80, 65, 63)
-col_fairy = (239, 112, 239)
-
 class TextBox:
     def __init__(self, x, y, text, player, enemy):
         self.x = x
@@ -46,7 +26,6 @@ class TextBox:
         self.clicked = False
         self.text = text
         self.font = pygame.font.Font('assets/font/RBYGSC.ttf', 14)
-        #rendered_text = self.font.render(text, True, black)
 
     def blit_text(self, box, text, pos):
         words = [word.split(' ') for word in text.splitlines()]
@@ -73,7 +52,6 @@ class TextBox:
         inner = pygame.Rect(self.x+5, self.y+5, 490, 110)
         pygame.draw.rect(screen, black, border)
         pygame.draw.rect(screen, white, inner)
-        #screen.blit(self.rendered_text, (self.x+10, self.y+10))
         self.blit_text(inner, text, (self.x+10, self.y+10))
     
 
@@ -111,7 +89,6 @@ class Button:
             screen.blit(self.type_img, (self.x+11, self.y+10))
 
         mouse = pygame.mouse.get_pos()
-        #print(mouse)
 
         if inner.collidepoint(mouse):
             if pygame.mouse.get_pressed()[0] == 1 and self.clicked == False:
@@ -122,12 +99,13 @@ class Button:
             self.clicked = False
 
 class TeamButton:
-    def __init__(self, x, y, pkmn: Pokemon = None):
+    def __init__(self, x, y, pkmn: Pokemon = None, player: Trainer = None):
         self.x = x
         self.y = y
         self.clicked = False
         self.pkmn = pkmn
         self.name = pkmn.name
+        self.player = player
 
         self.font = pygame.font.Font('assets/font/RBYGSC.ttf', 14)
 
@@ -176,11 +154,11 @@ class TeamButton:
 
         if inner.collidepoint(mouse):
             if pygame.mouse.get_pressed()[0] == 1 and self.clicked == False:
+                self.player.in_battle = self.pkmn            
                 self.clicked = True
 
         if pygame.mouse.get_pressed()[0] == 0:
             self.clicked = False
-            return self.pkmn
 
 class TeamSelector:
     def __init__(self, player: Trainer = None):
@@ -192,7 +170,7 @@ class TeamSelector:
         self.pkmn = [None] * 6
 
         for i in range(len(self.pkmn)):
-            self.pkmn[i] = TeamButton(500, i*100, self.team[i])
+            self.pkmn[i] = TeamButton(500, i*100, self.team[i], player)
 
     def draw(self):
         for p in self.pkmn:
@@ -246,8 +224,6 @@ class GameWindow:
 
         self.team_selector = TeamSelector(self.player)
 
-        #self.team1_btn = TeamButton(500, 200, self.player.team[0])
-    
     def update_text(self):
         self.hp_player = [self.player_mon.hp, self.player_mon.max_hp]
         self.hp_player_text = self.font.render(str(self.hp_player[0]) + '/' + str(self.hp_player[1]), True, black)
@@ -255,8 +231,23 @@ class GameWindow:
         self.hp_enemy = [self.enemy_mon.hp, self.enemy_mon.max_hp]
         self.hp_enemy_text = self.font.render(str(self.hp_enemy[0]) + '/' + str(self.hp_enemy[1]), True, black)
 
+    def update_player_mon(self):
+        self.player_mon = self.player.in_battle
+        self.player_mon_name = self.font.render(self.player_mon.name, True, black)
+        self.player_mon_sprite = pygame.image.load(os.path.join('assets/sprites/back/{id}.png'.format(id = self.player_mon.id)))
+        self.player_mon_sprite = pygame.transform.scale(self.player_mon_sprite, (mon_size, mon_size))
+        self.hp_player = [self.player_mon.hp, self.player_mon.max_hp]
+        self.hp_player_text = self.font.render(str(self.hp_player[0]) + '/' + str(self.hp_player[1]), True, black)
+        self.lv_player_text = self.font.render(str(self.player_mon.level), True, black)
+        self.player_mon_type1_img = pygame.image.load(os.path.join('assets/sprites/types/{type1}.png'.format(type1 = self.player_mon.typing[0].lower())))
+        self.player_mon_type1_img = pygame.transform.scale(self.player_mon_type1_img, (mon_type_size, mon_type_size))
+        if len(self.player_mon.typing) == 2:
+            self.player_mon_type2_img = pygame.image.load(os.path.join('assets/sprites/types/{type2}.png'.format(type2 = self.player_mon.typing[1].lower())))
+            self.player_mon_type2_img = pygame.transform.scale(self.player_mon_type2_img, (mon_type_size, mon_type_size))
+
     def draw(self):
         self.update_text()
+        self.update_player_mon()            # have to update only if button is pressed
         text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book."
         
         screen.fill(white)
@@ -305,9 +296,11 @@ class GameWindow:
             pygame.draw.circle(screen, color, (50+(i*20), 80), 5)
 
         # enemy types
-        screen.blit(self.enemy_mon_type1_img, (220, 72))
         if len(self.enemy_mon.typing) == 2:
+            screen.blit(self.enemy_mon_type1_img, (220, 72))
             screen.blit(self.enemy_mon_type2_img, (240, 72))
+        else:
+            screen.blit(self.enemy_mon_type1_img, (240, 72))
 
         # enemy sprite
         screen.blit(self.enemy_mon_sprite, (320,20))
