@@ -71,6 +71,8 @@ class MoveButton:
         if self.move is not None:
             self.type_img = pygame.image.load(os.path.join('assets/sprites/move_types/{type}.png'.format(type = self.move.typing.lower())))
             self.type_img = pygame.transform.scale(self.type_img, (self.type_img.get_width()/1.5, self.type_img.get_height()/1.5))
+            self.kind_img = pygame.image.load(os.path.join('assets/sprites/moves/{kind}.png'.format(kind = self.move.physical.lower())))
+            self.kind_img = pygame.transform.scale(self.kind_img, (self.kind_img.get_width()/2, self.kind_img.get_height()/2))
 
         self.player = player
         self.enemy = enemy
@@ -88,6 +90,7 @@ class MoveButton:
 
         if self.move is not None:
             screen.blit(rendered_pp, (self.x+75, self.y+75))
+            screen.blit(self.kind_img, (self.x+10, self.y+71))
             screen.blit(self.type_img, (self.x+11, self.y+10))
 
         mouse = pygame.mouse.get_pos()

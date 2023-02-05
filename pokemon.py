@@ -71,11 +71,13 @@ class Pokemon:
         self.speed = self.max_speed
 
         # stats multiplier
-        self.atk_mult = 0
-        self.def_mult = 0
-        self.sp_atk_mult = 0
-        self.sp_def_mult = 0
-        self.speed_mult = 0
+        self.atk_mult = 1
+        self.def_mult = 1
+        self.sp_atk_mult = 1
+        self.sp_def_mult = 1
+        self.speed_mult = 1
+        self.accuracy = 1
+        self.evasion = 1
 
         # random move injection
         while True:
@@ -157,43 +159,44 @@ class Pokemon:
     def atk(self, move, enemy):
         if move.pp > 0:
             print(self.name, 'uses', move.name)
-            power = move.power                                                              # move base power
-            # same-type attack bonus      
-            if len(self.typing) == 2:     
-                # if attacker has two types                            
-                if move.typing == self.typing[0] or self.typing[1]:
-                    stab = 2         
-                else:
-                    stab = 1  
-            else:
-                # if attacker has only one type
-                if move.typing == self.typing:
-                    stab = 2   
-                else:
-                    stab = 1
-
-            a = self.attack                                                     # attacking pkmn atk stat if physical move, sp_atk stat otherwise
-            d = enemy.defense                                                   # target pkmn def stat if physical move, sp_def stat otherwise
-            type2 = 1
-            if len(enemy.typing) == 2:
-                type2 = pkmn_types.get_effectiveness(move.typing, enemy.typing[1])       # effectiveness vs enemy's type2
-            type1 = pkmn_types.get_effectiveness(move.typing, enemy.typing[0])             # effectiveness vs enemy's type1
-            
-            if type1 == 0 or type2 == 0:
-                crit = 0
-            else:
-                crit = self.calculate_crit_multiplier()                             # critical-hit multiplier
-                
-            rand_list = [random.randint(217, 255) for i in range(9)]
-            rand = 1
-            for r in rand_list:
-                rand *= r
-            rand = r/255
-
-            damage = int(((((2*self.level*crit)/5 + 2) * power) /50 + 2) * stab * type1 * type2 * rand)
-            print(damage)
 
             if move.physical is 'Physical' or move.physical is 'Special':
+                power = move.power                                                              # move base power
+                # same-type attack bonus      
+                if len(self.typing) == 2:     
+                    # if attacker has two types                            
+                    if move.typing == self.typing[0] or self.typing[1]:
+                        stab = 2         
+                    else:
+                        stab = 1  
+                else:
+                    # if attacker has only one type
+                    if move.typing == self.typing:
+                        stab = 2   
+                    else:
+                        stab = 1
+
+                a = self.attack                                                     # attacking pkmn atk stat if physical move, sp_atk stat otherwise
+                d = enemy.defense                                                   # target pkmn def stat if physical move, sp_def stat otherwise
+                type2 = 1
+                if len(enemy.typing) == 2:
+                    type2 = pkmn_types.get_effectiveness(move.typing, enemy.typing[1])       # effectiveness vs enemy's type2
+                type1 = pkmn_types.get_effectiveness(move.typing, enemy.typing[0])             # effectiveness vs enemy's type1
+                
+                if type1 == 0 or type2 == 0:
+                    crit = 0
+                else:
+                    crit = self.calculate_crit_multiplier()                             # critical-hit multiplier
+                    
+                rand_list = [random.randint(217, 255) for i in range(9)]
+                rand = 1
+                for r in rand_list:
+                    rand *= r
+                rand = r/255
+
+                damage = int(((((2*self.level*crit)/5 + 2) * power) /50 + 2) * stab * type1 * type2 * rand)
+                print(damage)
+
                 if self.temp_status != "CONF":
                     if enemy != self: 
                         enemy.hit(damage)
@@ -205,8 +208,52 @@ class Pokemon:
                         self.hit(damage)
             else:
                 print("Non damaging move")
+                self.handle_status_move(move, enemy)
 
             move.pp = move.pp - 1
 
         else:
             print('This move has any pp!\n')
+
+    def handle_status_move(self, move, enemy):
+        if move.name == 'Acid Armor':
+            self.def_mult += 1
+            print('{pkmn} defense higly increases!'.format(pkmn = self.name))
+        elif move.name == 'Agility':
+            self.speed_mult += 1
+            print('{pkmn} speed higly increases!'.format(pkmn = self.name))
+        elif move.name == 'Amnesia':
+            self.sp_atk_mult += 1
+            self.sp_def_mult += 1
+            print('{pkmn} special attack higly increases!'.format(pkmn = self.name))
+            print('{pkmn} special defense increases!'.format(pkmn = self.name))
+        elif move.name == 'Confuse Ray':
+            enemy.temp_status = 'CONF'
+            print('{pkmn} is now confused!'.format(pkmn = enemy.name))
+        elif move.name == 'Conversion':
+            self.typing = enemy.typing
+            print('{player_mon} assumes {enemy_mon} types!'.format(player_mon = self.name, enemy_mon = enemy.name))
+        elif move.name == 'Defense Curl':
+            self.def_mult += 0.5
+            print('{pkmn} defense increases!'.format(pkmn = self.name))
+        elif move.name == 'Disable':
+            pass
+        elif move.name == 'Double Team':
+            enemy.evasion -= 0.5
+            print('{pkmn} evasion decreases!'.format(pkmn = enemy.name))
+        elif move.name == 'Focus Energy':
+            pass
+        elif move.name == 'Flash':
+            enemy.accuracy -= 0.5
+            print('{pkmn} evasion decreases!'.format(pkmn = enemy.name))
+        elif move.name == 'Glare':
+            enemy.status = 'PAR'
+            print('{pkmn} is now paralized!'.format(pkmn = enemy.name))
+        elif move.name == 'Growl':
+            enemy.attack -= 0.5
+            print('{pkmn} attack decreases!'.format(pkmn = enemy.name))
+        elif move.name == 'Growth':
+            self.sp_atk += 0.5
+            self.sp_def += 0.5
+            print('{pkmn} special attack increases!'.format(pkmn = self.name))
+            print('{pkmn} special defense increases!'.format(pkmn = self.name))

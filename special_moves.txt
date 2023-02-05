@@ -1,0 +1,65 @@
+STATUS MOVES:
+Acid Armor: p_def++
+Agility: p_spe++
+Amnesia: p_sp.atk.++, p_sp.def.++
+Barrier: the enemy does not attack
+Confuse Ray: enemy is confused
+Conversion: the type of the player's pokemon becomes the type of the enemy's pokemon
+Defense Curl: p_def+
+Disable: disables last move used by the enemy
+Double team: e_evasion-
+Focus energy: p_crit_rate+
+Flash: e_accuracy-
+Glare: enemy is paralized
+Growl: e_atk-
+Growth: p_sp.atk.+, p_sp.def+
+Harden: p_def+
+Haze: resets everything
+Hypnosis: enemy sleeps
+Kinesis: e_accuracy-
+Leech Seed: plants seeds
+Light Screen: p_sp.atk*2, p_sp.def*2
+Lovely Kiss: enemy sleeps
+Meditate: p_atk+
+Metronome: random move
+Mimic: copies one of the enemy's moves
+Minimize: p_evasion+
+Mirror Move: player uses last enemy's move
+Mist: all status moves will fail
+Poison Gas: enemy is poisoned
+Poison Powder: enemy is poisoned
+Recover: player recovers 50% hp
+Reflect: p_def*2
+Rest: player sleeps and recovers all hp
+Roar: no effect
+Sand Attack: e_accuracy-
+Screech: e_def--
+Sharpen: p_atk+
+Sing: enemy sleeps
+Sleep Powder: enemy sleeps
+Smokescreen: e_accuracy-
+Soft-Boiled: player recovers 50% hp
+Splash: it does nothing
+Spore: enemy sleeps
+String Shot: e_spe-
+Stun Spore: enemy is paralized
+Substitute: player is replaced by a dummy, -50% hp
+Supersonic: enemy is confused
+Sword Dance: p_atk++
+Tail Whip: e_def-
+Teleport: no effect
+Thunder Wave: enemy is paralized
+Toxic: enemy is intoxicated
+Transform: player transforms in enemy, all its pp/2
+Whirlwind: no effect
+Withdraw: p_def+
+
+DOUBLE-TURN MOVES:
+Dig
+Fly
+Solar Beam
+
+NEED-TO-CHARGE NEXT TURN MOVES:
+Hyper Beam
+
+
