@@ -19,6 +19,7 @@ gold = (242, 219, 152)
 red = (255, 0, 0)
 gray = (46, 52, 64)
 
+# class that defines the textbox
 class TextBox:
     def __init__(self, x, y, text, player, enemy):
         self.x = x
@@ -54,8 +55,9 @@ class TextBox:
         pygame.draw.rect(screen, white, inner)
         self.blit_text(inner, text, (self.x+10, self.y+10))
     
-
-class Button:
+# identifies the move (of the pokemon in battle)
+# that the player can use to attack the enemy's one
+class MoveButton:
     def __init__(self, x, y, move: Move = None, player: Pokemon = None, enemy: Pokemon = None):
         self.x = x
         self.y = y
@@ -98,6 +100,37 @@ class Button:
         if pygame.mouse.get_pressed()[0] == 0:
             self.clicked = False
 
+# encloses the (max of) four moves of the pokemon in battle
+class MoveSelector:
+    def __init__(self, player: Trainer = None, enemy: Trainer = None):
+        self.player = player        
+        self.enemy = enemy
+
+        self.player_mon = self.player.in_battle
+        self.enemy_mon = self.enemy.in_battle
+
+        self.moves = [None] * 4
+
+        for i in range(len(self.moves)):
+            self.moves[i] = MoveButton(i*125, 500, self.player_mon.moves[i], self.player_mon, self.enemy_mon)
+
+    def draw(self):
+        for m in self.moves:
+            m.draw()
+
+    # updates moves selector when player's pokemon is changed
+    def update_player_mon(self, pkmn):
+        self.player_mon = pkmn
+
+        for i in range(len(self.moves)):
+            self.moves[i] = MoveButton(i*125, 500, self.player_mon.moves[i], self.player_mon, self.enemy_mon)
+
+    # updates player moves target when enemy's pokemon is changed
+    def update_enemy_mon(self):
+        self.enemy_mon = self.enemy.in_battle
+
+# button that identifies a pokemon in the player team
+# it can be used to change the pokemon in battle
 class TeamButton:
     def __init__(self, x, y, pkmn: Pokemon = None, player: Trainer = None):
         self.x = x
@@ -160,6 +193,13 @@ class TeamButton:
         if pygame.mouse.get_pressed()[0] == 0:
             self.clicked = False
 
+    # emits a signal if the button is pressed
+    # used to trigger the update of the gui
+    # when the pokemon is changed
+    def emit_signal(self):
+        return self.clicked
+
+# class containing six teambuttons
 class TeamSelector:
     def __init__(self, player: Trainer = None):
         self.font = pygame.font.Font('assets/font/RBYGSC.ttf', 14)
@@ -175,6 +215,12 @@ class TeamSelector:
     def draw(self):
         for p in self.pkmn:
             p.draw()
+
+    # emits a signal if any of the buttons emits a signal
+    def emit_signal(self):
+        for p in self.pkmn:
+            if p.emit_signal() is True:
+                return True
         
 class GameWindow:
     def __init__(self, player: Trainer = None, enemy: Trainer = None, sound=True):
@@ -217,11 +263,8 @@ class GameWindow:
             pygame.mixer.music.play(-1)
 
         self.textbox = TextBox(0, 380, 'Prova testo', self.player, self.enemy)
-        self.move1_btn = Button(0, 500, self.player_mon.moves[0], self.player_mon, self.enemy_mon)
-        self.move2_btn = Button(125, 500, self.player_mon.moves[1], self.player_mon, self.enemy_mon)
-        self.move3_btn = Button(250, 500, self.player_mon.moves[2], self.player_mon, self.enemy_mon)
-        self.move4_btn = Button(375, 500, self.player_mon.moves[3], self.player_mon, self.enemy_mon)
-
+     
+        self.move_selector = MoveSelector(self.player, self.enemy)
         self.team_selector = TeamSelector(self.player)
 
     def update_text(self):
@@ -244,19 +287,21 @@ class GameWindow:
         if len(self.player_mon.typing) == 2:
             self.player_mon_type2_img = pygame.image.load(os.path.join('assets/sprites/types/{type2}.png'.format(type2 = self.player_mon.typing[1].lower())))
             self.player_mon_type2_img = pygame.transform.scale(self.player_mon_type2_img, (mon_type_size, mon_type_size))
+        self.move_selector.update_player_mon(self.player_mon)
+
+    def update_textbox(self, text):
+        self.textbox.draw(text)
 
     def draw(self):
         self.update_text()
-        self.update_player_mon()            # have to update only if button is pressed
+        if self.team_selector.emit_signal():
+            self.update_player_mon()
         text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book."
         
         screen.fill(white)
         self.textbox.draw(text)
-        self.move1_btn.draw()
-        self.move2_btn.draw()
-        self.move3_btn.draw()
-        self.move4_btn.draw()
 
+        self.move_selector.draw()
         self.team_selector.draw()
         
         # ENEMY GUI

@@ -192,16 +192,21 @@ class Pokemon:
 
             damage = int(((((2*self.level*crit)/5 + 2) * power) /50 + 2) * stab * type1 * type2 * rand)
             print(damage)
-            
-            if self.temp_status != "CONF":
-                if enemy != self: 
-                    enemy.hit(damage)
-                    move.pp = move.pp - 1
+
+            if move.physical is 'Physical' or move.physical is 'Special':
+                if self.temp_status != "CONF":
+                    if enemy != self: 
+                        enemy.hit(damage)
+                else:
+                    # if attacking pkmn is confused, it can hit hitself
+                    prob = random.random()
+                    if prob <= 0.5: 
+                        print(self.name, 'is so confused to hit itself!')
+                        self.hit(damage)
             else:
-                # if attacking pkmn is confused, it can hit hitself
-                prob = random.random()
-                if prob <= 0.5: 
-                    print(self.name, 'is so confused to hit itself!')
-                    self.hit(damage)
+                print("Non damaging move")
+
+            move.pp = move.pp - 1
+
         else:
             print('This move has any pp!\n')

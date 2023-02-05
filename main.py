@@ -1,13 +1,19 @@
 from player import *
 import gui
 import time
+import sys
 
 player = Trainer()
 ai = Trainer()
 
 player.get_team()
 
-game_gui = gui.GameWindow(player, ai, False)
+args = sys.argv
+
+if len(args) > 1:
+    game_gui = gui.GameWindow(player, ai, True)
+else:
+    game_gui = gui.GameWindow(player, ai, False)
 
 while True:
     clock = gui.pygame.time.Clock()

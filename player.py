@@ -6,7 +6,7 @@ class Trainer:
     def __init__(self):
         self.team = [None, None, None, None, None, None]    # Trainer Pokemon team
 
-        self.token = True                                   # token used to assingnate actual turn
+        self.token = None                                   # token used to assingnate actual turn
 
         for i in range(len(self.team)):
             tmp = random.choice(list(pokedex_list.items()))[1]
