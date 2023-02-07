@@ -127,6 +127,15 @@ class Pokemon:
         print('Sp Atk:', self.sp_atk)
         print('Sp Def:', self.sp_def)
         print('Spe:', self.speed, '\n')
+    
+    def reset_stats_mult(self):
+        self.atk_mult = 1
+        self.def_mult = 1
+        self.sp_atk_mult = 1
+        self.sp_def_mult = 1
+        self.speed_mult = 1
+        self.accuracy = 1
+        self.evasion = 1
 
     def get_moves(self):
         for move in self.moves:
@@ -160,7 +169,7 @@ class Pokemon:
         if move.pp > 0:
             print(self.name, 'uses', move.name)
 
-            if move.physical is 'Physical' or move.physical is 'Special':
+            if move.physical == 'Physical' or move.physical == 'Special':
                 power = move.power                                                              # move base power
                 # same-type attack bonus      
                 if len(self.typing) == 2:     
@@ -227,7 +236,7 @@ class Pokemon:
             self.sp_def_mult += 1
             print('{pkmn} special attack higly increases!'.format(pkmn = self.name))
             print('{pkmn} special defense increases!'.format(pkmn = self.name))
-        elif move.name == 'Confuse Ray':
+        elif move.name == 'Confuse Ray' or move.name == 'Supersonic':
             enemy.temp_status = 'CONF'
             print('{pkmn} is now confused!'.format(pkmn = enemy.name))
         elif move.name == 'Conversion':
@@ -246,7 +255,7 @@ class Pokemon:
         elif move.name == 'Flash':
             enemy.accuracy -= 0.5
             print('{pkmn} evasion decreases!'.format(pkmn = enemy.name))
-        elif move.name == 'Glare':
+        elif move.name == 'Glare' or move.name == 'Stun Spore' or move.name == 'Thunder Wave':
             enemy.status = 'PAR'
             print('{pkmn} is now paralized!'.format(pkmn = enemy.name))
         elif move.name == 'Growl':
@@ -257,3 +266,92 @@ class Pokemon:
             self.sp_def += 0.5
             print('{pkmn} special attack increases!'.format(pkmn = self.name))
             print('{pkmn} special defense increases!'.format(pkmn = self.name))
+        elif move.name == 'Harden':
+            self.def_mult += 0.5
+            print('{pkmn} special defense increases!'.format(pkmn = self.name))
+        elif move.name == 'Haze':
+            self.reset_stats_mult()
+            enemy.reset_stats_mult()
+            print('All stats changes have been reset!')
+        elif move.name == 'Hypnosis' or move.name == 'Lovely Kiss' or move.name == 'Sing' or move.name == 'Spore' or move.name == 'Sleep Powder':
+            enemy.status = 'SLP'
+            print('{pkmn} is now sleeping!'.format(pkmn = enemy.name))
+        elif move.name == 'Kinesis':
+            enemy.accuracy -= 0.5
+            print('{pkmn} accuracy decreases!'.format(pkmn = enemy.name))
+        elif move.name == 'Leech Seed':
+            pass
+        elif move.name == 'Light Screen':
+            self.sp_atk *= 2
+            self.sp_def *= 2
+        elif move.name == 'Meditate' or move.name == 'Minimize':
+            self.evasion += 0.5
+            print('{pkmn} evasion increases!'.format(pkmn = self.name))
+        elif move.name == 'Metronome':
+            rand_move_tmp = random.choice(moves.attacks)
+            rand_move = Move(rand_move_tmp['name'], rand_move_tmp['type'], rand_move_tmp['power'], rand_move_tmp['pp'], rand_move_tmp['category'], rand_move_tmp['accuracy'])
+            self.atk(rand_move, enemy)
+        elif move.name == 'Mimic':
+            print('{player_mon} copies one of {enemy_mon}\'s moves!'.format(player_mon = self.name, enemy_mon = enemy.name))
+            for m in self.moves:
+                print(m.name)
+                if m.name == 'Mimic':
+                    m = random.choice(enemy.moves)
+                    break
+        elif move.name == 'Mirror Move':
+            pass
+        elif move.name == 'Mist':
+            pass
+        elif move.name == 'Poison Gas' or move.name == 'Poison Powder':
+            if enemy.typing[0] != 'Poison' and enemy.typing[1] != 'Poison':
+                enemy.status = 'PSN'
+            else: print('It has not effect on {pkmn}...'.format(pkmn = self.name))
+        elif move.name == 'Recover' or move.name == 'Soft Boiled':
+            if self.hp < self.max_hp:
+                self.hp += (0.5) * self.max_hp
+                if self.hp > self.max_hp: self.hp = self.max_hp
+                print('{pkmn} restores half of its hp!'.format(pkmn = self.name))
+            else:
+                print('{pkmn} already has all its hp!'.format(pkmn = self.name))
+        elif move.name == 'Reflect':
+            self.defense *= 2
+        elif move.name == 'Rest':
+            if self.hp < self.max_hp:
+                self.hp = self.max_hp
+                self.status = 'SLP'
+                print('{pkmn} fell asleep and recovers all its hp!'.format(pkmn = self.name))
+            else:
+                print('{pkmn} already has all its hp!'.format(pkmn = self.name))
+        elif move.name == 'Roar' or move.name == 'Splash' or move.name == 'Teleport' or move.name == 'Whirlwind':
+            print('It does nothing...')
+        elif move.name == 'Sand Attack':
+            enemy.accuracy -= 0.5
+            print('{pkmn} accuracy decreases!'.format(pkmn = enemy.name))
+        elif move.name == 'String Shot':
+            enemy.speed_mult -= 0.5
+            print('{pkmn} speed decreases!'.format(pkmn = enemy.name))
+        elif move.name == 'Substitute':
+            if self.hp >= (0.6 * self.max_hp):
+                self.hp -= 0.5 * self.max_hp
+                print('{pkmn} is replaced by a substitute doll!'.format(pkmn = self.name))
+        elif move.name == 'Sharpen':
+            self.atk_mult += 0.5
+            print('{pkmn} attack increases!'.format(pkmn = self.name))
+        elif move.name == 'Sword Dance':
+            self.atk_mult += 1
+            print('{pkmn} attack higly increases!'.format(pkmn = self.name))
+        elif move.name == 'Tail Whip' or move.name == 'Leer':
+            enemy.def_mult -= 0.5
+            print('{pkmn} defense decreases!'.format(pkmn = enemy.name))
+        elif move.name == 'Toxic':
+            enemy.status = 'TOX'
+            print('{pkmn} is intoxicated!'.format(pkmn = enemy.name))
+        elif move.name == 'Transorm':
+            print('{player_mon} transforms into {enemy_mon}!'.format(player_mon = self.name, enemy_mon = enemy.name))
+            self = enemy
+            
+            for m in self.moves:
+                m.pp = m.max_pp/2
+        elif move.name == 'Withdraw':
+            self.def_mult += 0.5
+            print('{pkmn} defense increases!'.format(pkmn = self.name))

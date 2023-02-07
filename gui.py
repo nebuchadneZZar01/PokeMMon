@@ -163,11 +163,13 @@ class TeamButton:
         pygame.draw.rect(screen, black, outer)
         pygame.draw.rect(screen, white, inner)
 
-        rendered_hp = self.font.render('{hp}/{max_hp}'.format(hp = self.pkmn.hp, max_hp = self.pkmn.max_hp), True, black)
+        rendered_hp = self.font.render('{hp}/{max_hp}'.format(hp = int(self.pkmn.hp), max_hp = self.pkmn.max_hp), True, black)
+        rendered_status = self.font.render(self.pkmn.status, True, black)
 
         screen.blit(self.pkmn_img, (self.x+10, self.y+10))
         screen.blit(self.rendered_name, (self.x+65, self.y+10))
         screen.blit(self.rendered_lv, (self.x+10, self.y+75))
+        screen.blit(rendered_status, (self.x+100, self.y+75))
         screen.blit(rendered_hp, (self.x+65, self.y+40))
 
         if len(self.pkmn.typing) == 2:
@@ -190,7 +192,10 @@ class TeamButton:
 
         if inner.collidepoint(mouse):
             if pygame.mouse.get_pressed()[0] == 1 and self.clicked == False:
-                self.player.in_battle = self.pkmn            
+                if self.pkmn.fainted != True:
+                    self.player.in_battle = self.pkmn         
+                else:
+                    print('You can\'t use a fainted Pokémon!')   
                 self.clicked = True
 
         if pygame.mouse.get_pressed()[0] == 0:
@@ -239,8 +244,10 @@ class GameWindow:
         self.player_mon_sprite = pygame.image.load(os.path.join('assets/sprites/back/{id}.png'.format(id = self.player_mon.id)))
         self.player_mon_sprite = pygame.transform.scale(self.player_mon_sprite, (mon_size, mon_size))
         self.hp_player = [self.player_mon.hp, self.player_mon.max_hp]
-        self.hp_player_text = self.font.render(str(self.hp_player[0]) + '/' + str(self.hp_player[1]), True, black)
+        self.hp_player_text = self.font.render(str(int(self.hp_player[0])) + '/' + str(self.hp_player[1]), True, black)
         self.lv_player_text = self.font.render(str(self.player_mon.level), True, black)
+        self.status_player_text = self.font.render(self.player_mon.status, True, black)
+        self.temp_status_player_text = self.font.render(self.player_mon.temp_status, True, black)
         self.player_mon_type1_img = pygame.image.load(os.path.join('assets/sprites/types/{type1}.png'.format(type1 = self.player_mon.typing[0].lower())))
         self.player_mon_type1_img = pygame.transform.scale(self.player_mon_type1_img, (mon_type_size, mon_type_size))
         if len(self.player_mon.typing) == 2:
@@ -253,8 +260,10 @@ class GameWindow:
         self.enemy_mon_sprite = pygame.image.load(os.path.join('assets/sprites/front/{id}.png').format(id = self.enemy_mon.id))
         self.enemy_mon_sprite = pygame.transform.scale(self.enemy_mon_sprite, (mon_size, mon_size))
         self.hp_enemy = [self.enemy_mon.hp, self.enemy_mon.max_hp]
-        self.hp_enemy_text = self.font.render(str(self.hp_enemy[0]) + '/' + str(self.hp_enemy[1]), True, black)
+        self.hp_enemy_text = self.font.render(str(int(self.hp_enemy[0])) + '/' + str(self.hp_enemy[1]), True, black)
         self.lv_enemy_text = self.font.render(str(self.enemy_mon.level), True, black)
+        self.status_enemy_text = self.font.render(self.enemy_mon.status, True, black)
+        self.temp_status_enemy_text = self.font.render(self.enemy_mon.temp_status, True, black)
         self.enemy_mon_type1_img = pygame.image.load(os.path.join('assets/sprites/types/{type1}.png'.format(type1 = self.enemy_mon.typing[0].lower())))
         self.enemy_mon_type1_img = pygame.transform.scale(self.enemy_mon_type1_img, (mon_type_size, mon_type_size))
         if len(self.enemy_mon.typing) == 2:
@@ -272,10 +281,14 @@ class GameWindow:
 
     def update_text(self):
         self.hp_player = [self.player_mon.hp, self.player_mon.max_hp]
-        self.hp_player_text = self.font.render(str(self.hp_player[0]) + '/' + str(self.hp_player[1]), True, black)
+        self.hp_player_text = self.font.render(str(int(self.hp_player[0])) + '/' + str(self.hp_player[1]), True, black)
+        self.status_player_text = self.font.render(self.player_mon.status, True, black)
+        self.temp_status_player_text = self.font.render(self.player_mon.temp_status, True, black)
 
         self.hp_enemy = [self.enemy_mon.hp, self.enemy_mon.max_hp]
-        self.hp_enemy_text = self.font.render(str(self.hp_enemy[0]) + '/' + str(self.hp_enemy[1]), True, black)
+        self.hp_enemy_text = self.font.render(str(int(self.hp_enemy[0])) + '/' + str(self.hp_enemy[1]), True, black)
+        self.status_enemy_text = self.font.render(self.enemy_mon.status, True, black)
+        self.temp_status_enemy_text = self.font.render(self.enemy_mon.temp_status, True, black)
 
     def update_player_mon(self):
         self.player_mon = self.player.in_battle
@@ -324,6 +337,10 @@ class GameWindow:
         pygame.draw.rect(screen, black, pygame.Rect(250, 35, 10, 15))
         screen.blit(self.hp_text, (47,36))
         screen.blit(self.hp_enemy_text, (45, 55))
+        if self.enemy_mon.status != None:
+            screen.blit(self.status_enemy_text, (155, 55))
+        if self.enemy_mon.temp_status != None:
+            screen.blit(self.temp_status_enemy_text, (205, 55))
 
         # enemy health bar
         perc_en = (self.hp_enemy[0]/self.hp_enemy[1])
@@ -365,6 +382,10 @@ class GameWindow:
         pygame.draw.rect(screen, black, pygame.Rect(255, 280, 225, 2))
         screen.blit(self.hp_text, (257,266))
         screen.blit(self.hp_player_text, (255, 285))
+        if self.player_mon.status != None:
+            screen.blit(self.status_player_text, (363, 285))
+        if self.player_mon.temp_status != None:
+            screen.blit(self.temp_status_player_text, (413, 285))
 
         # player health bar
         perc_pl = (self.hp_player[0]/self.hp_player[1])
