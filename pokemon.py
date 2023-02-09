@@ -78,6 +78,9 @@ class Pokemon:
         self.speed_mult = 0
         self.accuracy = 0
         self.evasion = 0
+
+        # defines if there is a substitute doll
+        self.substitute = False
         
         # message to gui
         self.msg = 'What do you want to do?'
@@ -281,8 +284,8 @@ class Pokemon:
                         else:
                             stab = 1
 
-                    a = self.attack                                                     # attacking pkmn atk stat if physical move, sp_atk stat otherwise
-                    d = enemy.defense                                                   # target pkmn def stat if physical move, sp_def stat otherwise
+                    a = self.attack if move.physical == 'Physical' else self.sp_atk                     # attacking pkmn atk stat if physical move, sp_atk stat otherwise
+                    d = enemy.defense if move.physical == 'Physical' else enemy.sp_def                  # target pkmn def stat if physical move, sp_def stat otherwise
                     type2 = 1
                     if len(enemy.typing) == 2:
                         type2, tmp = pkmn_types.get_effectiveness(move.typing, enemy.typing[1])       # effectiveness vs enemy's type2
@@ -301,7 +304,7 @@ class Pokemon:
                         rand *= r
                     rand = r/255
 
-                    damage = int(((((2*self.level*crit)/5 + 2) * power) /50 + 2) * stab * type1 * type2 * rand)
+                    damage = int(((((2*self.level*crit)/5 + 2) * power * (a/d)) /50 + 2) * stab * type1 * type2 * rand)
                     print(damage)
 
                     if self.temp_status != "CONF":
@@ -410,11 +413,11 @@ class Pokemon:
             if self.hp < self.max_hp:
                 self.hp = self.max_hp
                 self.status = 'SLP'
-                self.msg = '{pkmn} fell asleep and recovers all its hp!'.format(pkmn = self.name)
+                self.msg = '\n{pkmn} went to sleep and regained health!'.format(pkmn = self.name)
             else:
                 self.msg = '{pkmn} already has all its hp!'.format(pkmn = self.name)
         elif move.name == 'Roar' or move.name == 'Splash' or move.name == 'Teleport' or move.name == 'Whirlwind':
-            self.msg = 'It does nothing...'
+            self.msg += '\nBut nothing happened...'
         elif move.name == 'Screech':
             enemy.def_mult = self.inc_dec_stat_mult(enemy.def_mult, increase=False, enemy=enemy)
             enemy.defense = enemy.update_battle_stat(enemy.defense, enemy.def_mult)
@@ -422,8 +425,9 @@ class Pokemon:
             enemy.speed_mult = self.inc_dec_stat_mult(enemy.speed_mult, increase=False, enemy=enemy)
             enemy.speed = enemy.update_battle_stat(enemy.speed, enemy.speed_mult)
         elif move.name == 'Substitute':
-            if self.hp >= (0.6 * self.max_hp):
-                self.hp -= 0.5 * self.max_hp
+            if self.hp >= (0.3 * self.max_hp):
+                self.hp -= math.floor(0.25 * self.max_hp)
+                self.substitute = True
                 self.msg = '{pkmn} is replaced by a substitute doll!'.format(pkmn = self.name)
         elif move.name == 'Sharpen':
             self.atk_mult = self.inc_dec_stat_mult(self.atk_mult, increase=True)
