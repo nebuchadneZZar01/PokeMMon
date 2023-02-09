@@ -384,11 +384,12 @@ types_chart = {
 
 def get_effectiveness(attacking_type, defending_type):
     eff = types_chart[attacking_type.upper()][defending_type.upper()]
+    text = ''
     if eff == 0.5:
-        print('It\'s not very effective...')
+        text = '\nIt\'s not very effective...'
     elif eff == 2:
-        print('It\'s super effective!')
+        text = '\nIt\'s super effective!' 
     elif eff == 0:
-        print('It has no effect...')
+        text = '\nIt has no effect...'
 
-    return eff
+    return eff, text

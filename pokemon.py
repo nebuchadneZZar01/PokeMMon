@@ -71,13 +71,16 @@ class Pokemon:
         self.speed = self.max_speed
 
         # stats multiplier
-        self.atk_mult = 1
-        self.def_mult = 1
-        self.sp_atk_mult = 1
-        self.sp_def_mult = 1
-        self.speed_mult = 1
-        self.accuracy = 1
-        self.evasion = 1
+        self.atk_mult = 0
+        self.def_mult = 0
+        self.sp_atk_mult = 0
+        self.sp_def_mult = 0
+        self.speed_mult = 0
+        self.accuracy = 0
+        self.evasion = 0
+        
+        # message to gui
+        self.msg = 'What do you want to do?'
 
         # random move injection
         while True:
@@ -127,15 +130,101 @@ class Pokemon:
         print('Sp Atk:', self.sp_atk)
         print('Sp Def:', self.sp_def)
         print('Spe:', self.speed, '\n')
-    
+
+    def get_stats_mult(self):
+        print('Atk:', self.atk_mult)
+        print('Def:', self.def_mult)
+        print('Sp Atk:', self.sp_atk_mult)
+        print('Sp Def:', self.sp_def_mult)
+        print('Spe:', self.speed_mult)
+        print('Ev:', self.evasion)
+        print('Acc:', self.accuracy, '\n')
+
+    # increases or decreases (highly or normally) a generic stat multiplier
+    # highly defines whether the multiplier is updated by one or two stages
+    def inc_dec_stat_mult(self, multiplier, increase: bool, highly: bool = False, enemy = None):
+        if enemy != None:
+            if multiplier is enemy.atk_mult:
+                name = 'Attack'
+            elif multiplier is enemy.def_mult:
+                name = 'Defense'
+            elif multiplier is enemy.sp_atk_mult:
+                name = 'Special Attack'
+            elif multiplier is enemy.sp_def_mult:
+                name = 'Special Defense'
+            elif multiplier is enemy.speed_mult:
+                name = 'Speed'
+            elif multiplier is enemy.evasion:
+                name = 'Evasion'
+            elif multiplier is enemy.accuracy:
+                name = 'Accuracy'
+        else:
+            if multiplier is self.atk_mult:
+                name = 'Attack'
+            elif multiplier is self.def_mult:
+                name = 'Defense'
+            elif multiplier is self.sp_atk_mult:
+                name = 'Special Attack'
+            elif multiplier is self.sp_def_mult:
+                name = 'Special Defense'
+            elif multiplier is self.speed_mult:
+                name = 'Speed'
+            elif multiplier is self.evasion:
+                name = 'Evasion'
+            elif multiplier is self.accuracy:
+                name = 'Accuracy'
+        
+        if increase:
+            if multiplier >= 6:
+                self.msg += '\n{pkmn}\'s {stat_name} won\'t rise anymore!\n'.format(pkmn = self.name, stat_name = name)
+            else:
+                if highly:
+                    multiplier += 2
+                    self.msg += '\n{pkmn}\'s {stat_name} went way up!\n'.format(pkmn = self.name, stat_name = name)
+                else:
+                    multiplier += 1
+                    self.msg += '\n{pkmn}\'s {stat_name} went up!\n'.format(pkmn = self.name, stat_name = name)
+        else:
+            if multiplier <= -6:
+                self.msg += '\n{pkmn}\'s {stat_name} won\'t drop anumore!\n'.format(pkmn = enemy.name, stat_name = name)
+            else: 
+                if highly:
+                    multiplier -= 2
+                    self.msg += '\n{pkmn}\'s {stat_name} went way down!\n'.format(pkmn = enemy.name, stat_name = name)
+                else:
+                    multiplier -= 1
+                    self.msg += '\n{pkmn}\'s {stat_name} went down!\n'.format(pkmn = enemy.name, stat_name = name)
+        
+        return multiplier
+
+    # resets the multipliers
     def reset_stats_mult(self):
-        self.atk_mult = 1
-        self.def_mult = 1
-        self.sp_atk_mult = 1
-        self.sp_def_mult = 1
-        self.speed_mult = 1
-        self.accuracy = 1
-        self.evasion = 1
+        self.atk_mult = 0
+        self.def_mult = 0
+        self.sp_atk_mult = 0
+        self.sp_def_mult = 0
+        self.speed_mult = 0
+        self.accuracy = 0
+        self.evasion = 0
+
+    # updates in-battle stats using the updated multipliers
+    def update_battle_stat(self, stat, multiplier):
+        if multiplier >= 0:
+            stat *= ((multiplier*50)+100)/100
+        elif multiplier == -1:
+            stat *= 0.66
+        elif multiplier == -2:
+            stat *= 0.5
+        elif multiplier == -3:
+            stat *= 0.4
+        elif multiplier == -4:
+            stat *= 0.33
+        elif multiplier == -5:
+            stat *= 0.28
+        elif multiplier == -6:
+            stat *= 0.25
+
+        return stat
 
     def get_moves(self):
         for move in self.moves:
@@ -143,7 +232,6 @@ class Pokemon:
                 move.get_info()
                 print('\n')
             else: print('None\n')
-
 
     # calculates the critical multiplier taking a random number
     # if the random number is higher than a treshold, then critical
@@ -153,7 +241,7 @@ class Pokemon:
 
         rate = random.randint(0, 255)
         if (rate < treshold):
-            print('Critical hit!')
+            self.msg = 'Critical hit!'
             return 2
         else: 
             return 1
@@ -163,136 +251,139 @@ class Pokemon:
         if self.hp <= 0: 
             self.hp = 0
             self.fainted = True
-            print(self.name, 'fainted!')
+            self.msg = '{pkmn} fainted!'.format(pkmn = self.name)
 
     def atk(self, move, enemy):
         if move.pp > 0:
-            print(self.name, 'uses', move.name)
+            # T will determine whether the move will hit
+            T = move.accuracy * self.accuracy * enemy.evasion
 
-            if move.physical == 'Physical' or move.physical == 'Special':
-                power = move.power                                                              # move base power
-                # same-type attack bonus      
-                if len(self.typing) == 2:     
-                    # if attacker has two types                            
-                    if move.typing == self.typing[0] or self.typing[1]:
-                        stab = 2         
-                    else:
-                        stab = 1  
-                else:
-                    # if attacker has only one type
-                    if move.typing == self.typing:
-                        stab = 2   
-                    else:
-                        stab = 1
+            rand_t = random.randint(0, 255)
+            self.msg = '{pkmn} uses {mv}!'.format(pkmn = self.name, mv = move.name)
 
-                a = self.attack                                                     # attacking pkmn atk stat if physical move, sp_atk stat otherwise
-                d = enemy.defense                                                   # target pkmn def stat if physical move, sp_def stat otherwise
-                type2 = 1
-                if len(enemy.typing) == 2:
-                    type2 = pkmn_types.get_effectiveness(move.typing, enemy.typing[1])       # effectiveness vs enemy's type2
-                type1 = pkmn_types.get_effectiveness(move.typing, enemy.typing[0])             # effectiveness vs enemy's type1
-                
-                if type1 == 0 or type2 == 0:
-                    crit = 0
-                else:
-                    crit = self.calculate_crit_multiplier()                             # critical-hit multiplier
+            # the first condition removes a bug that affects gen I
+            # in fact, in gen I, if T == 255, the move will miss
+            # this resulted in bug where no move can be guaranteed to hit
+            if T == 255 or T < rand_t:
+                if move.physical == 'Physical' or move.physical == 'Special':
+                    power = move.power                                                              # move base power
+                    # same-type attack bonus      
+                    if len(self.typing) == 2:     
+                        # if attacker has two types                            
+                        if move.typing == self.typing[0] or self.typing[1]:
+                            stab = 2         
+                        else:
+                            stab = 1  
+                    else:
+                        # if attacker has only one type
+                        if move.typing == self.typing:
+                            stab = 2   
+                        else:
+                            stab = 1
+
+                    a = self.attack                                                     # attacking pkmn atk stat if physical move, sp_atk stat otherwise
+                    d = enemy.defense                                                   # target pkmn def stat if physical move, sp_def stat otherwise
+                    type2 = 1
+                    if len(enemy.typing) == 2:
+                        type2, tmp = pkmn_types.get_effectiveness(move.typing, enemy.typing[1])       # effectiveness vs enemy's type2
+                    type1, tmp = pkmn_types.get_effectiveness(move.typing, enemy.typing[0])             # effectiveness vs enemy's type1
                     
-                rand_list = [random.randint(217, 255) for i in range(9)]
-                rand = 1
-                for r in rand_list:
-                    rand *= r
-                rand = r/255
+                    self.msg += tmp
 
-                damage = int(((((2*self.level*crit)/5 + 2) * power) /50 + 2) * stab * type1 * type2 * rand)
-                print(damage)
+                    if type1 == 0 or type2 == 0:
+                        crit = 0
+                    else:
+                        crit = self.calculate_crit_multiplier()                             # critical-hit multiplier
+                        
+                    rand_list = [random.randint(217, 255) for i in range(9)]
+                    rand = 1
+                    for r in rand_list:
+                        rand *= r
+                    rand = r/255
 
-                if self.temp_status != "CONF":
-                    if enemy != self: 
-                        enemy.hit(damage)
+                    damage = int(((((2*self.level*crit)/5 + 2) * power) /50 + 2) * stab * type1 * type2 * rand)
+                    print(damage)
+
+                    if self.temp_status != "CONF":
+                        if enemy != self: 
+                            enemy.hit(damage)
+                    else:
+                        # if attacking pkmn is confused, it can hit hitself
+                        prob = random.random()
+                        if prob <= 0.5: 
+                            self.msg = '{pkmn} is so confused to hit itself!'.format(pkmn = self.name)
+                            self.hit(damage)
                 else:
-                    # if attacking pkmn is confused, it can hit hitself
-                    prob = random.random()
-                    if prob <= 0.5: 
-                        print(self.name, 'is so confused to hit itself!')
-                        self.hit(damage)
+                    print("Non damaging move")
+                    self.handle_status_move(move, enemy)
             else:
-                print("Non damaging move")
-                self.handle_status_move(move, enemy)
+                self.msg += '\nBut it failed...'
 
             move.pp = move.pp - 1
 
         else:
-            print('This move has any pp!\n')
+            self.msg = 'This move has any pp!\n'
 
     def handle_status_move(self, move, enemy):
         if move.name == 'Acid Armor':
-            self.def_mult += 1
-            print('{pkmn} defense higly increases!'.format(pkmn = self.name))
+            self.def_mult = self.inc_dec_stat_mult(self.def_mult, increase=True, highly=True)
+            self.defense = self.update_battle_stat(self.defense, self.def_mult)
         elif move.name == 'Agility':
-            self.speed_mult += 1
-            print('{pkmn} speed higly increases!'.format(pkmn = self.name))
+            self.speed_mult = self.inc_dec_stat_mult(self.speed_mult, increase=True, highly=True)
+            self.speed = self.update_battle_stat(self.speed, self.speed_mult)
         elif move.name == 'Amnesia':
-            self.sp_atk_mult += 1
-            self.sp_def_mult += 1
-            print('{pkmn} special attack higly increases!'.format(pkmn = self.name))
-            print('{pkmn} special defense increases!'.format(pkmn = self.name))
+            self.sp_atk_mult = self.inc_dec_stat_mult(self.sp_atk_mult, increase=True, highly=True)
+            self.sp_atk = self.update_battle_stat(self.sp_atk, self.sp_atk_mult)
+            self.sp_def_mult = self.inc_dec_stat_mult(self.sp_def_mult, increase=True, highly=True)
+            self.sp_def = self.update_battle_stat(self.sp_def, self.sp_def_mult)
         elif move.name == 'Confuse Ray' or move.name == 'Supersonic':
             enemy.temp_status = 'CONF'
-            print('{pkmn} is now confused!'.format(pkmn = enemy.name))
+            self.msg = '{pkmn} is now confused!'.format(pkmn = enemy.name)
         elif move.name == 'Conversion':
             self.typing = enemy.typing
-            print('{player_mon} assumes {enemy_mon} types!'.format(player_mon = self.name, enemy_mon = enemy.name))
-        elif move.name == 'Defense Curl':
-            self.def_mult += 0.5
-            print('{pkmn} defense increases!'.format(pkmn = self.name))
+            self.msg = '{player_mon} assumes {enemy_mon} types!'.format(player_mon = self.name, enemy_mon = enemy.name)
+        elif move.name == 'Defense Curl' or move.name == 'Harden' or move.name == 'Withdraw':
+            self.def_mult = self.inc_dec_stat_mult(self.def_mult, increase=True)
+            self.defense = self.update_battle_stat(self.defense, self.def_mult)
         elif move.name == 'Disable':
             pass
         elif move.name == 'Double Team':
-            enemy.evasion -= 0.5
-            print('{pkmn} evasion decreases!'.format(pkmn = enemy.name))
+            self.evasion = self.inc_dec_stat_mult(self.evasion, increase=True)
         elif move.name == 'Focus Energy':
             pass
-        elif move.name == 'Flash':
-            enemy.accuracy -= 0.5
-            print('{pkmn} evasion decreases!'.format(pkmn = enemy.name))
+        elif move.name == 'Flash' or move.name == 'Kinesis' or move.name == 'Sand Attack':
+            enemy.accuracy = self.inc_dec_stat_mult(enemy.accuracy, increase=False, enemy=enemy)
         elif move.name == 'Glare' or move.name == 'Stun Spore' or move.name == 'Thunder Wave':
             enemy.status = 'PAR'
-            print('{pkmn} is now paralized!'.format(pkmn = enemy.name))
+            self.msg = '{pkmn} is now paralized!'.format(pkmn = enemy.name)
         elif move.name == 'Growl':
-            enemy.attack -= 0.5
-            print('{pkmn} attack decreases!'.format(pkmn = enemy.name))
+            enemy.atk_mult = self.inc_dec_stat_mult(enemy.atk_mult, increase=False, enemy=enemy)
+            enemy.attack = enemy.update_battle_stat(enemy.attack, enemy.atk_mult)
         elif move.name == 'Growth':
-            self.sp_atk += 0.5
-            self.sp_def += 0.5
-            print('{pkmn} special attack increases!'.format(pkmn = self.name))
-            print('{pkmn} special defense increases!'.format(pkmn = self.name))
-        elif move.name == 'Harden':
-            self.def_mult += 0.5
-            print('{pkmn} special defense increases!'.format(pkmn = self.name))
+            self.sp_atk_mult = self.inc_dec_stat_mult(self.sp_atk_mult, increase=True)
+            self.sp_atk = self.update_battle_stat(self.sp_atk, self.sp_atk_mult)
+            self.sp_def_mult = self.inc_dec_stat_mult(self.sp_def_mult, increase=True)
+            self.sp_def = self.update_battle_stat(self.sp_def, self.sp_def_mult)
         elif move.name == 'Haze':
             self.reset_stats_mult()
             enemy.reset_stats_mult()
-            print('All stats changes have been reset!')
+            self.msg = 'All stats changes have been reset!'
         elif move.name == 'Hypnosis' or move.name == 'Lovely Kiss' or move.name == 'Sing' or move.name == 'Spore' or move.name == 'Sleep Powder':
             enemy.status = 'SLP'
-            print('{pkmn} is now sleeping!'.format(pkmn = enemy.name))
-        elif move.name == 'Kinesis':
-            enemy.accuracy -= 0.5
-            print('{pkmn} accuracy decreases!'.format(pkmn = enemy.name))
+            self.msg = '{pkmn} is now sleeping!'.format(pkmn = enemy.name)
         elif move.name == 'Leech Seed':
             pass
         elif move.name == 'Light Screen':
             self.sp_atk *= 2
             self.sp_def *= 2
         elif move.name == 'Meditate' or move.name == 'Minimize':
-            self.evasion += 0.5
-            print('{pkmn} evasion increases!'.format(pkmn = self.name))
+            self.evasion = self.inc_dec_stat_mult(self.evasion, increase=True)
         elif move.name == 'Metronome':
             rand_move_tmp = random.choice(moves.attacks)
             rand_move = Move(rand_move_tmp['name'], rand_move_tmp['type'], rand_move_tmp['power'], rand_move_tmp['pp'], rand_move_tmp['category'], rand_move_tmp['accuracy'])
             self.atk(rand_move, enemy)
         elif move.name == 'Mimic':
-            print('{player_mon} copies one of {enemy_mon}\'s moves!'.format(player_mon = self.name, enemy_mon = enemy.name))
+            self.msg = '{player_mon} copies one of {enemy_mon}\'s moves!'.format(player_mon = self.name, enemy_mon = enemy.name)
             for m in self.moves:
                 print(m.name)
                 if m.name == 'Mimic':
@@ -305,53 +396,54 @@ class Pokemon:
         elif move.name == 'Poison Gas' or move.name == 'Poison Powder':
             if enemy.typing[0] != 'Poison' and enemy.typing[1] != 'Poison':
                 enemy.status = 'PSN'
-            else: print('It has not effect on {pkmn}...'.format(pkmn = self.name))
+            else: self.msg = 'It has not effect on {pkmn}...'.format(pkmn = self.name)
         elif move.name == 'Recover' or move.name == 'Soft Boiled':
             if self.hp < self.max_hp:
                 self.hp += (0.5) * self.max_hp
                 if self.hp > self.max_hp: self.hp = self.max_hp
-                print('{pkmn} restores half of its hp!'.format(pkmn = self.name))
+                self.msg = '{pkmn} restores half of its hp!'.format(pkmn = self.name)
             else:
-                print('{pkmn} already has all its hp!'.format(pkmn = self.name))
+                self.msg = '{pkmn} already has all its hp!'.format(pkmn = self.name)
         elif move.name == 'Reflect':
             self.defense *= 2
         elif move.name == 'Rest':
             if self.hp < self.max_hp:
                 self.hp = self.max_hp
                 self.status = 'SLP'
-                print('{pkmn} fell asleep and recovers all its hp!'.format(pkmn = self.name))
+                self.msg = '{pkmn} fell asleep and recovers all its hp!'.format(pkmn = self.name)
             else:
-                print('{pkmn} already has all its hp!'.format(pkmn = self.name))
+                self.msg = '{pkmn} already has all its hp!'.format(pkmn = self.name)
         elif move.name == 'Roar' or move.name == 'Splash' or move.name == 'Teleport' or move.name == 'Whirlwind':
-            print('It does nothing...')
-        elif move.name == 'Sand Attack':
-            enemy.accuracy -= 0.5
-            print('{pkmn} accuracy decreases!'.format(pkmn = enemy.name))
+            self.msg = 'It does nothing...'
+        elif move.name == 'Screech':
+            enemy.def_mult = self.inc_dec_stat_mult(enemy.def_mult, increase=False, enemy=enemy)
+            enemy.defense = enemy.update_battle_stat(enemy.defense, enemy.def_mult)
         elif move.name == 'String Shot':
-            enemy.speed_mult -= 0.5
-            print('{pkmn} speed decreases!'.format(pkmn = enemy.name))
+            enemy.speed_mult = self.inc_dec_stat_mult(enemy.speed_mult, increase=False, enemy=enemy)
+            enemy.speed = enemy.update_battle_stat(enemy.speed, enemy.speed_mult)
         elif move.name == 'Substitute':
             if self.hp >= (0.6 * self.max_hp):
                 self.hp -= 0.5 * self.max_hp
-                print('{pkmn} is replaced by a substitute doll!'.format(pkmn = self.name))
+                self.msg = '{pkmn} is replaced by a substitute doll!'.format(pkmn = self.name)
         elif move.name == 'Sharpen':
-            self.atk_mult += 0.5
-            print('{pkmn} attack increases!'.format(pkmn = self.name))
-        elif move.name == 'Sword Dance':
-            self.atk_mult += 1
-            print('{pkmn} attack higly increases!'.format(pkmn = self.name))
+            self.atk_mult = self.inc_dec_stat_mult(self.atk_mult, increase=True)
+            self.attack = self.update_battle_stat(self.attack, self.atk_mult)
+        elif move.name == 'Swords Dance':
+            self.atk_mult = self.inc_dec_stat_mult(self.atk_mult, increase=True, highly=True)
+            self.attack = self.update_battle_stat(self.attack, self.atk_mult)
         elif move.name == 'Tail Whip' or move.name == 'Leer':
-            enemy.def_mult -= 0.5
-            print('{pkmn} defense decreases!'.format(pkmn = enemy.name))
+            enemy.def_mult = self.inc_dec_stat_mult(enemy.def_mult, increase=False, enemy=enemy)
+            enemy.defense = enemy.update_battle_stat(enemy.defense, enemy.def_mult)
         elif move.name == 'Toxic':
             enemy.status = 'TOX'
-            print('{pkmn} is intoxicated!'.format(pkmn = enemy.name))
+            self.msg = '{pkmn} is intoxicated!'.format(pkmn = enemy.name)
         elif move.name == 'Transorm':
-            print('{player_mon} transforms into {enemy_mon}!'.format(player_mon = self.name, enemy_mon = enemy.name))
+            self.msg = '{player_mon} transforms into {enemy_mon}!'.format(player_mon = self.name, enemy_mon = enemy.name)
             self = enemy
             
             for m in self.moves:
                 m.pp = m.max_pp/2
-        elif move.name == 'Withdraw':
-            self.def_mult += 0.5
-            print('{pkmn} defense increases!'.format(pkmn = self.name))
+
+    def handle_special_physical_move(self, move):
+        if move.name == 'Explosion':
+            self.hp = 0

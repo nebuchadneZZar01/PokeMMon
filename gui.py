@@ -21,12 +21,12 @@ gray = (46, 52, 64)
 
 # class that defines the textbox
 class TextBox:
-    def __init__(self, x, y, text, player, enemy):
+    def __init__(self, x, y, text):
         self.x = x
         self.y = y
         self.clicked = False
         self.text = text
-        self.font = pygame.font.Font('assets/font/RBYGSC.ttf', 14)
+        self.font = pygame.font.Font('assets/font/RBYGSC.ttf', 20)
 
     def blit_text(self, box, text, pos):
         words = [word.split(' ') for word in text.splitlines()]
@@ -232,8 +232,6 @@ class TeamSelector:
         
 class GameWindow:
     def __init__(self, player: Trainer = None, enemy: Trainer = None, sound=True):
-        pygame.init()
-        
         self.font = pygame.font.Font('assets/font/RBYGSC.ttf', 14)
         self.hp_text = self.font.render('HP :', True, gold)
         self.lv_text = self.font.render('L. :', True, black)
@@ -274,7 +272,7 @@ class GameWindow:
         if sound == True:
             pygame.mixer.music.play(-1)
 
-        self.textbox = TextBox(0, 380, 'Prova testo', self.player, self.enemy)
+        self.textbox = TextBox(0, 380, 'Prova testo')
      
         self.move_selector = MoveSelector(self.player, self.enemy)
         self.team_selector = TeamSelector(self.player)
@@ -312,10 +310,9 @@ class GameWindow:
         self.update_text()
         if self.team_selector.emit_signal():
             self.update_player_mon()
-        text = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book."
         
         screen.fill(white)
-        self.textbox.draw(text)
+        self.textbox.draw(self.player_mon.msg)
 
         self.move_selector.draw()
         self.team_selector.draw()
