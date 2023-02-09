@@ -69,6 +69,8 @@ class Pokemon:
         self.sp_atk = self.max_sp_atk
         self.sp_def = self.max_sp_def
         self.speed = self.max_speed
+        self.accuracy = 1
+        self.evasion = 1
 
         # stats multiplier
         self.atk_mult = 0
@@ -76,8 +78,8 @@ class Pokemon:
         self.sp_atk_mult = 0
         self.sp_def_mult = 0
         self.speed_mult = 0
-        self.accuracy = 0
-        self.evasion = 0
+        self.acc_mult = 0
+        self.ev_mult = 0
 
         # defines if there is a substitute doll
         self.substitute = False
@@ -140,8 +142,8 @@ class Pokemon:
         print('Sp Atk:', self.sp_atk_mult)
         print('Sp Def:', self.sp_def_mult)
         print('Spe:', self.speed_mult)
-        print('Ev:', self.evasion)
-        print('Acc:', self.accuracy, '\n')
+        print('Ev:', self.ev_mult)
+        print('Acc:', self.acc_mult, '\n')
 
     # increases or decreases (highly or normally) a generic stat multiplier
     # highly defines whether the multiplier is updated by one or two stages
@@ -157,9 +159,9 @@ class Pokemon:
                 name = 'Special Defense'
             elif multiplier is enemy.speed_mult:
                 name = 'Speed'
-            elif multiplier is enemy.evasion:
+            elif multiplier is enemy.ev_mult:
                 name = 'Evasion'
-            elif multiplier is enemy.accuracy:
+            elif multiplier is enemy.acc_mult:
                 name = 'Accuracy'
         else:
             if multiplier is self.atk_mult:
@@ -172,9 +174,9 @@ class Pokemon:
                 name = 'Special Defense'
             elif multiplier is self.speed_mult:
                 name = 'Speed'
-            elif multiplier is self.evasion:
+            elif multiplier is self.ev_mult:
                 name = 'Evasion'
-            elif multiplier is self.accuracy:
+            elif multiplier is self.acc_mult:
                 name = 'Accuracy'
         
         if increase:
@@ -207,8 +209,8 @@ class Pokemon:
         self.sp_atk_mult = 0
         self.sp_def_mult = 0
         self.speed_mult = 0
-        self.accuracy = 0
-        self.evasion = 0
+        self.ev_mult = 0
+        self.acc_mult = 0
 
     # updates in-battle stats using the updated multipliers
     def update_battle_stat(self, stat, multiplier):
@@ -351,11 +353,13 @@ class Pokemon:
         elif move.name == 'Disable':
             pass
         elif move.name == 'Double Team':
-            self.evasion = self.inc_dec_stat_mult(self.evasion, increase=True)
+            self.ev_mult = self.inc_dec_stat_mult(self.ev_mult, increase=True)
+            self.evasion = self.update_battle_stat(self.evasion, self.ev_mult)
         elif move.name == 'Focus Energy':
             pass
         elif move.name == 'Flash' or move.name == 'Kinesis' or move.name == 'Sand Attack':
-            enemy.accuracy = self.inc_dec_stat_mult(enemy.accuracy, increase=False, enemy=enemy)
+            enemy.acc_mult = self.inc_dec_stat_mult(enemy.acc_mult, increase=False, enemy=enemy)
+            enemy.accuracy = self.update_battle_stat(enemy.accuracy, enemy.acc_mult)
         elif move.name == 'Glare' or move.name == 'Stun Spore' or move.name == 'Thunder Wave':
             enemy.status = 'PAR'
             self.msg = '{pkmn} is now paralized!'.format(pkmn = enemy.name)
@@ -380,7 +384,8 @@ class Pokemon:
             self.sp_atk *= 2
             self.sp_def *= 2
         elif move.name == 'Meditate' or move.name == 'Minimize':
-            self.evasion = self.inc_dec_stat_mult(self.evasion, increase=True)
+            self.ev_mult = self.inc_dec_stat_mult(self.ev_mult, increase=True)
+            self.evasion = self.update_battle_stat(self.evasion, self.ev_mult)
         elif move.name == 'Metronome':
             rand_move_tmp = random.choice(moves.attacks)
             rand_move = Move(rand_move_tmp['name'], rand_move_tmp['type'], rand_move_tmp['power'], rand_move_tmp['pp'], rand_move_tmp['category'], rand_move_tmp['accuracy'])
