@@ -33,21 +33,3 @@ class TurnBattleSystem:
 
     def get_ai(self):
         return self.ai
-
-# bs = TurnBattleSystem()
-# bs.get_turn()
-# bs.switch_turn()
-# bs.get_turn()
-# bs.switch_turn()
-# bs.get_turn()
-# bs.switch_turn()
-# bs.get_turn()
-# bs.switch_turn()
-# bs.get_turn()
-# bs.switch_turn()
-# bs.get_turn()
-# print(bs.turn_count)
-
-
-
-

@@ -22,9 +22,7 @@ class Trainer:
             pkmn.get_moves()
 
     def is_turn(self):
-        return token
+        return self.token
 
     def set_turn(self, _token):
         self.token = token
-
-        

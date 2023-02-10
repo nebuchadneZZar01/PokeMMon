@@ -1,4 +1,5 @@
 import pygame, os
+from battle_system import TurnBattleSystem
 from player import *
 
 width = 700
@@ -58,7 +59,7 @@ class TextBox:
 # identifies the move (of the pokemon in battle)
 # that the player can use to attack the enemy's one
 class MoveButton:
-    def __init__(self, x, y, move: Move = None, player: Pokemon = None, enemy: Pokemon = None):
+    def __init__(self, x, y, move: Move = None, bs: TurnBattleSystem = None):
         self.x = x
         self.y = y
         self.clicked = False
@@ -74,8 +75,12 @@ class MoveButton:
             self.kind_img = pygame.image.load(os.path.join('assets/sprites/moves/{kind}.png'.format(kind = self.move.physical.lower())))
             self.kind_img = pygame.transform.scale(self.kind_img, (self.kind_img.get_width()/2, self.kind_img.get_height()/2))
 
-        self.player = player
-        self.enemy = enemy
+        self.bs = bs
+        self.player = self.bs.get_player()
+        self.enemy = self.bs.get_ai()
+
+        self.player_mon = self.player.in_battle
+        self.enemy_mon = self.enemy.in_battle
 
     def draw(self):
         if self.move is not None:
@@ -97,7 +102,11 @@ class MoveButton:
 
         if inner.collidepoint(mouse):
             if pygame.mouse.get_pressed()[0] == 1 and self.clicked == False:
-                self.player.atk(self.move, self.enemy)
+                if self.player.is_turn():
+                    self.player_mon.try_atk_status(self.move, self.enemy_mon)
+                    self.bs.switch_turn()
+                else:
+                    print('other turn')
                 self.clicked = True
 
         if pygame.mouse.get_pressed()[0] == 0:
@@ -105,17 +114,16 @@ class MoveButton:
 
 # encloses the (max of) four moves of the pokemon in battle
 class MoveSelector:
-    def __init__(self, player: Trainer = None, enemy: Trainer = None):
-        self.player = player        
-        self.enemy = enemy
+    def __init__(self, bs: TurnBattleSystem = None):
+        self.bs = bs
+        self.player = self.bs.get_player()        
 
         self.player_mon = self.player.in_battle
-        self.enemy_mon = self.enemy.in_battle
 
         self.moves = [None] * 4
 
         for i in range(len(self.moves)):
-            self.moves[i] = MoveButton(i*125, 500, self.player_mon.moves[i], self.player_mon, self.enemy_mon)
+            self.moves[i] = MoveButton(i*125, 500, self.player_mon.moves[i], self.bs)
 
     def draw(self):
         for m in self.moves:
@@ -126,7 +134,7 @@ class MoveSelector:
         self.player_mon = pkmn
 
         for i in range(len(self.moves)):
-            self.moves[i] = MoveButton(i*125, 500, self.player_mon.moves[i], self.player_mon, self.enemy_mon)
+            self.moves[i] = MoveButton(i*125, 500, self.player_mon.moves[i], self.bs)
 
     # updates player moves target when enemy's pokemon is changed
     def update_enemy_mon(self):
@@ -231,12 +239,14 @@ class TeamSelector:
                 return True
         
 class GameWindow:
-    def __init__(self, player: Trainer = None, enemy: Trainer = None, sound=True):
+    def __init__(self, bs: TurnBattleSystem = None, sound=True):
         self.font = pygame.font.Font('assets/font/RBYGSC.ttf', 14)
         self.hp_text = self.font.render('HP :', True, gold)
         self.lv_text = self.font.render('L. :', True, black)
 
-        self.player = player
+        self.bs = bs
+
+        self.player = self.bs.get_player()
         self.player_mon = self.player.in_battle
         self.player_mon_name = self.font.render(self.player_mon.name, True, black)
         self.player_mon_sprite = pygame.image.load(os.path.join('assets/sprites/back/{id}.png'.format(id = self.player_mon.id)))
@@ -252,7 +262,7 @@ class GameWindow:
             self.player_mon_type2_img = pygame.image.load(os.path.join('assets/sprites/types/{type2}.png'.format(type2 = self.player_mon.typing[1].lower())))
             self.player_mon_type2_img = pygame.transform.scale(self.player_mon_type2_img, (mon_type_size, mon_type_size))
 
-        self.enemy = enemy
+        self.enemy = self.bs.get_ai()
         self.enemy_mon = self.enemy.in_battle
         self.enemy_mon_name = self.font.render(self.enemy_mon.name, True, black)
         self.enemy_mon_sprite = pygame.image.load(os.path.join('assets/sprites/front/{id}.png').format(id = self.enemy_mon.id))
@@ -274,7 +284,7 @@ class GameWindow:
 
         self.textbox = TextBox(0, 380, 'Prova testo')
      
-        self.move_selector = MoveSelector(self.player, self.enemy)
+        self.move_selector = MoveSelector(self.bs)
         self.team_selector = TeamSelector(self.player)
 
     def update_text(self):

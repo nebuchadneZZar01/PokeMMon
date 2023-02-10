@@ -41,7 +41,7 @@ class Pokemon:
         self.typing = typing
         self.moves = [None, None, None, None]
 
-        self.status = None
+        self.status = None                  
         self.temp_status = None
         self.in_battle = True
         self.fainted = False
@@ -83,9 +83,12 @@ class Pokemon:
 
         # defines if there is a substitute doll
         self.substitute = False
+
+        # defines how many turn pkmn is sleeping
+        self.sleeping_turns = 0
         
         # message to gui
-        self.msg = 'What do you want to do?'
+        self.msg = 'What will {pkmn} do?'.format(pkmn = self.name)
 
         # random move injection
         while True:
@@ -258,20 +261,48 @@ class Pokemon:
             self.fainted = True
             self.msg = '{pkmn} fainted!'.format(pkmn = self.name)
 
+    # attack function that handles the status modifier
+    def try_atk_status(self, move, enemy):
+        if self.status != None:
+            if self.status == 'PAR':
+                # probability to attack if paralyzed
+                p = random.random()
+                if p <= 0.25:
+                    self.atk(move, enemy)
+                else:
+                    self.msg = '{pkmn} is paralyzed and can\'t move!'.format(pkmn = self.name)
+            elif self.status == 'SLP':
+                if self.sleeping_turns < 7:
+                    # probability to wake up if sleeping
+                    p = random.random()
+                    if p <= 0.33:
+                        self.status = None
+                        self.msg = '{pkmn} woke up!'.format(pkmn = self.name)
+                        self.atk(move, enemy)
+                    else:
+                        self.sleeping_turns += 1
+                        self.msg = '{pkmn} is sleeping...'.format(pkmn = self.name)
+                else:
+                    self.status = None
+                    self.msg = '{pkmn} woke up!'.format(pkmn = self.name)
+                    self.atk(move, enemy)
+        else:
+            self.atk(move, enemy)
+
     def atk(self, move, enemy):
         if move.pp > 0:
             # T will determine whether the move will hit
             T = move.accuracy * self.accuracy * enemy.evasion
 
             rand_t = random.randint(0, 255)
-            self.msg = '{pkmn} uses {mv}!'.format(pkmn = self.name, mv = move.name)
+            self.msg = '{pkmn} used {mv}!'.format(pkmn = self.name, mv = move.name)
 
             # the first condition removes a bug that affects gen I
             # in fact, in gen I, if T == 255, the move will miss
             # this resulted in bug where no move can be guaranteed to hit
             if T == 255 or T < rand_t:
                 if move.physical == 'Physical' or move.physical == 'Special':
-                    power = move.power                                                              # move base power
+                    power = move.power                                                                  # move base power
                     # same-type attack bonus      
                     if len(self.typing) == 2:     
                         # if attacker has two types                            
@@ -290,7 +321,7 @@ class Pokemon:
                     d = enemy.defense if move.physical == 'Physical' else enemy.sp_def                  # target pkmn def stat if physical move, sp_def stat otherwise
                     type2 = 1
                     if len(enemy.typing) == 2:
-                        type2, tmp = pkmn_types.get_effectiveness(move.typing, enemy.typing[1])       # effectiveness vs enemy's type2
+                        type2, tmp = pkmn_types.get_effectiveness(move.typing, enemy.typing[1])         # effectiveness vs enemy's type2
                     type1, tmp = pkmn_types.get_effectiveness(move.typing, enemy.typing[0])             # effectiveness vs enemy's type1
                     
                     self.msg += tmp
@@ -298,7 +329,7 @@ class Pokemon:
                     if type1 == 0 or type2 == 0:
                         crit = 0
                     else:
-                        crit = self.calculate_crit_multiplier()                             # critical-hit multiplier
+                        crit = self.calculate_crit_multiplier()                                         # critical-hit multiplier
                         
                     rand_list = [random.randint(217, 255) for i in range(9)]
                     rand = 1
@@ -312,6 +343,7 @@ class Pokemon:
                     if self.temp_status != "CONF":
                         if enemy != self: 
                             enemy.hit(damage)
+                            self.handle_special_physical_move(move)
                     else:
                         # if attacking pkmn is confused, it can hit hitself
                         prob = random.random()
@@ -343,10 +375,10 @@ class Pokemon:
             self.sp_def = self.update_battle_stat(self.sp_def, self.sp_def_mult)
         elif move.name == 'Confuse Ray' or move.name == 'Supersonic':
             enemy.temp_status = 'CONF'
-            self.msg = '{pkmn} is now confused!'.format(pkmn = enemy.name)
+            self.msg += '\n{pkmn} is now confused!'.format(pkmn = enemy.name)
         elif move.name == 'Conversion':
             self.typing = enemy.typing
-            self.msg = '{player_mon} assumes {enemy_mon} types!'.format(player_mon = self.name, enemy_mon = enemy.name)
+            self.msg += '\n{player_mon} assumes {enemy_mon} types!'.format(player_mon = self.name, enemy_mon = enemy.name)
         elif move.name == 'Defense Curl' or move.name == 'Harden' or move.name == 'Withdraw':
             self.def_mult = self.inc_dec_stat_mult(self.def_mult, increase=True)
             self.defense = self.update_battle_stat(self.defense, self.def_mult)
@@ -362,7 +394,8 @@ class Pokemon:
             enemy.accuracy = self.update_battle_stat(enemy.accuracy, enemy.acc_mult)
         elif move.name == 'Glare' or move.name == 'Stun Spore' or move.name == 'Thunder Wave':
             enemy.status = 'PAR'
-            self.msg = '{pkmn} is now paralized!'.format(pkmn = enemy.name)
+            enemy.speed -= (0.75 * enemy.speed)
+            self.msg += '\n{pkmn} is now paralized!'.format(pkmn = enemy.name)
         elif move.name == 'Growl':
             enemy.atk_mult = self.inc_dec_stat_mult(enemy.atk_mult, increase=False, enemy=enemy)
             enemy.attack = enemy.update_battle_stat(enemy.attack, enemy.atk_mult)
@@ -374,10 +407,10 @@ class Pokemon:
         elif move.name == 'Haze':
             self.reset_stats_mult()
             enemy.reset_stats_mult()
-            self.msg = 'All stats changes have been reset!'
+            self.msg += '\nAll stats changes have been reset!'
         elif move.name == 'Hypnosis' or move.name == 'Lovely Kiss' or move.name == 'Sing' or move.name == 'Spore' or move.name == 'Sleep Powder':
             enemy.status = 'SLP'
-            self.msg = '{pkmn} is now sleeping!'.format(pkmn = enemy.name)
+            self.msg += '\n{pkmn} is now sleeping!'.format(pkmn = enemy.name)
         elif move.name == 'Leech Seed':
             pass
         elif move.name == 'Light Screen':
@@ -391,7 +424,7 @@ class Pokemon:
             rand_move = Move(rand_move_tmp['name'], rand_move_tmp['type'], rand_move_tmp['power'], rand_move_tmp['pp'], rand_move_tmp['category'], rand_move_tmp['accuracy'])
             self.atk(rand_move, enemy)
         elif move.name == 'Mimic':
-            self.msg = '{player_mon} copies one of {enemy_mon}\'s moves!'.format(player_mon = self.name, enemy_mon = enemy.name)
+            self.msg += '\n{player_mon} copies one of {enemy_mon}\'s moves!'.format(player_mon = self.name, enemy_mon = enemy.name)
             for m in self.moves:
                 print(m.name)
                 if m.name == 'Mimic':
@@ -404,23 +437,23 @@ class Pokemon:
         elif move.name == 'Poison Gas' or move.name == 'Poison Powder':
             if enemy.typing[0] != 'Poison' and enemy.typing[1] != 'Poison':
                 enemy.status = 'PSN'
-            else: self.msg = 'It has not effect on {pkmn}...'.format(pkmn = self.name)
+            else: self.msg = '\nIt has not effect on {pkmn}...'.format(pkmn = enemy.name)
         elif move.name == 'Recover' or move.name == 'Soft Boiled':
             if self.hp < self.max_hp:
                 self.hp += (0.5) * self.max_hp
                 if self.hp > self.max_hp: self.hp = self.max_hp
-                self.msg = '{pkmn} restores half of its hp!'.format(pkmn = self.name)
+                self.msg = '\n{pkmn} restores half of its hp!'.format(pkmn = self.name)
             else:
-                self.msg = '{pkmn} already has all its hp!'.format(pkmn = self.name)
+                self.msg = '\nBut {pkmn} already has all its hp!'.format(pkmn = self.name)
         elif move.name == 'Reflect':
             self.defense *= 2
         elif move.name == 'Rest':
             if self.hp < self.max_hp:
                 self.hp = self.max_hp
                 self.status = 'SLP'
-                self.msg = '\n{pkmn} went to sleep and regained health!'.format(pkmn = self.name)
+                self.msg += '\n{pkmn} went to sleep and regained health!'.format(pkmn = self.name)
             else:
-                self.msg = '{pkmn} already has all its hp!'.format(pkmn = self.name)
+                self.msg += '\nBut {pkmn} already has all its hp!'.format(pkmn = self.name)
         elif move.name == 'Roar' or move.name == 'Splash' or move.name == 'Teleport' or move.name == 'Whirlwind':
             self.msg += '\nBut nothing happened...'
         elif move.name == 'Screech':
@@ -433,7 +466,7 @@ class Pokemon:
             if self.hp >= (0.3 * self.max_hp):
                 self.hp -= math.floor(0.25 * self.max_hp)
                 self.substitute = True
-                self.msg = '{pkmn} is replaced by a substitute doll!'.format(pkmn = self.name)
+                self.msg += '\n{pkmn} is replaced by a substitute doll!'.format(pkmn = self.name)
         elif move.name == 'Sharpen':
             self.atk_mult = self.inc_dec_stat_mult(self.atk_mult, increase=True)
             self.attack = self.update_battle_stat(self.attack, self.atk_mult)
@@ -445,14 +478,16 @@ class Pokemon:
             enemy.defense = enemy.update_battle_stat(enemy.defense, enemy.def_mult)
         elif move.name == 'Toxic':
             enemy.status = 'TOX'
-            self.msg = '{pkmn} is intoxicated!'.format(pkmn = enemy.name)
+            self.msg = '\n{pkmn} is intoxicated!'.format(pkmn = enemy.name)
         elif move.name == 'Transorm':
-            self.msg = '{player_mon} transforms into {enemy_mon}!'.format(player_mon = self.name, enemy_mon = enemy.name)
+            self.msg = '\n{player_mon} transforms into {enemy_mon}!'.format(player_mon = self.name, enemy_mon = enemy.name)
             self = enemy
             
             for m in self.moves:
                 m.pp = m.max_pp/2
 
     def handle_special_physical_move(self, move):
+        # Physical moves
         if move.name == 'Explosion':
-            self.hp = 0
+            self.hp -= self.max_hp
+            self.fainted = True
