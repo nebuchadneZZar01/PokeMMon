@@ -1,3 +1,5 @@
+import time
+
 class TurnBattleSystem:
     def __init__(self, player, ai):
         self.player = player
@@ -33,3 +35,12 @@ class TurnBattleSystem:
 
     def get_ai(self):
         return self.ai
+
+    def handle_turns(self):
+        if self.player.is_turn():
+            pass
+        else:
+            self.player_mon = self.player.in_battle
+            self.ai.get_choice(self.player_mon)
+            self.switch_turn()
+            

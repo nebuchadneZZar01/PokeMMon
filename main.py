@@ -2,10 +2,10 @@ import battle_system
 import gui
 import time
 import sys
-from player import Trainer
+from player import *
 
 player = Trainer()
-ai = Trainer()
+ai = RandomAI()
 
 bs = battle_system.TurnBattleSystem(player, ai)
 
@@ -30,3 +30,4 @@ while True:
         break
 
     game_gui.draw()
+    bs.handle_turns()

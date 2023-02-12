@@ -6,6 +6,8 @@ class Trainer:
     def __init__(self):
         self.team = [None, None, None, None, None, None]    # Trainer Pokemon team
 
+        self.choices = [ ]
+
         self.token = None                                   # token used to assingnate actual turn
 
         for i in range(len(self.team)):
@@ -25,4 +27,23 @@ class Trainer:
         return self.token
 
     def set_turn(self, _token):
-        self.token = token
+        self.token = _token
+
+class RandomAI(Trainer):
+    def get_choice(self, target):
+        if self.is_turn():
+            if self.in_battle.fainted == True:
+                i = 0
+                while True:
+                    if self.team[i].fainted == True:
+                        i += 1
+                    else:
+                        self.in_battle = self.team[i]
+                        break
+
+            move = None
+            while move == None:
+                move = random.choice(self.in_battle.moves)
+            self.choices.append(move.name)
+            self.in_battle.try_atk_status(move, target)
+        

@@ -313,11 +313,26 @@ class GameWindow:
             self.player_mon_type2_img = pygame.transform.scale(self.player_mon_type2_img, (mon_type_size, mon_type_size))
         self.move_selector.update_player_mon(self.player_mon)
 
+    def update_enemy_mon(self):
+        self.enemy_mon = self.enemy.in_battle
+        self.enemy_mon_name = self.font.render(self.enemy_mon.name, True, black)
+        self.enemy_mon_sprite = pygame.image.load(os.path.join('assets/sprites/front/{id}.png'.format(id = self.enemy_mon.id)))
+        self.enemy_mon_sprite = pygame.transform.scale(self.enemy_mon_sprite, (mon_size, mon_size))
+        self.hp_enemy = [self.enemy_mon.hp, self.enemy_mon.max_hp]
+        self.hp_enemy_text = self.font.render(str(self.hp_enemy[0]) + '/' + str(self.hp_enemy[1]), True, black)
+        self.lv_enemy_text = self.font.render(str(self.enemy_mon.level), True, black)
+        self.enemy_mon_type1_img = pygame.image.load(os.path.join('assets/sprites/types/{type1}.png'.format(type1 = self.enemy_mon.typing[0].lower())))
+        self.enemy_mon_type1_img = pygame.transform.scale(self.enemy_mon_type1_img, (mon_type_size, mon_type_size))
+        if len(self.enemy_mon.typing) == 2:
+            self.enemy_mon_type2_img = pygame.image.load(os.path.join('assets/sprites/types/{type2}.png'.format(type2 = self.enemy_mon.typing[1].lower())))
+            self.enemy_mon_type2_img = pygame.transform.scale(self.enemy_mon_type2_img, (mon_type_size, mon_type_size))
+
     def update_textbox(self, text):
         self.textbox.draw(text)
 
     def draw(self):
         self.update_text()
+        self.update_enemy_mon()
         if self.team_selector.emit_signal():
             self.update_player_mon()
         
