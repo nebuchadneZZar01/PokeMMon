@@ -87,6 +87,12 @@ class Pokemon:
         # defines how many turn pkmn is sleeping
         self.sleeping_turns = 0
         
+        # defines how many turns pkmn have been confused
+        self.confused_turns = 0
+
+        # defines how many turns pkmn have been intoxicated
+        self.toxic_turns = 0
+        
         # message to gui
         self.msg = 'What will {pkmn} do?'.format(pkmn = self.name)
 
@@ -263,7 +269,9 @@ class Pokemon:
 
     # attack function that handles the status modifier
     def try_atk_status(self, move, enemy):
+        # PERMANENT STATUS
         if self.status != None:
+            # PARALYSIS
             if self.status == 'PAR':
                 # probability to attack if paralyzed
                 p = random.random()
@@ -271,6 +279,7 @@ class Pokemon:
                     self.atk(move, enemy)
                 else:
                     self.msg = '{pkmn} is paralyzed and can\'t move!'.format(pkmn = self.name)
+            # SLEEPING
             elif self.status == 'SLP':
                 if self.sleeping_turns < 7:
                     # probability to wake up if sleeping
@@ -286,6 +295,26 @@ class Pokemon:
                     self.status = None
                     self.msg = '{pkmn} woke up!'.format(pkmn = self.name)
                     self.atk(move, enemy)
+        # CONFUSION STATUS
+        elif self.temp_status != None:
+            if self.confused_turns < 5:
+                # probability to heal from confusion
+                p = random.random()
+                if p <= 0.33:
+                    self.status = None
+                    self.msg = '{pkmn} is not confused anymore!'.format(pkmn = self.name)
+                    self.atk(move, enemy)
+                else:
+                    self.confused_turns += 1
+                    self.msg = '{pkmn} is confused...'.format(pkmn = self.name)
+                    power = 40
+                    a = self.level
+                    b = self.attack
+                    c = self.defense
+
+                    damage = int((((2*a/5 + 2) * b * 40)/c)/50) + 2
+                    self.hit(damage)
+                    self.msg += '\nIt\'s so confused to hit itself!'.format(pkmn = self.name)
         else:
             self.atk(move, enemy)
 
@@ -336,13 +365,18 @@ class Pokemon:
                     for r in rand_list:
                         rand *= r
                     rand = r/255
-
-                    damage = int(((((2*self.level*crit)/5 + 2) * power * (a/d)) /50 + 2) * stab * type1 * type2 * rand)
+                    
+                    # if pkmn is burned, damage is halved
+                    if self.status == 'BRN':
+                        damage = int(((((2*self.level*crit)/5 + 2) * power * (a/d)) /50 + 2) * stab * type1 * type2 * rand)/2
+                    else:
+                        damage = int(((((2*self.level*crit)/5 + 2) * power * (a/d)) /50 + 2) * stab * type1 * type2 * rand)
                     print(damage)
 
                     if self.temp_status != "CONF":
                         if enemy != self: 
                             enemy.hit(damage)
+                            print(move.name)
                             self.handle_special_physical_move(move)
                     else:
                         # if attacking pkmn is confused, it can hit hitself
@@ -393,9 +427,12 @@ class Pokemon:
             enemy.acc_mult = self.inc_dec_stat_mult(enemy.acc_mult, increase=False, enemy=enemy)
             enemy.accuracy = self.update_battle_stat(enemy.accuracy, enemy.acc_mult)
         elif move.name == 'Glare' or move.name == 'Stun Spore' or move.name == 'Thunder Wave':
-            enemy.status = 'PAR'
-            enemy.speed -= (0.75 * enemy.speed)
-            self.msg += '\n{pkmn} is now paralized!'.format(pkmn = enemy.name)
+            if enemy.status == None:
+                enemy.status = 'PAR'
+                enemy.speed -= (0.75 * enemy.speed)
+                self.msg += '\n{pkmn} is now paralized!'.format(pkmn = enemy.name)
+            else:
+                self.msg += '\nBut nothing happened...'
         elif move.name == 'Growl':
             enemy.atk_mult = self.inc_dec_stat_mult(enemy.atk_mult, increase=False, enemy=enemy)
             enemy.attack = enemy.update_battle_stat(enemy.attack, enemy.atk_mult)
@@ -409,8 +446,11 @@ class Pokemon:
             enemy.reset_stats_mult()
             self.msg += '\nAll stats changes have been reset!'
         elif move.name == 'Hypnosis' or move.name == 'Lovely Kiss' or move.name == 'Sing' or move.name == 'Spore' or move.name == 'Sleep Powder':
-            enemy.status = 'SLP'
-            self.msg += '\n{pkmn} is now sleeping!'.format(pkmn = enemy.name)
+            if enemy.status == None:
+                enemy.status = 'SLP'
+                self.msg += '\n{pkmn} is now sleeping!'.format(pkmn = enemy.name)
+            else:
+                self.msg += '\nBut nothing happened...'
         elif move.name == 'Leech Seed':
             pass
         elif move.name == 'Light Screen':
@@ -435,9 +475,16 @@ class Pokemon:
         elif move.name == 'Mist':
             pass
         elif move.name == 'Poison Gas' or move.name == 'Poison Powder':
-            if enemy.typing[0] != 'Poison' and enemy.typing[1] != 'Poison':
-                enemy.status = 'PSN'
-            else: self.msg = '\nIt has not effect on {pkmn}...'.format(pkmn = enemy.name)
+            if enemy.status == None:
+                if (len(enemy.typing) == 2):
+                    if enemy.typing[0] != 'Poison' or enemy.typing[1] != 'Poison':
+                        enemy.status = 'PSN'
+                elif enemy.typing != 'Poison':
+                    enemy.status = 'PSN'
+                else: 
+                    self.msg += '\nIt has not effect on {pkmn}...'.format(pkmn = enemy.name)
+            else:
+                self.msg += '\nBut nothing happened...'
         elif move.name == 'Recover' or move.name == 'Soft Boiled':
             if self.hp < self.max_hp:
                 self.hp += (0.5) * self.max_hp
@@ -477,8 +524,11 @@ class Pokemon:
             enemy.def_mult = self.inc_dec_stat_mult(enemy.def_mult, increase=False, enemy=enemy)
             enemy.defense = enemy.update_battle_stat(enemy.defense, enemy.def_mult)
         elif move.name == 'Toxic':
-            enemy.status = 'TOX'
-            self.msg = '\n{pkmn} is intoxicated!'.format(pkmn = enemy.name)
+            if enemy.status == None:
+                enemy.status = 'TOX'
+                self.msg += '\n{pkmn} is intoxicated!'.format(pkmn = enemy.name)
+            else:
+                self.msg += '\nBut nothing happened...'
         elif move.name == 'Transorm':
             self.msg = '\n{player_mon} transforms into {enemy_mon}!'.format(player_mon = self.name, enemy_mon = enemy.name)
             self = enemy

@@ -1,4 +1,5 @@
 import time
+import math
 
 class TurnBattleSystem:
     def __init__(self, player, ai):
@@ -24,10 +25,10 @@ class TurnBattleSystem:
 
     def get_turn(self):
         if self.player.token == True:
-            print('Player\'s turn')
+            # player turn
             return 'PL'
         else:
-            print('AI\'s turn')
+            # AI turn
             return 'AI'
 
     def get_player(self):
@@ -42,5 +43,33 @@ class TurnBattleSystem:
         else:
             self.player_mon = self.player.in_battle
             self.ai.get_choice(self.player_mon)
+            self.handle_status_by_turn()
             self.switch_turn()
-            
+
+    def handle_burn_poison(self):
+        if self.player_mon.status == 'BRN' or self.player_mon.status == 'PSN':
+            player_mon_max_hp = self.player_mon.max_hp
+            self.player_mon.hit(math.floor((1/16)*player_mon_max_hp))
+        elif self.enemy_mon.status == 'BRN' or self.enemy_mon.status == 'PSN':
+            enemy_mon_max_hp = self.enemy_mon.max_hp
+            self.enemy_mon.hit(math.floor(1/16)*enemy_mon_max_hp)
+
+    def handle_toxicity(self):
+        if self.player_mon.status == 'TOX':
+            self.player_mon.toxic_turns += 1
+            player_mon_max_hp = self.player_mon.max_hp
+            damage = math.floor(1/16 * player_mon_max_hp) * self.player_mon.toxic_turns
+            if damage >= 15 * math.floor(1/16 * player_mon_max_hp):
+                damage = math.floor(1/16 * player_mon_max_hp)
+            self.player_mon.hit(damage)
+        elif self.enemy_mon.status == 'TOX':
+            self.enemy_mon.toxic_turns += 1
+            enemy_mon_max_hp = self.enemy_mon.max_hp
+            damage = math.floor(1/16 * enemy_mon_max_hp) * self.enemy_mon.toxic_turns
+            if damage >= 15 * math.floor(1/16 * enemy_mon_max_hp):
+                damage = math.floor(1/16 * enemy_mon_max_hp)
+            self.enemy_mon.hit(damage)
+
+    def handle_status_by_turn(self):
+        self.handle_burn_poison()
+        self.handle_toxicity()            

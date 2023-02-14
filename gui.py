@@ -282,7 +282,7 @@ class GameWindow:
         if sound == True:
             pygame.mixer.music.play(-1)
 
-        self.textbox = TextBox(0, 380, 'Prova testo')
+        self.textbox = TextBox(0, 380, '')
      
         self.move_selector = MoveSelector(self.bs)
         self.team_selector = TeamSelector(self.player)
@@ -337,7 +337,10 @@ class GameWindow:
             self.update_player_mon()
         
         screen.fill(white)
-        self.textbox.draw(self.player_mon.msg)
+        if self.bs.get_turn() == 'PL':
+            self.textbox.draw(self.player_mon.msg)
+        else:
+            self.textbox.draw(self.enemy_mon.msg)
 
         self.move_selector.draw()
         self.team_selector.draw()
