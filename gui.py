@@ -103,6 +103,7 @@ class MoveButton:
         if inner.collidepoint(mouse):
             if pygame.mouse.get_pressed()[0] == 1 and self.clicked == False:
                 if self.player.is_turn():
+                    self.enemy_mon = self.enemy.in_battle                           # prevents non updating target when after the previous one is fainted 
                     self.player_mon.try_atk_status(self.move, self.enemy_mon)
                     self.bs.switch_turn()
                 else:
@@ -111,6 +112,9 @@ class MoveButton:
 
         if pygame.mouse.get_pressed()[0] == 0:
             self.clicked = False
+    
+    def get_clicked(self):
+        return self.clicked
 
 # encloses the (max of) four moves of the pokemon in battle
 class MoveSelector:
@@ -139,6 +143,9 @@ class MoveSelector:
     # updates player moves target when enemy's pokemon is changed
     def update_enemy_mon(self):
         self.enemy_mon = self.enemy.in_battle
+
+    def get_buttons(self):
+        return self.moves
 
 # button that identifies a pokemon in the player team
 # it can be used to change the pokemon in battle
@@ -278,11 +285,13 @@ class GameWindow:
             self.enemy_mon_type2_img = pygame.image.load(os.path.join('assets/sprites/types/{type2}.png'.format(type2 = self.enemy_mon.typing[1].lower())))
             self.enemy_mon_type2_img = pygame.transform.scale(self.enemy_mon_type2_img, (mon_type_size, mon_type_size))
 
+        self.enemy_timestep = False
+
         pygame.mixer.music.load(os.path.join('assets/sounds/battle.mp3'))
         if sound == True:
             pygame.mixer.music.play(-1)
 
-        self.textbox = TextBox(0, 380, '')
+        self.textbox = TextBox(0, 380, 'init text')
      
         self.move_selector = MoveSelector(self.bs)
         self.team_selector = TeamSelector(self.player)
@@ -337,10 +346,12 @@ class GameWindow:
             self.update_player_mon()
         
         screen.fill(white)
-        if self.bs.get_turn() == 'PL':
+        if self.player.is_turn():
             self.textbox.draw(self.player_mon.msg)
-        else:
-            self.textbox.draw(self.enemy_mon.msg)
+
+        for mv_btn in self.move_selector.get_buttons():
+            if mv_btn.get_clicked():
+                self.update_textbox(self.enemy_mon.msg)
 
         self.move_selector.draw()
         self.team_selector.draw()

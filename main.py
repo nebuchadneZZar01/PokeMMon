@@ -5,7 +5,7 @@ import sys
 from player import *
 
 player = Trainer()
-ai = RandomAI()
+ai = MinimaxAI(player)
 
 bs = battle_system.TurnBattleSystem(player, ai)
 

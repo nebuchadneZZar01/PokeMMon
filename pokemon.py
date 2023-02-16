@@ -286,8 +286,8 @@ class Pokemon:
                     p = random.random()
                     if p <= 0.33:
                         self.status = None
-                        self.msg = '{pkmn} woke up!'.format(pkmn = self.name)
                         self.atk(move, enemy)
+                        self.msg += '\n{pkmn} woke up!'.format(pkmn = self.name)
                     else:
                         self.sleeping_turns += 1
                         self.msg = '{pkmn} is sleeping...'.format(pkmn = self.name)
@@ -301,9 +301,9 @@ class Pokemon:
                 # probability to heal from confusion
                 p = random.random()
                 if p <= 0.33:
-                    self.status = None
-                    self.msg = '{pkmn} is not confused anymore!'.format(pkmn = self.name)
+                    self.temp_status = None
                     self.atk(move, enemy)
+                    self.msg += '\n{pkmn} is not confused anymore!'.format(pkmn = self.name)
                 else:
                     self.confused_turns += 1
                     self.msg = '{pkmn} is confused...'.format(pkmn = self.name)
@@ -315,6 +315,10 @@ class Pokemon:
                     damage = int((((2*a/5 + 2) * b * 40)/c)/50) + 2
                     self.hit(damage)
                     self.msg += '\nIt\'s so confused to hit itself!'.format(pkmn = self.name)
+            else:
+                self.temp_status = None
+                self.atk(move, enemy)
+                self.msg += '\n{pkmn} is not confused anymore!'.format(pkmn = self.name)
         else:
             self.atk(move, enemy)
 
@@ -376,7 +380,7 @@ class Pokemon:
                     if self.temp_status != "CONF":
                         if enemy != self: 
                             enemy.hit(damage)
-                            print(move.name)
+                            # print(move.name)
                             self.handle_special_physical_move(move)
                     else:
                         # if attacking pkmn is confused, it can hit hitself
@@ -385,7 +389,7 @@ class Pokemon:
                             self.msg = '{pkmn} is so confused to hit itself!'.format(pkmn = self.name)
                             self.hit(damage)
                 else:
-                    print("Non damaging move")
+                    # print("Non damaging move")
                     self.handle_status_move(move, enemy)
             else:
                 self.msg += '\nBut it failed...'

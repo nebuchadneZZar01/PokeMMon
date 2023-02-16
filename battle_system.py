@@ -1,4 +1,3 @@
-import time
 import math
 
 class TurnBattleSystem:
@@ -12,6 +11,7 @@ class TurnBattleSystem:
 
         # first turn is of the player
         self.player.token = True
+        self.ai.token = False
     
     def switch_turn(self):
         if self.player.token == True:
@@ -38,15 +38,24 @@ class TurnBattleSystem:
         return self.ai
 
     def handle_turns(self):
-        if self.player.is_turn():
-            pass
+        if self.player.game_over_lose() or self.ai.game_over_lose():
+            if self.player.game_over_lose():
+                self.player_mon.msg = 'AI Trainer won the battle!'
+            else:
+                self.player_mon.msg = 'AI Trainer lost the battle!' 
         else:
-            self.player_mon = self.player.in_battle
-            self.ai.get_choice(self.player_mon)
-            self.handle_status_by_turn()
-            self.switch_turn()
-
+            if self.player.is_turn():
+                pass
+            else:
+                self.ai.get_choice(self.player_mon)
+                self.handle_status_by_turn()
+                self.switch_turn()
+        
     def handle_burn_poison(self):
+        # prevents non updating in battle pokemons
+        self.player_mon = self.player.in_battle
+        self.enemy_mon = self.ai.in_battle
+
         if self.player_mon.status == 'BRN' or self.player_mon.status == 'PSN':
             player_mon_max_hp = self.player_mon.max_hp
             self.player_mon.hit(math.floor((1/16)*player_mon_max_hp))
@@ -55,6 +64,10 @@ class TurnBattleSystem:
             self.enemy_mon.hit(math.floor(1/16)*enemy_mon_max_hp)
 
     def handle_toxicity(self):
+        # prevents non updating in battle pokemons
+        self.player_mon = self.player.in_battle
+        self.enemy_mon = self.ai.in_battle
+
         if self.player_mon.status == 'TOX':
             self.player_mon.toxic_turns += 1
             player_mon_max_hp = self.player_mon.max_hp
