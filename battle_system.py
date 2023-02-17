@@ -50,7 +50,7 @@ class TurnBattleSystem:
                 self.ai.get_choice(self.player_mon)
                 self.handle_status_by_turn()
                 self.switch_turn()
-        
+
     def handle_burn_poison(self):
         # prevents non updating in battle pokemons
         self.player_mon = self.player.in_battle

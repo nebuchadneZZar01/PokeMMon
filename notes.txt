@@ -62,4 +62,9 @@ Solar Beam
 NEED-TO-CHARGE NEXT TURN MOVES:
 Hyper Beam
 
+functions to add:
+- reset stats changes and confusion when switch pokemon
+
+things to fix
+- supereffective text on both types 
 

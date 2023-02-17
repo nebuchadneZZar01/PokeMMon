@@ -233,4 +233,71 @@ class MinimaxAI(TrainerAI):
             val = self.self_minimax(depth + 1)
             best_move_val = min(val, best_move_val)
             
-            return best_move_val
+        return best_move_val
+
+class MMAlphaBetaAI(MinimaxAI):
+    def __init__(self, rival, max_play_depth = 5):
+        super(MMAlphaBetaAI, self).__init__(rival)
+        self.alpha = -100000000
+        self.beta = -self.alpha
+
+    def self_minimax(self, depth):
+        if self.game_over_lose() == False and self.rival.game_over_lose() == False:
+            game_over = False
+        else:
+            game_over = True
+
+        if depth >= self.max_play_depth:
+            return self.evaluate()
+        elif game_over:
+            # if winner is self
+            if self.rival.game_over_lose():
+                return self.win_val
+            # if winner is rival
+            else:
+                return -self.win_val
+
+        best_move_val = self.win_val * (-1)
+        possible_choices = self.rival.get_possible_choices()
+        for action in possible_choices:
+            val = self.rival_minimax(depth, action)
+            best_move_val = max(val, best_move_val)
+            if best_move_val >= self.beta:
+                return best_move_val
+            self.alpha = max(best_move_val, self.alpha)
+        
+        return best_move_val
+
+    def rival_minimax(self, depth, action):
+        if self.game_over_lose() == False and self.rival.game_over_lose() == False:
+            game_over = False
+        else:
+            game_over = True
+
+        if game_over:
+            # if winner is rival
+            if self.game_over_lose():
+                return self.win_val
+            # if winner is self
+            else:
+                return -self.win_val
+
+        best_move_val = self.win_val
+        rival_choices = self.rival.get_possible_choices()
+
+        for rival_action in rival_choices:
+            if rival_action == SWITCH:
+                continue
+                
+            if self.rival.is_turn():
+                continue
+
+            val = self.self_minimax(depth + 1)
+            best_move_val = min(val, best_move_val)
+            
+            if best_move_val <= self.alpha:
+                return best_move_val
+            
+            self.beta = min(best_move_val, self.beta)
+        
+        return best_move_val

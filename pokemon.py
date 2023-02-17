@@ -94,7 +94,7 @@ class Pokemon:
         self.toxic_turns = 0
         
         # message to gui
-        self.msg = 'What will {pkmn} do?'.format(pkmn = self.name)
+        self.msg = 'You are challenged by AI Trainer!'
 
         # random move injection
         while True:
@@ -255,7 +255,7 @@ class Pokemon:
 
         rate = random.randint(0, 255)
         if (rate < treshold):
-            self.msg = 'Critical hit!'
+            self.msg += '\nCritical hit!'
             return 2
         else: 
             return 1
@@ -265,7 +265,6 @@ class Pokemon:
         if self.hp <= 0: 
             self.hp = 0
             self.fainted = True
-            self.msg = '{pkmn} fainted!'.format(pkmn = self.name)
 
     # attack function that handles the status modifier
     def try_atk_status(self, move, enemy):
@@ -375,19 +374,44 @@ class Pokemon:
                         damage = int(((((2*self.level*crit)/5 + 2) * power * (a/d)) /50 + 2) * stab * type1 * type2 * rand)/2
                     else:
                         damage = int(((((2*self.level*crit)/5 + 2) * power * (a/d)) /50 + 2) * stab * type1 * type2 * rand)
+                    
+                    # handlng moves with regain
+                    if move.name == 'Absorb' or move.name == 'Mega Drain':
+                        regain = self.handle_recoil(enemy, damage, 50)
+                        if self.hp + regain > self.max_hp:
+                            self.hp = self.max_hp
+                        else:
+                            self.hp += regain
+                        self.msg += '\nSucked health from {pkmn}!'.format(pkmn = self.enemy.name)
+                    elif move.name == 'Dream Eater':
+                        if enemy.status == 'SLP':
+                            regain = self.handle_recoil(enemy, damage, 50)
+                            if self.hp + regain > self.max_hp:
+                                self.hp = self.max_hp
+                            else:
+                                self.hp += regain
+                            self.msg += '\n{pkmn} dream was eaten!'.format(pkmn = self.enemy.name)
+                        else:
+                            self.msg += '\nIt does nothing...'
+                            return
+
                     print(damage)
 
                     if self.temp_status != "CONF":
                         if enemy != self: 
                             enemy.hit(damage)
                             # print(move.name)
-                            self.handle_special_physical_move(move)
+                            self.handle_special_physical_move(move, enemy)
+                            if enemy.fainted:
+                                self.msg += '\n{enemy} fainted!'.format(enemy = enemy.name)
                     else:
                         # if attacking pkmn is confused, it can hit hitself
                         prob = random.random()
                         if prob <= 0.5: 
                             self.msg = '{pkmn} is so confused to hit itself!'.format(pkmn = self.name)
                             self.hit(damage)
+                            if self.fainted:
+                                self.msg += '\n{pkmn} fainted!'.format(pkmn = self.name)
                 else:
                     # print("Non damaging move")
                     self.handle_status_move(move, enemy)
@@ -395,9 +419,43 @@ class Pokemon:
                 self.msg += '\nBut it failed...'
 
             move.pp = move.pp - 1
-
+        # if move has any pp left
         else:
-            self.msg = 'This move has any pp!\n'
+            cnt_moves = 0                           # number of actual moves in moveset
+            cnt_no_pp = 0                           # number of moves with no pp
+            for mv in self.moves:
+                if mv != None:
+                    cnt_moves += 1 
+                    if mv.pp == 0:
+                        cnt_no_pp += 1
+
+            # if no move has pp left
+            if cnt_no_pp == cnt_moves:
+                power = 50
+                a = self.level
+                b = self.attack
+                c = enemy.defense
+
+                damage = int((((2*a/5 + 2) * b * 40)/c)/50) + 2
+                    
+                recoil = self.handle_recoil(enemy, damage, 50)
+                enemy.hit(damage)
+                self.msg = '{pkmn} has no moves left!\n{pkmn} uses Struggle!\n{pkmn} is hit with recoil!'.format(pkmn = self.name)
+                self.hit(recoil)
+            # if other moves have pp left
+            else:
+                self.msg = 'This move has any pp left!'
+
+    # calculate recoil with moves that cause recoil
+    def handle_recoil(self, enemy, damage, perc_scaler):
+        scaler = perc_scaler / 100
+        if enemy.hp - damage < 0:
+            damage_caused = damage - (enemy.hp - damage)
+        else:
+            damage_caused = damage
+            
+        recoil = int(damage_caused * scaler)
+        return recoil
 
     def handle_status_move(self, move, enemy):
         if move.name == 'Acid Armor':
@@ -540,8 +598,11 @@ class Pokemon:
             for m in self.moves:
                 m.pp = m.max_pp/2
 
-    def handle_special_physical_move(self, move):
+    def handle_special_physical_move(self, move, enemy):
         # Physical moves
         if move.name == 'Explosion':
-            self.hp -= self.max_hp
+            self.hp = 0
             self.fainted = True
+        if move.name == 'Fissure':
+            enemy.hp = 0
+            enemy.fainted = True

@@ -1,6 +1,7 @@
 import pygame, os
 from battle_system import TurnBattleSystem
 from player import *
+import time
 
 width = 700
 height = 600
@@ -104,8 +105,11 @@ class MoveButton:
             if pygame.mouse.get_pressed()[0] == 1 and self.clicked == False:
                 if self.player.is_turn():
                     self.enemy_mon = self.enemy.in_battle                           # prevents non updating target when after the previous one is fainted 
-                    self.player_mon.try_atk_status(self.move, self.enemy_mon)
-                    self.bs.switch_turn()
+                    if not self.player_mon.fainted:
+                        self.player_mon.try_atk_status(self.move, self.enemy_mon)
+                        self.bs.switch_turn()
+                    else:
+                        self.player_mon.msg = 'You can\'t attack with a fainted Pokémon! You have to switch in another one!'
                 else:
                     print('other turn')
                 self.clicked = True
@@ -210,7 +214,7 @@ class TeamButton:
                 if self.pkmn.fainted != True:
                     self.player.in_battle = self.pkmn         
                 else:
-                    print('You can\'t use a fainted Pokémon!')   
+                    self.player.in_battle.msg = 'You can\'t use a fainted Pokémon!'
                 self.clicked = True
 
         if pygame.mouse.get_pressed()[0] == 0:
@@ -346,12 +350,13 @@ class GameWindow:
             self.update_player_mon()
         
         screen.fill(white)
-        if self.player.is_turn():
-            self.textbox.draw(self.player_mon.msg)
+
+        self.textbox.draw(self.enemy_mon.msg)
 
         for mv_btn in self.move_selector.get_buttons():
             if mv_btn.get_clicked():
-                self.update_textbox(self.enemy_mon.msg)
+                self.update_textbox(self.player_mon.msg)
+                time.sleep(0.75)
 
         self.move_selector.draw()
         self.team_selector.draw()
