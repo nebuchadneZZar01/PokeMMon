@@ -382,7 +382,7 @@ class Pokemon:
                             self.hp = self.max_hp
                         else:
                             self.hp += regain
-                        self.msg += '\nSucked health from {pkmn}!'.format(pkmn = self.enemy.name)
+                        self.msg += '\nSucked health from {pkmn}!'.format(pkmn = self.name)
                     elif move.name == 'Dream Eater':
                         if enemy.status == 'SLP':
                             regain = self.handle_recoil(enemy, damage, 50)
