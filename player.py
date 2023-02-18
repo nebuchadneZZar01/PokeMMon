@@ -19,8 +19,11 @@ class Trainer:
 
         for i in range(len(self.team)):
             tmp = random.choice(list(pokedex_list.items()))[1]
-
             self.team[i] = Pokemon(tmp.num, tmp.species, tmp.elements, 100, tmp.base_stats)
+
+        # FOR TESTING PURPOSES
+        # for i in range(len(self.team)):
+        #     self.team[i] = Pokemon(1, 'Hitmonlee', ['Fighting'], 100, [3,5,4,3,4,6])
 
         self.in_battle = self.team[0]
         

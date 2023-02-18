@@ -63,8 +63,19 @@ NEED-TO-CHARGE NEXT TURN MOVES:
 Hyper Beam
 
 functions to add:
-- reset stats changes and confusion when switch pokemon
+- reset stats changes and confusion when switch pokemon [OK]
+- double turn move
+- multi-attack move
+- counter attack
+- selection sound
+- switch sound
+- victory sound
+- defeat no-music
 
 things to fix
-- supereffective text on both types 
-
+- supereffective text on both types [OK]
+- check AI not attacking when poison/burned [OK]
+- final text "AI won/lost the battle"
+- mimic move
+- transform move
+- self switching

@@ -154,13 +154,14 @@ class MoveSelector:
 # button that identifies a pokemon in the player team
 # it can be used to change the pokemon in battle
 class TeamButton:
-    def __init__(self, x, y, pkmn: Pokemon = None, player: Trainer = None):
+    def __init__(self, x, y, pkmn: Pokemon = None, bs: TurnBattleSystem = None):
         self.x = x
         self.y = y
         self.clicked = False
         self.pkmn = pkmn
         self.name = pkmn.name
-        self.player = player
+        self.bs = bs
+        self.player = self.bs.get_player()
 
         self.font = pygame.font.Font('assets/font/RBYGSC.ttf', 14)
 
@@ -211,10 +212,21 @@ class TeamButton:
 
         if inner.collidepoint(mouse):
             if pygame.mouse.get_pressed()[0] == 1 and self.clicked == False:
-                if self.pkmn.fainted != True:
-                    self.player.in_battle = self.pkmn         
+                if self.pkmn is not self.player.in_battle:
+                    if self.pkmn.fainted != True:
+                        # reset all in-battle pkmn's temporary conditions and stats changements
+                        self.player.in_battle.reset_stats_mult()
+                        self.player.in_battle.reset_battle_stats()
+                        self.player.in_battle.temp_status = None
+                        # then replace the pokemon with the selected one
+                        self.player.in_battle = self.pkmn     
+                        # then switch turn
+                        self.bs.switch_turn()
+                    else:
+                        self.player.in_battle.msg = 'You can\'t use a fainted Pokémon!'
                 else:
-                    self.player.in_battle.msg = 'You can\'t use a fainted Pokémon!'
+                    pass
+                
                 self.clicked = True
 
         if pygame.mouse.get_pressed()[0] == 0:
@@ -228,16 +240,18 @@ class TeamButton:
 
 # class containing six teambuttons
 class TeamSelector:
-    def __init__(self, player: Trainer = None):
+    def __init__(self, bs: TurnBattleSystem = None):
         self.font = pygame.font.Font('assets/font/RBYGSC.ttf', 14)
-        self.team = player.team
+        self.bs = bs
+        self.player = self.bs.get_player()
+        self.team = self.player.team
 
         self.rendered_text = self.font.render('YOUR TEAM:', True, black)
 
         self.pkmn = [None] * 6
 
         for i in range(len(self.pkmn)):
-            self.pkmn[i] = TeamButton(500, i*100, self.team[i], player)
+            self.pkmn[i] = TeamButton(500, i*100, self.team[i], self.bs)
 
     def draw(self):
         for p in self.pkmn:
@@ -298,7 +312,7 @@ class GameWindow:
         self.textbox = TextBox(0, 380, 'init text')
      
         self.move_selector = MoveSelector(self.bs)
-        self.team_selector = TeamSelector(self.player)
+        self.team_selector = TeamSelector(self.bs)
 
     def update_text(self):
         self.hp_player = [self.player_mon.hp, self.player_mon.max_hp]

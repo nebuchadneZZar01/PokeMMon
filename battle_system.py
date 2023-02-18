@@ -38,6 +38,8 @@ class TurnBattleSystem:
         return self.ai
 
     def handle_turns(self):
+        self.player_mon = self.player.in_battle         # prevents non updating target
+
         if self.player.game_over_lose() or self.ai.game_over_lose():
             if self.player.game_over_lose():
                 self.player_mon.msg = 'AI Trainer won the battle!'
@@ -59,9 +61,11 @@ class TurnBattleSystem:
         if self.player_mon.status == 'BRN' or self.player_mon.status == 'PSN':
             player_mon_max_hp = self.player_mon.max_hp
             self.player_mon.hit(math.floor((1/16)*player_mon_max_hp))
-        elif self.enemy_mon.status == 'BRN' or self.enemy_mon.status == 'PSN':
+            self.player_mon.msg += '\n{pkmn} is hurt by poison!'.format(pkmn = self.player_mon.name)
+        if self.enemy_mon.status == 'BRN' or self.enemy_mon.status == 'PSN':
             enemy_mon_max_hp = self.enemy_mon.max_hp
-            self.enemy_mon.hit(math.floor(1/16)*enemy_mon_max_hp)
+            self.enemy_mon.hit(math.floor((1/16)*enemy_mon_max_hp))
+            self.enemy_mon.msg += '\n{pkmn} is hurt by poison!'.format(pkmn = self.enemy_mon.name)
 
     def handle_toxicity(self):
         # prevents non updating in battle pokemons
@@ -75,13 +79,15 @@ class TurnBattleSystem:
             if damage >= 15 * math.floor(1/16 * player_mon_max_hp):
                 damage = math.floor(1/16 * player_mon_max_hp)
             self.player_mon.hit(damage)
-        elif self.enemy_mon.status == 'TOX':
+            self.player_mon.msg += '\n{pkmn} is hurt by toxine!'.format(pkmn = self.player_mon.name)
+        if self.enemy_mon.status == 'TOX':
             self.enemy_mon.toxic_turns += 1
             enemy_mon_max_hp = self.enemy_mon.max_hp
             damage = math.floor(1/16 * enemy_mon_max_hp) * self.enemy_mon.toxic_turns
             if damage >= 15 * math.floor(1/16 * enemy_mon_max_hp):
                 damage = math.floor(1/16 * enemy_mon_max_hp)
             self.enemy_mon.hit(damage)
+            self.enemy_mon.msg += '\n{pkmn} is hurt by toxine!'.format(pkmn = self.enemy_mon.name)
 
     def handle_status_by_turn(self):
         self.handle_burn_poison()
