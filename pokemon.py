@@ -41,7 +41,7 @@ class Pokemon:
         self.typing = typing
         self.moves = [None] * 4  
 
-        self.status = None                
+        self.status = None               
         self.temp_status = None
         self.in_battle = True
         self.fainted = False
@@ -330,7 +330,8 @@ class Pokemon:
                 self.temp_status = None
                 self.atk(move, enemy)
                 self.msg += '\n{pkmn} is not confused anymore!'.format(pkmn = self.name)
-        if self.temp_status == None:
+        # NO STATUSES
+        elif self.temp_status == None and self.status == None:
             self.atk(move, enemy)
 
     def atk(self, move, enemy):
@@ -366,43 +367,24 @@ class Pokemon:
                     type2 = 1
                     type1 = pkmn_types.get_effectiveness(move.typing, enemy.typing[0])                  # effectiveness vs enemy's type1
 
-                    # handlng moves with regain
-                    if move.name == 'Absorb' or move.name == 'Mega Drain' or move.name == 'Leech Life':
-                        regain = self.handle_recoil(enemy, damage, 50)
-                        if self.hp + regain > self.max_hp:
-                            self.hp = self.max_hp
-                        else:
-                            self.hp += regain
-                        self.msg += '\nSucked health from {pkmn}!'.format(pkmn = self.name)
-                    elif move.name == 'Dream Eater':
-                        if enemy.status == 'SLP':
-                            regain = self.handle_recoil(enemy, damage, 50)
-                            if self.hp + regain > self.max_hp:
-                                self.hp = self.max_hp
-                            else:
-                                self.hp += regain
-                            self.msg += '\n{pkmn} dream was eaten!'.format(pkmn = self.enemy.name)
-                        else:
-                            self.msg += '\nIt does nothing...'
-                            return
-
                     # handlign effectiveness
-                    tmp = ''                                                                            # tmp variable with effectiveness status, to send to textbox
-                    if len(enemy.typing) == 2:
-                        type2 = pkmn_types.get_effectiveness(move.typing, enemy.typing[1])              # effectiveness vs enemy's type2
-                        if ((type1 == 0.5 and type2 == 1) or (type1 == 1 and type2 == 0.5)) or (type1 == 0.5 and type2 == 0.5):
-                            tmp = '\nIt\'s not very effective...'
-                        elif (type1 == 2 and type2 == 1) or (type1 == 1 and type2 == 2):
-                            tmp = '\nIt\'s super effective!'
-                        elif type1 == 0 or type2 == 0:
-                            tmp = '\nIt has no effect...'
-                    else:
-                        if type1 == 0.5:
-                            tmp = '\nIt\'s not very effective...'
-                        elif type1 == 2:
-                            tmp = '\nIt\'s super effective!'
-                        elif type1 == 0:
-                            tmp = '\nIt has no effect...'
+                    tmp = '' 
+                    if move.name != 'Dream Eater' and enemy.status != 'SLP':                                                                           # tmp variable with effectiveness status, to send to textbox
+                        if len(enemy.typing) == 2:
+                            type2 = pkmn_types.get_effectiveness(move.typing, enemy.typing[1])              # effectiveness vs enemy's type2
+                            if ((type1 == 0.5 and type2 == 1) or (type1 == 1 and type2 == 0.5)) or (type1 == 0.5 and type2 == 0.5):
+                                tmp += '\nIt\'s not very effective...'
+                            elif (type1 == 2 and type2 == 1) or (type1 == 1 and type2 == 2):
+                                tmp += '\nIt\'s super effective!'
+                            elif type1 == 0 or type2 == 0:
+                                tmp += '\nIt has no effect...'
+                        else:
+                            if type1 == 0.5:
+                                tmp += '\nIt\'s not very effective...'
+                            elif type1 == 2:
+                                tmp += '\nIt\'s super effective!'
+                            elif type1 == 0:
+                                tmp += '\nIt has no effect...'
 
                     self.msg += tmp
 
@@ -424,6 +406,26 @@ class Pokemon:
                         damage = int(((((2*self.level*crit)/5 + 2) * power * (a/d)) /50 + 2) * stab * type1 * type2 * rand)
 
                     print(damage)
+
+                    # handlng moves with regain
+                    if move.name == 'Absorb' or move.name == 'Mega Drain' or move.name == 'Leech Life':
+                        regain = self.handle_recoil(enemy, damage, 50)
+                        if self.hp + regain > self.max_hp:
+                            self.hp = self.max_hp
+                        else:
+                            self.hp += regain
+                        self.msg += '\nSucked health from {pkmn}!'.format(pkmn = self.name)
+                    elif move.name == 'Dream Eater':
+                        if enemy.status == 'SLP':
+                            regain = self.handle_recoil(enemy, damage, 50)
+                            if self.hp + regain > self.max_hp:
+                                self.hp = self.max_hp
+                            else:
+                                self.hp += regain
+                            self.msg += '\n{pkmn} dream was eaten!'.format(pkmn = self.enemy.name)
+                        else:
+                            self.msg += '\nIt does nothing...'
+                            return
 
                     if self.temp_status != "CONF":
                         if enemy != self: 
@@ -571,10 +573,12 @@ class Pokemon:
         elif move.name == 'Poison Gas' or move.name == 'Poison Powder':
             if enemy.status == None:
                 if (len(enemy.typing) == 2):
-                    if enemy.typing[0] != 'Poison' or enemy.typing[1] != 'Poison':
+                    if enemy.typing[0] != 'POISON' and enemy.typing[1] != 'POISON':
                         enemy.status = 'PSN'
                         self.msg += '\n{pkmn} is poisoned!'.format(pkmn = enemy.name)
-                elif enemy.typing != 'Poison':
+                    else: 
+                        self.msg += '\nIt has not effect on {pkmn}...'.format(pkmn = enemy.name)
+                elif enemy.typing[0] != 'POISON':
                     enemy.status = 'PSN'
                     self.msg += '\n{pkmn} is poisoned!'.format(pkmn = enemy.name)
                 else: 
@@ -585,7 +589,7 @@ class Pokemon:
             if self.hp < self.max_hp:
                 self.hp += (0.5) * self.max_hp
                 if self.hp > self.max_hp: self.hp = self.max_hp
-                self.msg = '\n{pkmn} restores half of its hp!'.format(pkmn = self.name)
+                self.msg += '\n{pkmn} restores half of its hp!'.format(pkmn = self.name)
             else:
                 self.msg = '\nBut {pkmn} already has all its hp!'.format(pkmn = self.name)
         elif move.name == 'Reflect':
@@ -622,18 +626,20 @@ class Pokemon:
         elif move.name == 'Toxic':
             if enemy.status == None:
                 if (len(enemy.typing) == 2):
-                    if enemy.typing[0] != 'Poison' or enemy.typing[1] != 'Poison':
+                    if enemy.typing[0] != 'POISON' and enemy.typing[1] != 'POISON':
                         enemy.status = 'TOX'
                         self.msg += '\n{pkmn} is intoxicated!'.format(pkmn = enemy.name)
-                elif enemy.typing != 'Poison':
-                        enemy.status = 'TOX'
-                        self.msg += '\n{pkmn} is intoxicated!'.format(pkmn = enemy.name)
+                    else: 
+                        self.msg += '\nIt has not effect on {pkmn}...'.format(pkmn = enemy.name)
+                elif enemy.typing[0] != 'POISON':
+                    enemy.status = 'TOX'
+                    self.msg += '\n{pkmn} is intoxicated!'.format(pkmn = enemy.name)
                 else: 
                     self.msg += '\nIt has not effect on {pkmn}...'.format(pkmn = enemy.name)
             else:
                 self.msg += '\nBut nothing happened...'
         elif move.name == 'Transform':
-            self.msg = '\n{player_mon} transforms into {enemy_mon}!'.format(player_mon = self.name, enemy_mon = enemy.name)
+            self.msg += '\n{player_mon} transforms into {enemy_mon}!'.format(player_mon = self.name, enemy_mon = enemy.name)
             self = enemy
             
             for m in self.moves:

@@ -23,7 +23,7 @@ class Trainer:
 
         # FOR TESTING PURPOSES
         # for i in range(len(self.team)):
-        #     self.team[i] = Pokemon(1, 'Hitmonlee', ['Fighting'], 100, [3,5,4,3,4,6])
+        #     self.team[i] = Pokemon(1, 'Hypno', ['PSYCHIC'], 100, [3,5,4,3,4,6])
 
         self.in_battle = self.team[0]
         

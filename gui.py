@@ -21,6 +21,17 @@ gold = (242, 219, 152)
 red = (255, 0, 0)
 gray = (46, 52, 64)
 
+pygame.mixer.init()
+
+battle_ost = os.path.join('assets/sounds/battle.mp3')
+victory_ost = os.path.join('assets/sounds/victory.mp3')
+
+sel_sfx = pygame.mixer.Sound(os.path.join('assets/sounds/sfx/selection.mp3'))
+ball_sfx = pygame.mixer.Sound(os.path.join('assets/sounds/sfx/ball.mp3'))
+hit_sfx = pygame.mixer.Sound(os.path.join('assets/sounds/sfx/hit.mp3'))
+super_sfx = pygame.mixer.Sound(os.path.join('assets/sounds/sfx/super.mp3'))
+faint_sfx = pygame.mixer.Sound(os.path.join('assets/sounds/sfx/super.mp3'))
+
 # class that defines the textbox
 class TextBox:
     def __init__(self, x, y, text):
@@ -60,7 +71,7 @@ class TextBox:
 # identifies the move (of the pokemon in battle)
 # that the player can use to attack the enemy's one
 class MoveButton:
-    def __init__(self, x, y, move: Move = None, bs: TurnBattleSystem = None):
+    def __init__(self, x, y, move: Move = None, bs: TurnBattleSystem = None, sound = False):
         self.x = x
         self.y = y
         self.clicked = False
@@ -83,6 +94,8 @@ class MoveButton:
         self.player_mon = self.player.in_battle
         self.enemy_mon = self.enemy.in_battle
 
+        self.sound = sound
+
     def draw(self):
         if self.move is not None:
             rendered_pp = self.font.render('{pp}/{max_pp}'.format(pp = self.move.pp, max_pp = self.move.max_pp), True, black)
@@ -103,16 +116,18 @@ class MoveButton:
 
         if inner.collidepoint(mouse):
             if pygame.mouse.get_pressed()[0] == 1 and self.clicked == False:
-                if self.player.is_turn():
-                    self.enemy_mon = self.enemy.in_battle                           # prevents non updating target when after the previous one is fainted 
-                    if not self.player_mon.fainted:
-                        self.player_mon.try_atk_status(self.move, self.enemy_mon)
-                        self.bs.switch_turn()
+                if self.sound: sel_sfx.play()
+                if self.move != None:
+                    if self.player.is_turn():
+                        self.enemy_mon = self.enemy.in_battle                           # prevents non updating target when after the previous one is fainted 
+                        if not self.player_mon.fainted:
+                            self.player_mon.try_atk_status(self.move, self.enemy_mon)
+                            self.bs.switch_turn()
+                        else:
+                            self.player_mon.msg = 'You can\'t attack with a fainted Pokémon! You have to switch in another one!'
                     else:
-                        self.player_mon.msg = 'You can\'t attack with a fainted Pokémon! You have to switch in another one!'
-                else:
-                    print('other turn')
-                self.clicked = True
+                        print('other turn')
+                    self.clicked = True
 
         if pygame.mouse.get_pressed()[0] == 0:
             self.clicked = False
@@ -122,7 +137,7 @@ class MoveButton:
 
 # encloses the (max of) four moves of the pokemon in battle
 class MoveSelector:
-    def __init__(self, bs: TurnBattleSystem = None):
+    def __init__(self, bs: TurnBattleSystem = None, sound = False):
         self.bs = bs
         self.player = self.bs.get_player()        
 
@@ -131,7 +146,7 @@ class MoveSelector:
         self.moves = [None] * 4
 
         for i in range(len(self.moves)):
-            self.moves[i] = MoveButton(i*125, 500, self.player_mon.moves[i], self.bs)
+            self.moves[i] = MoveButton(i*125, 500, self.player_mon.moves[i], self.bs, sound)
 
     def draw(self):
         for m in self.moves:
@@ -154,7 +169,7 @@ class MoveSelector:
 # button that identifies a pokemon in the player team
 # it can be used to change the pokemon in battle
 class TeamButton:
-    def __init__(self, x, y, pkmn: Pokemon = None, bs: TurnBattleSystem = None):
+    def __init__(self, x, y, pkmn: Pokemon = None, bs: TurnBattleSystem = None, sound = False):
         self.x = x
         self.y = y
         self.clicked = False
@@ -162,6 +177,8 @@ class TeamButton:
         self.name = pkmn.name
         self.bs = bs
         self.player = self.bs.get_player()
+
+        self.sound = sound
 
         self.font = pygame.font.Font('assets/font/RBYGSC.ttf', 14)
 
@@ -220,6 +237,8 @@ class TeamButton:
                         self.player.in_battle.temp_status = None
                         # then replace the pokemon with the selected one
                         self.player.in_battle = self.pkmn     
+                        # then play sound
+                        if self.sound: ball_sfx.play()
                         # then switch turn
                         self.bs.switch_turn()
                     else:
@@ -240,7 +259,7 @@ class TeamButton:
 
 # class containing six teambuttons
 class TeamSelector:
-    def __init__(self, bs: TurnBattleSystem = None):
+    def __init__(self, bs: TurnBattleSystem = None, sound = False):
         self.font = pygame.font.Font('assets/font/RBYGSC.ttf', 14)
         self.bs = bs
         self.player = self.bs.get_player()
@@ -251,7 +270,7 @@ class TeamSelector:
         self.pkmn = [None] * 6
 
         for i in range(len(self.pkmn)):
-            self.pkmn[i] = TeamButton(500, i*100, self.team[i], self.bs)
+            self.pkmn[i] = TeamButton(500, i*100, self.team[i], self.bs, sound)
 
     def draw(self):
         for p in self.pkmn:
@@ -264,7 +283,7 @@ class TeamSelector:
                 return True
         
 class GameWindow:
-    def __init__(self, bs: TurnBattleSystem = None, sound=True):
+    def __init__(self, bs: TurnBattleSystem = None, sound=False):
         self.font = pygame.font.Font('assets/font/RBYGSC.ttf', 14)
         self.hp_text = self.font.render('HP :', True, gold)
         self.lv_text = self.font.render('L. :', True, black)
@@ -305,14 +324,19 @@ class GameWindow:
 
         self.enemy_timestep = False
 
-        pygame.mixer.music.load(os.path.join('assets/sounds/battle.mp3'))
+        pygame.mixer.music.load(battle_ost)
         if sound == True:
             pygame.mixer.music.play(-1)
 
         self.textbox = TextBox(0, 380, 'init text')
      
-        self.move_selector = MoveSelector(self.bs)
-        self.team_selector = TeamSelector(self.bs)
+        self.move_selector = MoveSelector(self.bs, sound)
+        self.team_selector = TeamSelector(self.bs, sound)
+
+        # define if whether victory ost is playing
+        self.vic_ost = False
+
+        self.sound = sound
 
     def update_text(self):
         self.hp_player = [self.player_mon.hp, self.player_mon.max_hp]
@@ -370,7 +394,7 @@ class GameWindow:
         for mv_btn in self.move_selector.get_buttons():
             if mv_btn.get_clicked():
                 self.update_textbox(self.player_mon.msg)
-                time.sleep(0.75)
+                time.sleep(1.25)
 
         self.move_selector.draw()
         self.team_selector.draw()
@@ -472,5 +496,16 @@ class GameWindow:
             pygame.draw.circle(screen, color, (350+(i*20), 315), 5)
 
         screen.blit(self.player_mon_sprite, (30, 220))
+
+        if self.sound == True:
+            if self.player.game_over_lose():
+                pygame.mixer_music.pause()
+            elif self.enemy.game_over_lose():
+                if self.vic_ost == False:
+                    self.vic_ost = True
+                    pygame.mixer_music.pause()
+                    pygame.mixer_music.unload()
+                    pygame.mixer_music.load(os.path.join(victory_ost))
+                    pygame.mixer_music.play()
 
         pygame.display.update()

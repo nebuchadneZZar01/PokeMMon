@@ -75,7 +75,9 @@ functions to add:
 things to fix
 - supereffective text on both types [OK]
 - check AI not attacking when poison/burned [OK]
-- final text "AI won/lost the battle"
+- final text "AI won/lost the battle" [OK]
+- selecting move on None slot [OK]
+- toxicity against poison type (double type) [OK]
 - mimic move
 - transform move
-- self switching
+- self switching [OK]
