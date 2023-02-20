@@ -21,11 +21,14 @@ class Trainer:
             tmp = random.choice(list(pokedex_list.items()))[1]
             self.team[i] = Pokemon(tmp.num, tmp.species, tmp.elements, 100, tmp.base_stats)
 
+        self.team[2] = Pokemon(1, 'Ditto', ['NORMAL'], 100, [3,5,520,3,4,6])
+
         # FOR TESTING PURPOSES
         # for i in range(len(self.team)):
         #     self.team[i] = Pokemon(1, 'Hypno', ['PSYCHIC'], 100, [3,5,4,3,4,6])
 
         self.in_battle = self.team[0]
+        self.team[0].on_field = True
         
     def get_team(self):
         print('Player Team')
@@ -37,7 +40,7 @@ class Trainer:
         possible_choices = [ ]
 
         for pkmn in self.team:
-            if (pkmn.fainted == False or pkmn.in_battle == False):
+            if (pkmn.fainted == False or pkmn.on_field == False):
                 possible_choices.append(Action(SWITCH, self, pkmn))
         
         for move in self.in_battle.moves:
@@ -69,12 +72,14 @@ class TrainerAI(Trainer):
     def verify_fainted_switch(self):
         if self.game_over_lose() == False:
             if self.in_battle.fainted == True:
+                self.in_battle.on_field = False
                 i = 0
                 while True:
                     if self.team[i].fainted == True:
                         i += 1
                     else:
                         self.in_battle = self.team[i]
+                        self.team[i].on_field = True
                         break
 
 class RandomAI(TrainerAI):

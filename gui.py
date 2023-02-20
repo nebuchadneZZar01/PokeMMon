@@ -19,12 +19,13 @@ green = (16, 177, 14)
 yellow = (222, 189, 57)
 gold = (242, 219, 152)
 red = (255, 0, 0)
+blue = (0, 0, 255)
 gray = (46, 52, 64)
 
 pygame.mixer.init()
 
-battle_ost = os.path.join('assets/sounds/battle.mp3')
-victory_ost = os.path.join('assets/sounds/victory.mp3')
+battle_ost = pygame.mixer.Sound(os.path.join('assets/sounds/battle.mp3'))
+victory_ost = pygame.mixer.Sound(os.path.join('assets/sounds/victory.mp3'))
 
 sel_sfx = pygame.mixer.Sound(os.path.join('assets/sounds/sfx/selection.mp3'))
 ball_sfx = pygame.mixer.Sound(os.path.join('assets/sounds/sfx/ball.mp3'))
@@ -116,7 +117,8 @@ class MoveButton:
 
         if inner.collidepoint(mouse):
             if pygame.mouse.get_pressed()[0] == 1 and self.clicked == False:
-                if self.sound: sel_sfx.play()
+                if self.sound: 
+                    pygame.mixer.Channel(0).play(sel_sfx)
                 if self.move != None:
                     if self.player.is_turn():
                         self.enemy_mon = self.enemy.in_battle                           # prevents non updating target when after the previous one is fainted 
@@ -145,8 +147,10 @@ class MoveSelector:
 
         self.moves = [None] * 4
 
+        self.sound = sound
+
         for i in range(len(self.moves)):
-            self.moves[i] = MoveButton(i*125, 500, self.player_mon.moves[i], self.bs, sound)
+            self.moves[i] = MoveButton(i*125, 500, self.player_mon.moves[i], self.bs, self.sound)
 
     def draw(self):
         for m in self.moves:
@@ -157,7 +161,7 @@ class MoveSelector:
         self.player_mon = pkmn
 
         for i in range(len(self.moves)):
-            self.moves[i] = MoveButton(i*125, 500, self.player_mon.moves[i], self.bs)
+            self.moves[i] = MoveButton(i*125, 500, self.player_mon.moves[i], self.bs, self.sound)
 
     # updates player moves target when enemy's pokemon is changed
     def update_enemy_mon(self):
@@ -223,6 +227,10 @@ class TeamButton:
         elif perc < 0.2:
             health_color = red
 
+        # on field indicator
+        if self.pkmn.on_field:
+            pygame.draw.circle(screen, blue, (self.x+180, self.y+48), 5)
+
         pygame.draw.rect(screen, health_color, pygame.Rect(self.x+65, self.y+30, perc*120, 5))
 
         mouse = pygame.mouse.get_pos()
@@ -235,10 +243,13 @@ class TeamButton:
                         self.player.in_battle.reset_stats_mult()
                         self.player.in_battle.reset_battle_stats()
                         self.player.in_battle.temp_status = None
+                        self.player.in_battle.on_field = False
                         # then replace the pokemon with the selected one
                         self.player.in_battle = self.pkmn     
+                        self.pkmn.on_field = True
                         # then play sound
-                        if self.sound: ball_sfx.play()
+                        if self.sound: 
+                            pygame.mixer.Channel(1).play(ball_sfx)
                         # then switch turn
                         self.bs.switch_turn()
                     else:
@@ -324,9 +335,8 @@ class GameWindow:
 
         self.enemy_timestep = False
 
-        pygame.mixer.music.load(battle_ost)
         if sound == True:
-            pygame.mixer.music.play(-1)
+            pygame.mixer.Channel(6).play(battle_ost)
 
         self.textbox = TextBox(0, 380, 'init text')
      
@@ -386,6 +396,12 @@ class GameWindow:
         self.update_enemy_mon()
         if self.team_selector.emit_signal():
             self.update_player_mon()
+
+        if self.player_mon.transformed:
+            self.update_player_mon()
+
+        if self.enemy_mon.transformed:
+            self.update_enemy_mon()
         
         screen.fill(white)
 
@@ -434,8 +450,12 @@ class GameWindow:
         # enemy mons
         for i in (range(len(self.enemy.team))):
             color = red
-            if self.enemy.team[i].fainted:
+            if self.enemy.team[i].on_field:
+                color = blue
+            elif self.enemy.team[i].fainted:
                 color = gray
+            elif not self.enemy.team[i].on_field and self.enemy.team[i].status != None:
+                color = yellow
 
             pygame.draw.circle(screen, color, (50+(i*20), 80), 5)
 
@@ -490,8 +510,12 @@ class GameWindow:
         # player mons
         for i in (range(len(self.player.team))):
             color = red
-            if self.player.team[i].fainted:
+            if self.player.team[i].on_field:
+                color = blue
+            elif self.player.team[i].fainted:
                 color = gray
+            elif not self.player.team[i].on_field and self.player.team[i].status != None:
+                color = yellow
 
             pygame.draw.circle(screen, color, (350+(i*20), 315), 5)
 
@@ -499,13 +523,11 @@ class GameWindow:
 
         if self.sound == True:
             if self.player.game_over_lose():
-                pygame.mixer_music.pause()
+                pygame.mixer.Channel(6).stop()
             elif self.enemy.game_over_lose():
                 if self.vic_ost == False:
                     self.vic_ost = True
-                    pygame.mixer_music.pause()
-                    pygame.mixer_music.unload()
-                    pygame.mixer_music.load(os.path.join(victory_ost))
-                    pygame.mixer_music.play()
+                    pygame.mixer.Channel(6).stop()
+                    pygame.mixer.Channel(7).play(victory_ost)
 
         pygame.display.update()

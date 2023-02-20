@@ -3,6 +3,7 @@ import random
 import moves
 import pkmn_types
 from itertools import combinations
+from copy import deepcopy
 
 def calculate_max_stat(base_stat, level):
     return math.floor((base_stat*2*level)/100) + 5
@@ -41,9 +42,9 @@ class Pokemon:
         self.typing = typing
         self.moves = [None] * 4  
 
-        self.status = None               
+        self.status = None              
         self.temp_status = None
-        self.in_battle = True
+        self.on_field = False
         self.fainted = False
 
         # Base stats, given to instanciate
@@ -83,6 +84,12 @@ class Pokemon:
 
         # defines if there is a substitute doll
         self.substitute = False
+
+        # defines if pkmn is transformed (for mew and ditto)
+        self.transformed = False
+
+        # defines if pkmn is protected (for protection)
+        self.protected = False
 
         # defines how many turn pkmn is sleeping
         self.sleeping_turns = 0
@@ -640,10 +647,24 @@ class Pokemon:
                 self.msg += '\nBut nothing happened...'
         elif move.name == 'Transform':
             self.msg += '\n{player_mon} transforms into {enemy_mon}!'.format(player_mon = self.name, enemy_mon = enemy.name)
-            self = enemy
+            tmp_status = self.status
+            tmp_temp_status = self.temp_status
+            tmp_hp = self.hp
+            tmp_max_hp = self.max_hp
+            tmp_msg = self.msg
+
+            self = deepcopy(enemy)
+            self.name = 'Ditto'
+            self.msg = tmp_msg
+            self.max_hp = tmp_max_hp
+            self.hp = tmp_hp
+            self.status = tmp_status
+            self.temp_status = tmp_temp_status
+            self.transformed = True
             
             for m in self.moves:
-                m.pp = m.max_pp/2
+                if m != None:
+                    m.pp = m.max_pp/2
 
     def handle_special_physical_move(self, move, enemy):
         # Physical moves

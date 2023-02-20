@@ -64,13 +64,15 @@ Hyper Beam
 
 functions to add:
 - reset stats changes and confusion when switch pokemon [OK]
+- add actual pokemon indicator in team visualization [OK]
 - double turn move
 - multi-attack move
 - counter attack
-- selection sound
-- switch sound
-- victory sound
-- defeat no-music
+- selection sound [OK]
+- switch sound [OK]
+- hit (with effectiveness) sound
+- victory sound [OK]
+- defeat no-music [OK]
 
 things to fix
 - supereffective text on both types [OK]

@@ -15,10 +15,12 @@ args = sys.argv
 
 gui.pygame.init()
 
-if len(args) > 1:
-    game_gui = gui.GameWindow(bs, True)
-else:
-    game_gui = gui.GameWindow(bs, False)
+game_gui = gui.GameWindow(bs, True)
+
+# if len(args) > 1:
+#     game_gui = gui.GameWindow(bs, True)
+# else:
+#     game_gui = gui.GameWindow(bs, False)
 
 while True:
     clock = gui.pygame.time.Clock()
