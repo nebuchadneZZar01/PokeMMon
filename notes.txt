@@ -65,6 +65,8 @@ Hyper Beam
 functions to add:
 - reset stats changes and confusion when switch pokemon [OK]
 - add actual pokemon indicator in team visualization [OK]
+- icon [OK]
+- title [OK]
 - double turn move
 - multi-attack move
 - counter attack
