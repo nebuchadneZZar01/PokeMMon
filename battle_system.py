@@ -63,11 +63,17 @@ class TurnBattleSystem:
         if self.player_mon.status == 'BRN' or self.player_mon.status == 'PSN':
             player_mon_max_hp = self.player_mon.max_hp
             self.player_mon.hit(math.floor((1/16)*player_mon_max_hp))
-            self.player_mon.msg += '\n{pkmn} is hurt by poison!'.format(pkmn = self.player_mon.name)
+            if self.player_mon.status == 'BRN':
+                self.player_mon.msg += '\n{pkmn} is hurt by its burn!'.format(pkmn = self.player_mon.name)
+            else:
+                self.player_mon.msg += '\n{pkmn} is hurt by poison!'.format(pkmn = self.player_mon.name)
         if self.enemy_mon.status == 'BRN' or self.enemy_mon.status == 'PSN':
             enemy_mon_max_hp = self.enemy_mon.max_hp
             self.enemy_mon.hit(math.floor((1/16)*enemy_mon_max_hp))
-            self.enemy_mon.msg += '\n{pkmn} is hurt by poison!'.format(pkmn = self.enemy_mon.name)
+            if self.player_mon.status == 'BRN':
+                self.enemy_mon.msg += '\n{pkmn} is hurt by its burn!'.format(pkmn = self.enemy_mon.name)
+            else:
+                self.enemy_mon.msg += '\n{pkmn} is hurt by poison!'.format(pkmn = self.enemy_mon.name)
 
     def handle_toxicity(self):
         # prevents non updating in battle pokemons

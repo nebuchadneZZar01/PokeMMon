@@ -81,15 +81,12 @@ class Pokemon:
         self.speed_mult = 0
         self.acc_mult = 0
         self.ev_mult = 0
-
-        # defines if there is a substitute doll
-        self.substitute = False
+        
+        self.substitute = False             # defines if there is a substitute doll
+        self.sub_damage = 0                 # defines substitute damage (if equal to 255, it vanishes)
 
         # defines if pkmn is transformed (for mew and ditto)
         self.transformed = False
-
-        # defines if pkmn is protected (for protection)
-        self.protected = False
 
         # defines how many turn pkmn is sleeping
         self.sleeping_turns = 0
@@ -278,10 +275,20 @@ class Pokemon:
             return 1
 
     def hit(self, damage):
-        self.hp -= damage
-        if self.hp <= 0: 
-            self.hp = 0
-            self.fainted = True
+        # if there is not substitute, simply take damage
+        if not self.substitute:
+            self.hp -= damage
+            if self.hp <= 0: 
+                self.hp = 0
+                self.fainted = True
+        # else the substitute will take the damage
+        else:
+            self.sub_damage += damage
+            self.msg += '\n{pkmn}\'s substitute was hit!'.format(pkmn = self.name)
+            if self.sub_damage >= 255:
+                self.substitute = False
+                self.sub_damage = 0
+                self.msg += '\n{pkmn}\'s substitute vanished!'.format(pkmn = self.name) 
 
     # attack function that handles the status modifier
     def try_atk_status(self, move, enemy):
@@ -421,7 +428,7 @@ class Pokemon:
                             self.hp = self.max_hp
                         else:
                             self.hp += regain
-                        self.msg += '\nSucked health from {pkmn}!'.format(pkmn = self.name)
+                        self.msg += '\nSucked health from {pkmn}!'.format(pkmn = enemy.name)
                     elif move.name == 'Dream Eater':
                         if enemy.status == 'SLP':
                             regain = self.handle_recoil(enemy, damage, 50)
@@ -436,9 +443,7 @@ class Pokemon:
 
                     if self.temp_status != "CONF":
                         if enemy != self: 
-                            enemy.hit(damage)
-                            # print(move.name)
-                            self.handle_special_physical_move(move, enemy)
+                            self.handle_special_physical_move(move, enemy, damage)
                             if enemy.fainted:
                                 self.msg += '\n{enemy} fainted!'.format(enemy = enemy.name)
                     else:
@@ -567,12 +572,13 @@ class Pokemon:
             rand_move = Move(rand_move_tmp['name'], rand_move_tmp['type'], rand_move_tmp['power'], rand_move_tmp['pp'], rand_move_tmp['category'], rand_move_tmp['accuracy'])
             self.atk(rand_move, enemy)
         elif move.name == 'Mimic':
-            self.msg += '\n{player_mon} copies one of {enemy_mon}\'s moves!'.format(player_mon = self.name, enemy_mon = enemy.name)
-            for m in self.moves:
-                print(m.name)
+            m = random.choice(enemy.moves)
+            if m.name != None:
                 if m.name == 'Mimic':
-                    m = random.choice(enemy.moves)
-                    break
+                    self.msg += '\nBut it failed...'
+            else:
+                self.atk(m, enemy)
+                self.msg += '\n{player_mon} copies one of {enemy_mon}\'s moves!'.format(player_mon = self.name, enemy_mon = enemy.name)
         elif move.name == 'Mirror Move':
             pass
         elif move.name == 'Mist':
@@ -617,10 +623,13 @@ class Pokemon:
             enemy.speed_mult = self.inc_dec_stat_mult(enemy.speed_mult, increase=False, enemy=enemy)
             enemy.speed = enemy.update_battle_stat(enemy.speed, enemy.speed_mult)
         elif move.name == 'Substitute':
-            if self.hp >= (0.3 * self.max_hp):
-                self.hp -= math.floor(0.25 * self.max_hp)
-                self.substitute = True
-                self.msg += '\n{pkmn} is replaced by a substitute doll!'.format(pkmn = self.name)
+            if not self.substitute:
+                if self.hp >= (0.3 * self.max_hp):
+                    self.hp -= math.floor(0.25 * self.max_hp)
+                    self.substitute = True
+                    self.msg += '\n{pkmn} is replaced by a substitute doll!'.format(pkmn = self.name)
+            else:
+                self.msg += '\nBut {pkmn} is already protected by a substitute doll...'.format(pkmn = self.name)
         elif move.name == 'Sharpen':
             self.atk_mult = self.inc_dec_stat_mult(self.atk_mult, increase=True)
             self.attack = self.update_battle_stat(self.attack, self.atk_mult)
@@ -647,30 +656,88 @@ class Pokemon:
                 self.msg += '\nBut nothing happened...'
         elif move.name == 'Transform':
             self.msg += '\n{player_mon} transforms into {enemy_mon}!'.format(player_mon = self.name, enemy_mon = enemy.name)
-            tmp_status = self.status
-            tmp_temp_status = self.temp_status
-            tmp_hp = self.hp
-            tmp_max_hp = self.max_hp
-            tmp_msg = self.msg
-
-            self = deepcopy(enemy)
-            self.name = 'Ditto'
-            self.msg = tmp_msg
-            self.max_hp = tmp_max_hp
-            self.hp = tmp_hp
-            self.status = tmp_status
-            self.temp_status = tmp_temp_status
             self.transformed = True
+
+            self.id = enemy.id
+            self.typing = enemy.typing
+            self.moves = deepcopy(enemy.moves)
+
+            self.max_attack = deepcopy(enemy.max_attack)
+            self.max_defense = deepcopy(enemy.max_defense)
+            self.max_sp_atk = deepcopy(enemy.max_sp_atk)
+            self.max_sp_def = deepcopy(enemy.max_sp_def)
+            self.max_speed = deepcopy(enemy.max_speed)
+
+            self.attack = deepcopy(enemy.attack)
+            self.defense = deepcopy(enemy.defense)
+            self.sp_atk = deepcopy(enemy.sp_atk)
+            self.sp_def = deepcopy(enemy.sp_def)
+            self.speed = deepcopy(enemy.speed)
             
             for m in self.moves:
                 if m != None:
-                    m.pp = m.max_pp/2
-
-    def handle_special_physical_move(self, move, enemy):
-        # Physical moves
+                    m.pp = int(m.max_pp/2)
+            
+    def handle_special_physical_move(self, move, enemy, damage):
+        if move.typing == 'Fire':
+            enemy.hit(damage)
+            prob = random.randint(0, 100)
+            if prob <= 10:
+                enemy.status = 'BRN'
+                self.msg += '\n{pkmn} is burned!'.format(pkmn = enemy.name)
+        if move.name == 'Body Slam':
+            enemy.hit(damage)
+            prob = random.randint(0, 100)
+            if prob <= 30:
+                enemy.status = 'PAR'
+                enemy.speed -= (0.75 * enemy.speed)
+                self.msg += '\n{pkmn} is paralized! Maybe it can\'t attack!'.format(pkmn = enemy.name)
+        if move.name == 'Confusion':
+            enemy.hit(damage)
+            prob = random.randint(0, 100)
+            if prob <= 10:
+                enemy.temp_status = 'CONF'
+                self.msg += '\n{pkmn} is now confused!'.format(pkmn = enemy.name)
         if move.name == 'Explosion':
-            self.hp = 0
-            self.fainted = True
-        if move.name == 'Fissure':
-            enemy.hp = 0
-            enemy.fainted = True
+            enemy.hit(damage)
+            self.hit(self.max_hp)
+        elif move.name == 'Fissure':
+            enemy.hit(enemy.max_hp)
+        elif move.name == 'Fury Swipes' or move.name == 'Fury Attack' or move.name == 'Double Slap':
+            cnt = 1
+            enemy.hit(damage)
+            while cnt < 5:
+                prob = random.randint(0, 100)
+                if cnt < 2:
+                    if prob <= 37:
+                        enemy.hit(damage)
+                        cnt += 1
+                    else:
+                        break
+                elif cnt >= 2 and cnt < 5:
+                    if prob <= 12:
+                        enemy.hit(damage)
+                        cnt +=1
+                    else:
+                        break
+            self.msg += '\nHit {cnt} time(s)!'.format(cnt = cnt)
+        elif move.name == 'Poison Sting':
+            enemy.hit(damage)
+            if (len(enemy.typing) == 2):
+                if enemy.typing[0] != 'POISON' and enemy.typing[1] != 'POISON':
+                    prob = random.randint(0, 100)
+                    if prob <= 20:
+                        enemy.status = 'PSN'
+                        self.msg += '\n{pkmn} is poisoned!'.format(pkmn = enemy.name)
+                else: 
+                    pass
+            elif enemy.typing[0] != 'POISON':
+                prob = random.randint(0, 100)
+                if prob <= 20:
+                    enemy.status = 'PSN'
+                    self.msg += '\n{pkmn} is poisoned!'.format(pkmn = enemy.name)
+            else: 
+                pass
+        else:
+            # normal attack, without any particular effects
+            enemy.hit(damage)

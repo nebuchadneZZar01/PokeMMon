@@ -67,9 +67,9 @@ functions to add:
 - add actual pokemon indicator in team visualization [OK]
 - icon [OK]
 - title [OK]
-- double turn move
-- multi-attack move
-- counter attack
+- substitute [OK]
+- dot moves
+- multi-attack move [OK]
 - selection sound [OK]
 - switch sound [OK]
 - hit (with effectiveness) sound
@@ -82,6 +82,7 @@ things to fix
 - final text "AI won/lost the battle" [OK]
 - selecting move on None slot [OK]
 - toxicity against poison type (double type) [OK]
-- mimic move
-- transform move
+- mimic move [OK]
+- mime not value on mimic move
+- transform move [OK]
 - self switching [OK]

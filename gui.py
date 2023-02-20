@@ -131,9 +131,9 @@ class MoveButton:
                         print('other turn')
                     self.clicked = True
 
-        if pygame.mouse.get_pressed()[0] == 0:
-            self.clicked = False
-    
+            if pygame.mouse.get_pressed()[0] == 0:
+                self.clicked = False
+
     def get_clicked(self):
         return self.clicked
 
@@ -215,7 +215,9 @@ class TeamButton:
 
         if len(self.pkmn.typing) == 2:
             screen.blit(self.pkmn_type1_img, (self.x+155, self.y+75))
-            screen.blit(self.pkmn_type2_img, (self.x+175, self.y+75))
+            try:
+                screen.blit(self.pkmn_type2_img, (self.x+175, self.y+75))
+            except: pass
         else:
             screen.blit(self.pkmn_type1_img, (self.x+175, self.y+75))
 
@@ -398,10 +400,22 @@ class GameWindow:
             self.update_player_mon()
 
         if self.player_mon.transformed:
+            self.player_mon.transformed = False
             self.update_player_mon()
 
-        if self.enemy_mon.transformed:
-            self.update_enemy_mon()
+        if self.player_mon.substitute:
+            self.player_mon_sprite = pygame.image.load(os.path.join('assets/sprites/back/substitute.png'))
+            self.player_mon_sprite = pygame.transform.scale(self.player_mon_sprite, (mon_size, mon_size))
+        else:
+            self.player_mon_sprite = pygame.image.load(os.path.join('assets/sprites/back/{id}.png'.format(id = self.player_mon.id)))
+            self.player_mon_sprite = pygame.transform.scale(self.player_mon_sprite, (mon_size, mon_size))
+
+        if self.enemy_mon.substitute:
+            self.enemy_mon_sprite = pygame.image.load(os.path.join('assets/sprites/front/substitute.png'))
+            self.enemy_mon_sprite = pygame.transform.scale(self.enemy_mon_sprite, (mon_size, mon_size))
+        else:
+            self.enemy_mon_sprite = pygame.image.load(os.path.join('assets/sprites/front/{id}.png'.format(id = self.enemy_mon.id)))
+            self.enemy_mon_sprite = pygame.transform.scale(self.enemy_mon_sprite, (mon_size, mon_size))
         
         screen.fill(white)
 
@@ -505,7 +519,10 @@ class GameWindow:
         # enemy types
         screen.blit(self.player_mon_type1_img, (260, 308))
         if len(self.player_mon.typing) == 2:
-            screen.blit(self.player_mon_type2_img, (280, 308))
+            try:
+                screen.blit(self.player_mon_type2_img, (280, 308))
+            except: 
+                pass
 
         # player mons
         for i in (range(len(self.player.team))):
