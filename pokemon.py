@@ -783,7 +783,7 @@ class Pokemon:
         if move.name == 'Explosion':
             enemy.hit(damage)
             self.hit(self.max_hp)
-        elif move.name == 'Fissure':
+        elif move.name == 'Fissure' or move.name == 'Guillotine':
             enemy.hit(enemy.max_hp)
         elif move.name == 'Fury Swipes' or move.name == 'Fury Attack' or move.name == 'Double Slap' or move.name == 'Wrap':
             cnt = 1

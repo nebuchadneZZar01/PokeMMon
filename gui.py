@@ -131,8 +131,8 @@ class MoveButton:
                         print('other turn')
                     self.clicked = True
 
-            if pygame.mouse.get_pressed()[0] == 0:
-                self.clicked = False
+        if pygame.mouse.get_pressed()[0] == 0:
+            self.clicked = False
 
     def get_clicked(self):
         return self.clicked

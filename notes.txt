@@ -87,3 +87,5 @@ things to fix
 - mime not value on mimic move  [OK]
 - transform move [OK]
 - self switching [OK]
+- substitute hit message
+- rest healing other statuses
