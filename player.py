@@ -21,7 +21,10 @@ class Trainer:
             tmp = random.choice(list(pokedex_list.items()))[1]
             self.team[i] = Pokemon(tmp.num, tmp.species, tmp.elements, 100, tmp.base_stats)
 
-        self.team[2] = Pokemon(1, 'Ditto', ['NORMAL'], 100, [3,5,520,3,4,6])
+        # self.team[2] = Pokemon(1, 'Bulbasaur', ['GRASS', 'POISON'], 100, [3,5,520,3,4,6])
+        # self.team[3] = Pokemon(1, 'Oddish', ['GRASS', 'POISON'], 100, [3,5,520,3,4,6])
+        # self.team[4] = Pokemon(1, 'Gloom', ['GRASS', 'POISON'], 100, [3,5,520,3,4,6])
+        # self.team[5] = Pokemon(1, 'Vileplume', ['GRASS', 'POISON'], 100, [3,5,520,3,4,6])
 
         # FOR TESTING PURPOSES
         # for i in range(len(self.team)):

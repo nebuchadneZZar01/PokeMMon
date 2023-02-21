@@ -68,7 +68,7 @@ functions to add:
 - icon [OK]
 - title [OK]
 - substitute [OK]
-- dot moves
+- leech seed [OK]
 - multi-attack move [OK]
 - selection sound [OK]
 - switch sound [OK]
@@ -82,7 +82,8 @@ things to fix
 - final text "AI won/lost the battle" [OK]
 - selecting move on None slot [OK]
 - toxicity against poison type (double type) [OK]
+- barrier only 1 time (have to vanish after x turns)
 - mimic move [OK]
-- mime not value on mimic move
+- mime not value on mimic move  [OK]
 - transform move [OK]
 - self switching [OK]

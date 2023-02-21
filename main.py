@@ -31,7 +31,9 @@ while True:
 
     event = gui.pygame.event.poll()
     if event.type == gui.pygame.QUIT:
+        gui.pygame.display.quit()
         gui.pygame.quit()
+        sys.exit()
         break
 
     game_gui.draw()

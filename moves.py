@@ -45,7 +45,6 @@ attacks = [
     {'name': 'Flamethrower', 'category': 'Special', 'power': 95, 'accuracy': 100, 'pp': 15, 'type': 'Fire'},
     {'name': 'Flash', 'category': 'Non-Damaging', 'power': 0, 'accuracy': 70, 'pp': 20, 'type': 'Normal'},
     {'name': 'Fly', 'category': 'Physical', 'power': 70, 'accuracy': 95, 'pp': 15, 'type': 'Flying'},
-    {'name': 'Focus Energy', 'category': 'Non-Damaging', 'power': 0, 'accuracy': 0, 'pp': 30, 'type': 'Normal'},
     {'name': 'Fury Attack', 'category': 'Physical', 'power': 15, 'accuracy': 85, 'pp': 20, 'type': 'Normal'},
     {'name': 'Fury Swipes', 'category': 'Physical', 'power': 18, 'accuracy': 80, 'pp': 15, 'type': 'Normal'},
     {'name': 'Glare', 'category': 'Non-Damaging', 'power': 0, 'accuracy': 75, 'pp': 30, 'type': 'Normal'},

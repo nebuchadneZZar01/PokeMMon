@@ -40,7 +40,7 @@ class TextBox:
         self.y = y
         self.clicked = False
         self.text = text
-        self.font = pygame.font.Font('assets/font/RBYGSC.ttf', 20)
+        self.font = pygame.font.Font('assets/font/RBYGSC.ttf', 18)
 
     def blit_text(self, box, text, pos):
         words = [word.split(' ') for word in text.splitlines()]

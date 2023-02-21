@@ -88,6 +88,9 @@ class Pokemon:
         # defines if pkmn is transformed (for mew and ditto)
         self.transformed = False
 
+        # defines if leech seed was used on pkmn
+        self.seeded = False
+
         # defines how many turn pkmn is sleeping
         self.sleeping_turns = 0
         
@@ -96,7 +99,14 @@ class Pokemon:
 
         # defines how many turns pkmn have been intoxicated
         self.toxic_turns = 0
-        
+
+        # define if there is already a (sp.) def. barrier
+        self.reflect = False
+        self.light_screen = False
+
+        # define if the pkmn put a mist
+        self.mist = False
+
         # message to gui
         self.msg = 'You are challenged by AI Trainer!'
 
@@ -215,7 +225,7 @@ class Pokemon:
         
         return multiplier
 
-    # resets the multipliers
+    # resets the multipliers and barriers
     def reset_stats_mult(self):
         self.atk_mult = 0
         self.def_mult = 0
@@ -224,6 +234,10 @@ class Pokemon:
         self.speed_mult = 0
         self.ev_mult = 0
         self.acc_mult = 0
+
+        self.reflect = False
+        self.light_screen = False
+        self.mist = False
 
     # updates in-battle stats using the updated multipliers
     def update_battle_stat(self, stat, multiplier):
@@ -515,6 +529,9 @@ class Pokemon:
             self.sp_atk = self.update_battle_stat(self.sp_atk, self.sp_atk_mult)
             self.sp_def_mult = self.inc_dec_stat_mult(self.sp_def_mult, increase=True, highly=True)
             self.sp_def = self.update_battle_stat(self.sp_def, self.sp_def_mult)
+        elif move.name == 'Barrier':
+            self.def_mult = self.inc_dec_stat_mult(self.defense, increase=True, highly=True)
+            self.defense = self.update_battle_stat(self.defense, self.def_mult)
         elif move.name == 'Confuse Ray' or move.name == 'Supersonic':
             enemy.temp_status = 'CONF'
             self.msg += '\n{pkmn} is now confused!'.format(pkmn = enemy.name)
@@ -524,26 +541,31 @@ class Pokemon:
         elif move.name == 'Defense Curl' or move.name == 'Harden' or move.name == 'Withdraw':
             self.def_mult = self.inc_dec_stat_mult(self.def_mult, increase=True)
             self.defense = self.update_battle_stat(self.defense, self.def_mult)
-        elif move.name == 'Disable':
-            pass
         elif move.name == 'Double Team':
             self.ev_mult = self.inc_dec_stat_mult(self.ev_mult, increase=True)
             self.evasion = self.update_battle_stat(self.evasion, self.ev_mult)
-        elif move.name == 'Focus Energy':
-            pass
         elif move.name == 'Flash' or move.name == 'Kinesis' or move.name == 'Sand Attack':
-            enemy.acc_mult = self.inc_dec_stat_mult(enemy.acc_mult, increase=False, enemy=enemy)
-            enemy.accuracy = self.update_battle_stat(enemy.accuracy, enemy.acc_mult)
-        elif move.name == 'Glare' or move.name == 'Stun Spore' or move.name == 'Thunder Wave':
-            if enemy.status == None:
-                enemy.status = 'PAR'
-                enemy.speed -= (0.75 * enemy.speed)
-                self.msg += '\n{pkmn} is paralized! Maybe it can\'t attack!'.format(pkmn = enemy.name)
+            if not enemy.mist:
+                enemy.acc_mult = self.inc_dec_stat_mult(enemy.acc_mult, increase=False, enemy=enemy)
+                enemy.accuracy = self.update_battle_stat(enemy.accuracy, enemy.acc_mult)
             else:
-                self.msg += '\nBut nothing happened...'
+                self.msg += '\nBut {enemy_mon}\'s Mist prevents its stats decrease...'
+        elif move.name == 'Glare' or move.name == 'Stun Spore' or move.name == 'Thunder Wave':
+            if not enemy.substitute:
+                if enemy.status == None:
+                    enemy.status = 'PAR'
+                    enemy.speed -= (0.75 * enemy.speed)
+                    self.msg += '\n{pkmn} is paralized! Maybe it can\'t attack!'.format(pkmn = enemy.name)
+                else:
+                    self.msg += '\nBut nothing happened...'
+            else:
+                self.msg += '\n{pkmn}\'s Substitute prevents its status change!'.format(pkmn = enemy.name)
         elif move.name == 'Growl':
-            enemy.atk_mult = self.inc_dec_stat_mult(enemy.atk_mult, increase=False, enemy=enemy)
-            enemy.attack = enemy.update_battle_stat(enemy.attack, enemy.atk_mult)
+            if not enemy.mist:
+                enemy.atk_mult = self.inc_dec_stat_mult(enemy.atk_mult, increase=False, enemy=enemy)
+                enemy.attack = enemy.update_battle_stat(enemy.attack, enemy.atk_mult)
+            else:
+                self.msg += '\nBut {enemy_mon}\'s Mist prevents its stats decrease...'
         elif move.name == 'Growth':
             self.sp_atk_mult = self.inc_dec_stat_mult(self.sp_atk_mult, increase=True)
             self.sp_atk = self.update_battle_stat(self.sp_atk, self.sp_atk_mult)
@@ -551,19 +573,52 @@ class Pokemon:
             self.sp_def = self.update_battle_stat(self.sp_def, self.sp_def_mult)
         elif move.name == 'Haze':
             self.reset_stats_mult()
+            self.reset_battle_stats()
             enemy.reset_stats_mult()
+            enemy.reset_battle_stats()
             self.msg += '\nAll stats changes have been reset!'
         elif move.name == 'Hypnosis' or move.name == 'Lovely Kiss' or move.name == 'Sing' or move.name == 'Spore' or move.name == 'Sleep Powder':
-            if enemy.status == None:
-                enemy.status = 'SLP'
-                self.msg += '\n{pkmn} is now sleeping!'.format(pkmn = enemy.name)
+            if not enemy.substitute:
+                if enemy.status == None:
+                    enemy.status = 'SLP'
+                    self.msg += '\n{pkmn} is now sleeping!'.format(pkmn = enemy.name)
+                else:
+                    self.msg += '\nBut nothing happened...'
             else:
-                self.msg += '\nBut nothing happened...'
+                self.msg += '\n{pkmn}\'s Substitute prevents its status change!'.format(pkmn = enemy.name)
         elif move.name == 'Leech Seed':
-            pass
+            if not enemy.substitute:
+                if not enemy.seeded:
+                    # if there are two types
+                    if (len(enemy.typing) == 2):
+                        # if no one of the types is grass
+                        if enemy.typing[0] != 'GRASS' and enemy.typing[1] != 'GRASS':
+                            enemy.seeded = True
+                            self.msg += '\n{pkmn} was seeded!'.format(pkmn = enemy.name)
+                        else: 
+                            self.msg += '\nIt has not effect on {pkmn}...'.format(pkmn = enemy.name)
+                    # if the only type is not grass
+                    elif enemy.typing[0] != 'GRASS':
+                        enemy.seeded = True
+                        self.msg += '\n{pkmn} was seeded!'.format(pkmn = enemy.name)
+                    else:
+                        self.msg += '\nIt has not effect on {pkmn}...'.format(pkmn = enemy.name)
+                # if enemy is already seeded
+                else:
+                    self.msg += '\nBut {pkmn}\'s is already seeded...'.format(pkmn = enemy.name)
+            # there is a substitute
+            else:
+                self.msg += '\n{pkmn}\'s Substitute prevents Leech Seed!'.format(pkmn = enemy.name)
         elif move.name == 'Light Screen':
-            self.sp_atk *= 2
-            self.sp_def *= 2
+            if not self.light_screen:
+                self.light_screen = True
+                if (self.sp_def * 2) > 1024:
+                    self.sp_def = 1024
+                else:
+                    self.sp_def *= 2
+                self.msg += '\n{pkmn} protected against special attacks!'.format(pkmn = self.name)
+            else:
+                self.msg += '\nBut Light Screen is already covering {pkmn}...'.format(pkmn = self.name)
         elif move.name == 'Meditate' or move.name == 'Minimize':
             self.ev_mult = self.inc_dec_stat_mult(self.ev_mult, increase=True)
             self.evasion = self.update_battle_stat(self.evasion, self.ev_mult)
@@ -573,31 +628,36 @@ class Pokemon:
             self.atk(rand_move, enemy)
         elif move.name == 'Mimic':
             m = random.choice(enemy.moves)
-            if m.name != None:
+            if m != None:
                 if m.name == 'Mimic':
                     self.msg += '\nBut it failed...'
             else:
                 self.atk(m, enemy)
                 self.msg += '\n{player_mon} copies one of {enemy_mon}\'s moves!'.format(player_mon = self.name, enemy_mon = enemy.name)
-        elif move.name == 'Mirror Move':
-            pass
         elif move.name == 'Mist':
-            pass
+            if not self.mist:
+                self.mist = True
+                self.msg += '\n{pkmn} is shrouded in Mist!'.format(pkmn = self.name)
+            else:
+                self.msg += '\nBut there is already a Mist covering {pkmn}...'.format(pkmn = self.name)
         elif move.name == 'Poison Gas' or move.name == 'Poison Powder':
-            if enemy.status == None:
-                if (len(enemy.typing) == 2):
-                    if enemy.typing[0] != 'POISON' and enemy.typing[1] != 'POISON':
+            if not enemy.substitute:
+                if enemy.status == None:
+                    if (len(enemy.typing) == 2):
+                        if enemy.typing[0] != 'POISON' and enemy.typing[1] != 'POISON':
+                            enemy.status = 'PSN'
+                            self.msg += '\n{pkmn} is poisoned!'.format(pkmn = enemy.name)
+                        else: 
+                            self.msg += '\nIt has not effect on {pkmn}...'.format(pkmn = enemy.name)
+                    elif enemy.typing[0] != 'POISON':
                         enemy.status = 'PSN'
                         self.msg += '\n{pkmn} is poisoned!'.format(pkmn = enemy.name)
                     else: 
                         self.msg += '\nIt has not effect on {pkmn}...'.format(pkmn = enemy.name)
-                elif enemy.typing[0] != 'POISON':
-                    enemy.status = 'PSN'
-                    self.msg += '\n{pkmn} is poisoned!'.format(pkmn = enemy.name)
-                else: 
-                    self.msg += '\nIt has not effect on {pkmn}...'.format(pkmn = enemy.name)
+                else:
+                    self.msg += '\nBut nothing happened...'
             else:
-                self.msg += '\nBut nothing happened...'
+                self.msg += '\n{pkmn}\'s Substitute prevents its status change!'.format(pkmn = enemy.name)
         elif move.name == 'Recover' or move.name == 'Soft Boiled':
             if self.hp < self.max_hp:
                 self.hp += (0.5) * self.max_hp
@@ -606,7 +666,15 @@ class Pokemon:
             else:
                 self.msg = '\nBut {pkmn} already has all its hp!'.format(pkmn = self.name)
         elif move.name == 'Reflect':
-            self.defense *= 2
+            if not self.reflect: 
+                self.reflect = True
+                if (self.defense * 2) > 1024:
+                    self.defense = 1024
+                else:
+                    self.defense *= 2
+                self.msg += '\n{pkmn} gained armor!'.format(pkmn = self.name)
+            else:
+                self.msg += '\nBut Reflect is already covering {pkmn}...'.format(pkmn = self.name)
         elif move.name == 'Rest':
             if self.hp < self.max_hp:
                 self.hp = self.max_hp
@@ -617,11 +685,17 @@ class Pokemon:
         elif move.name == 'Roar' or move.name == 'Splash' or move.name == 'Teleport' or move.name == 'Whirlwind':
             self.msg += '\nBut nothing happened...'
         elif move.name == 'Screech':
-            enemy.def_mult = self.inc_dec_stat_mult(enemy.def_mult, increase=False, enemy=enemy)
-            enemy.defense = enemy.update_battle_stat(enemy.defense, enemy.def_mult)
+            if not enemy.mist:
+                enemy.def_mult = self.inc_dec_stat_mult(enemy.def_mult, increase=False, enemy=enemy)
+                enemy.defense = enemy.update_battle_stat(enemy.defense, enemy.def_mult)
+            else:
+                self.msg += '\nBut {pkmn}\'s Mist prevents its stats decrease...'.format(pkmn = enemy.name)
         elif move.name == 'String Shot':
-            enemy.speed_mult = self.inc_dec_stat_mult(enemy.speed_mult, increase=False, enemy=enemy)
-            enemy.speed = enemy.update_battle_stat(enemy.speed, enemy.speed_mult)
+            if not enemy.mist:
+                enemy.speed_mult = self.inc_dec_stat_mult(enemy.speed_mult, increase=False, enemy=enemy)
+                enemy.speed = enemy.update_battle_stat(enemy.speed, enemy.speed_mult)
+            else:
+                self.msg += '\nBut {pkmn}\'s Mist prevents its stats decrease...'.format(pkmn = enemy.name)
         elif move.name == 'Substitute':
             if not self.substitute:
                 if self.hp >= (0.3 * self.max_hp):
@@ -637,23 +711,29 @@ class Pokemon:
             self.atk_mult = self.inc_dec_stat_mult(self.atk_mult, increase=True, highly=True)
             self.attack = self.update_battle_stat(self.attack, self.atk_mult)
         elif move.name == 'Tail Whip' or move.name == 'Leer':
-            enemy.def_mult = self.inc_dec_stat_mult(enemy.def_mult, increase=False, enemy=enemy)
-            enemy.defense = enemy.update_battle_stat(enemy.defense, enemy.def_mult)
+            if not enemy.mist:
+                enemy.def_mult = self.inc_dec_stat_mult(enemy.def_mult, increase=False, enemy=enemy)
+                enemy.defense = enemy.update_battle_stat(enemy.defense, enemy.def_mult)
+            else:
+                self.msg += '\nBut {enemy_mon}\'s Mist prevents its stats decrease...'
         elif move.name == 'Toxic':
-            if enemy.status == None:
-                if (len(enemy.typing) == 2):
-                    if enemy.typing[0] != 'POISON' and enemy.typing[1] != 'POISON':
+            if not enemy.substitute:
+                if enemy.status == None:
+                    if (len(enemy.typing) == 2):
+                        if enemy.typing[0] != 'POISON' and enemy.typing[1] != 'POISON':
+                            enemy.status = 'TOX'
+                            self.msg += '\n{pkmn} is intoxicated!'.format(pkmn = enemy.name)
+                        else: 
+                            self.msg += '\nIt has not effect on {pkmn}...'.format(pkmn = enemy.name)
+                    elif enemy.typing[0] != 'POISON':
                         enemy.status = 'TOX'
                         self.msg += '\n{pkmn} is intoxicated!'.format(pkmn = enemy.name)
                     else: 
                         self.msg += '\nIt has not effect on {pkmn}...'.format(pkmn = enemy.name)
-                elif enemy.typing[0] != 'POISON':
-                    enemy.status = 'TOX'
-                    self.msg += '\n{pkmn} is intoxicated!'.format(pkmn = enemy.name)
-                else: 
-                    self.msg += '\nIt has not effect on {pkmn}...'.format(pkmn = enemy.name)
+                else:
+                    self.msg += '\nBut nothing happened...'
             else:
-                self.msg += '\nBut nothing happened...'
+                self.msg += '\n{pkmn}\'s Substitute prevents its status change!'.format(pkmn = enemy.name)
         elif move.name == 'Transform':
             self.msg += '\n{player_mon} transforms into {enemy_mon}!'.format(player_mon = self.name, enemy_mon = enemy.name)
             self.transformed = True
@@ -681,17 +761,19 @@ class Pokemon:
     def handle_special_physical_move(self, move, enemy, damage):
         if move.typing == 'Fire':
             enemy.hit(damage)
-            prob = random.randint(0, 100)
-            if prob <= 10:
-                enemy.status = 'BRN'
-                self.msg += '\n{pkmn} is burned!'.format(pkmn = enemy.name)
+            if not enemy.substitute:
+                prob = random.randint(0, 100)
+                if prob <= 10:
+                    enemy.status = 'BRN'
+                    self.msg += '\n{pkmn} is burned!'.format(pkmn = enemy.name)
         if move.name == 'Body Slam':
             enemy.hit(damage)
-            prob = random.randint(0, 100)
-            if prob <= 30:
-                enemy.status = 'PAR'
-                enemy.speed -= (0.75 * enemy.speed)
-                self.msg += '\n{pkmn} is paralized! Maybe it can\'t attack!'.format(pkmn = enemy.name)
+            if not enemy.substitute:
+                prob = random.randint(0, 100)
+                if prob <= 30:
+                    enemy.status = 'PAR'
+                    enemy.speed -= (0.75 * enemy.speed)
+                    self.msg += '\n{pkmn} is paralized! Maybe it can\'t attack!'.format(pkmn = enemy.name)
         if move.name == 'Confusion':
             enemy.hit(damage)
             prob = random.randint(0, 100)
@@ -703,7 +785,7 @@ class Pokemon:
             self.hit(self.max_hp)
         elif move.name == 'Fissure':
             enemy.hit(enemy.max_hp)
-        elif move.name == 'Fury Swipes' or move.name == 'Fury Attack' or move.name == 'Double Slap':
+        elif move.name == 'Fury Swipes' or move.name == 'Fury Attack' or move.name == 'Double Slap' or move.name == 'Wrap':
             cnt = 1
             enemy.hit(damage)
             while cnt < 5:
@@ -723,21 +805,22 @@ class Pokemon:
             self.msg += '\nHit {cnt} time(s)!'.format(cnt = cnt)
         elif move.name == 'Poison Sting':
             enemy.hit(damage)
-            if (len(enemy.typing) == 2):
-                if enemy.typing[0] != 'POISON' and enemy.typing[1] != 'POISON':
+            if not enemy.substitute:
+                if (len(enemy.typing) == 2):
+                    if enemy.typing[0] != 'POISON' and enemy.typing[1] != 'POISON':
+                        prob = random.randint(0, 100)
+                        if prob <= 20:
+                            enemy.status = 'PSN'
+                            self.msg += '\n{pkmn} is poisoned!'.format(pkmn = enemy.name)
+                    else: 
+                        pass
+                elif enemy.typing[0] != 'POISON':
                     prob = random.randint(0, 100)
                     if prob <= 20:
                         enemy.status = 'PSN'
                         self.msg += '\n{pkmn} is poisoned!'.format(pkmn = enemy.name)
                 else: 
                     pass
-            elif enemy.typing[0] != 'POISON':
-                prob = random.randint(0, 100)
-                if prob <= 20:
-                    enemy.status = 'PSN'
-                    self.msg += '\n{pkmn} is poisoned!'.format(pkmn = enemy.name)
-            else: 
-                pass
         else:
             # normal attack, without any particular effects
             enemy.hit(damage)
