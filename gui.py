@@ -241,6 +241,8 @@ class TeamButton:
             if pygame.mouse.get_pressed()[0] == 1 and self.clicked == False:
                 if self.pkmn is not self.player.in_battle:
                     if self.pkmn.fainted != True:
+                        # remove substitute
+                        self.player.in_battle.substitute = False
                         # reset all in-battle pkmn's temporary conditions and stats changements
                         self.player.in_battle.reset_stats_mult()
                         self.player.in_battle.reset_battle_stats()

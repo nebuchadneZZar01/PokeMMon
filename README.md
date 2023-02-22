@@ -19,8 +19,28 @@ All credits of the material used (characters, sounds, images and ideas) belong t
 #### MacOS
 
 ### Execution
+Run the `main.py` script to play the game. 
+
 ```
-python main.py
+python main.py -h
+
+usage: main.py [-h] [--ai AI] [--s S]
+
+Pokémon combat system (1st gen) re-implementation using MiniMax-type algorithms.                                            
+Author: nebuchadneZZar01 (Michele Ferro)                                            
+GitHub: https://github.com/nebuchadneZZar01/PokeMMon                                            
+All credits of the material used (characters, sounds, images and ideas) belong to The Pokémon Company, Nintendo, Game Freak and Creatures Inc.
+
+options:
+  -h, --help  show this help message and exit
+  --ai AI     artificial intelligence algorithm used [random/minimax/alphabeta] (default: minimax)
+  --s S       sound [Y/n] (default: yes)
+```
+Example using *Alpha-Beta pruning* algorithm, with sound activated:
+```
+python main.py --ai alphabeta --s y
 ```
 
-### Help
+
+### Author
+- @nebuchadneZZar91 (Michele Ferro)

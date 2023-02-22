@@ -87,5 +87,7 @@ things to fix
 - mime not value on mimic move  [OK]
 - transform move [OK]
 - self switching [OK]
-- substitute hit message
-- rest healing other statuses
+- substitute hit message [OK]
+- rest healing other statuses [OK]
+- refactoring damage function
+- consider pp in AI (eval function)

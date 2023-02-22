@@ -9,7 +9,7 @@ class Action:
     def __init__(self, action, user, target = None):
         self.action = action
         self.user = user
-        self.target = target
+        self.target = target                # Pokemon() if action is switch, Move() if action is Attack
 
 class Trainer:
     def __init__(self):
@@ -21,10 +21,10 @@ class Trainer:
             tmp = random.choice(list(pokedex_list.items()))[1]
             self.team[i] = Pokemon(tmp.num, tmp.species, tmp.elements, 100, tmp.base_stats)
 
-        # self.team[2] = Pokemon(1, 'Bulbasaur', ['GRASS', 'POISON'], 100, [3,5,520,3,4,6])
-        # self.team[3] = Pokemon(1, 'Oddish', ['GRASS', 'POISON'], 100, [3,5,520,3,4,6])
-        # self.team[4] = Pokemon(1, 'Gloom', ['GRASS', 'POISON'], 100, [3,5,520,3,4,6])
-        # self.team[5] = Pokemon(1, 'Vileplume', ['GRASS', 'POISON'], 100, [3,5,520,3,4,6])
+        # self.team[2] = Pokemon(1, 'Mew', ['PSYCHIC'], 100, [3,5,520,3,4,6])
+        # self.team[3] = Pokemon(1, 'Mewtwo', ['PSYCHIC'], 100, [3,5,520,3,4,6])
+        # self.team[4] = Pokemon(1, 'Dragonite', ['DRAGON', 'FLYING'], 100, [3,5,520,3,4,6])
+        # self.team[5] = Pokemon(1, 'Blastoise', ['WATER'], 100, [3,5,520,3,4,6])
 
         # FOR TESTING PURPOSES
         # for i in range(len(self.team)):
@@ -42,9 +42,9 @@ class Trainer:
     def get_possible_choices(self):
         possible_choices = [ ]
 
-        for pkmn in self.team:
-            if (pkmn.fainted == False or pkmn.on_field == False):
-                possible_choices.append(Action(SWITCH, self, pkmn))
+        # for pkmn in self.team:
+        #     if (pkmn.fainted == False or pkmn.on_field == False):
+        #         possible_choices.append(Action(SWITCH, self, pkmn))
         
         for move in self.in_battle.moves:
             if move != None:
@@ -91,14 +91,12 @@ class RandomAI(TrainerAI):
         self.choices = [ ]
 
     def get_choice(self, rival):
-        target = rival.in_battle
-        possible_choices = self.get_possible_choices()
-        print(possible_choices)
+        target = rival
 
         if self.is_turn():
             self.verify_fainted_switch()
             move = None
-            while move == None:
+            while move == None: 
                 move = random.choice(self.in_battle.moves)
             
             print(move.name)
@@ -107,7 +105,7 @@ class RandomAI(TrainerAI):
 
 class MinimaxAI(TrainerAI):
     # depth to edit
-    def __init__(self, rival, max_play_depth = 5):
+    def __init__(self, rival, max_play_depth = 7):
         super(MinimaxAI, self).__init__()
         self.choices = [ ]
         self.win_val = 1000000
@@ -121,7 +119,7 @@ class MinimaxAI(TrainerAI):
     # - total stats;
     # - number of pkmn with status;
     # - number of fainted pkmn
-    def evaluate(self):        
+    def evaluate(self, damage):        
         # self vars
         s_hp = 0
         s_hp_full = 0
@@ -163,152 +161,113 @@ class MinimaxAI(TrainerAI):
         stats_diff = s_stats - t_stats
         fainted_diff = t_fainted - s_fainted
 
-        print('hp_diff:', hp_diff)
+        print('\nhp_diff:', hp_diff)
         print('status_diff:', status_diff)
         print('stats_diff:', stats_diff)
         print('fainted_diff:', fainted_diff)
 
-        value = hp_diff * .7 + status_diff * 100 * .25 + stats_diff * 100 * .5 + fainted_diff * 100
+        value = hp_diff * .35 + damage * .35 + status_diff * 100 * .25 + stats_diff * 100 * .5 + fainted_diff * 100
         print('value:', value)
         return value
 
     def get_choice(self, target):
         if self.is_turn():
             self.verify_fainted_switch()
-            move = None
-            while move == None:
-                move = random.choice(self.in_battle.moves)
+            choosen_action = None
+            while choosen_action == None:
                 possible_choices = self.get_possible_choices()
                 print(possible_choices)
-
-                best_action = possible_choices[0]
-                best_val = -float('inf')
-                for action in possible_choices:
-                    val = self.rival_minimax(5, action)
-                    if val > best_val and action is Move:
-                        best_action = action
-                        best_val = val
-            
-            print(move.name)
-            self.choices.append(move.name)
-            self.in_battle.try_atk_status(move, target)
-
-    def self_minimax(self, depth):
-        if self.game_over_lose() == False and self.rival.game_over_lose() == False:
-            game_over = False
-        else:
-            game_over = True
-
-        if depth >= self.max_play_depth:
-            return self.evaluate()
-        elif game_over:
-            # if winner is self
-            if self.rival.game_over_lose():
-                return self.win_val
-            # if winner is rival
-            else:
-                return -self.win_val
-
-        best_move_val = self.win_val * (-1)
-        possible_choices = self.rival.get_possible_choices()
-        for action in possible_choices:
-            val = self.rival_minimax(depth, action)
-            best_move_val = max(val, best_move_val)
-        
-        return best_move_val
-
-    def rival_minimax(self, depth, action):
-        if self.game_over_lose() == False and self.rival.game_over_lose() == False:
-            game_over = False
-        else:
-            game_over = True
-
-        if game_over:
-            # if winner is rival
-            if self.game_over_lose():
-                return self.win_val
-            # if winner is self
-            else:
-                return -self.win_val
-
-        best_move_val = self.win_val
-        rival_choices = self.rival.get_possible_choices()
-
-        for rival_action in rival_choices:
-            if rival_action == SWITCH:
-                continue
                 
-            if self.rival.is_turn():
-                continue
+                if len(possible_choices) >= 1:
+                    best_action = possible_choices[0]
+                    best_val = -float('inf')
+                    for action in possible_choices:
+                        val = self.minimax(self.max_play_depth, action, False)
+                        if val > best_val:
+                            best_action = action
+                            best_val = val
+                
+                    choosen_action = best_action
+                else:
+                    choosen_action = 'no_pp'
 
-            val = self.self_minimax(depth + 1)
-            best_move_val = min(val, best_move_val)
-            
-        return best_move_val
+            if choosen_action != 'no_pp':
+                if choosen_action.action == ATTACK:        
+                    move = choosen_action.target    
+                    print(move.name)
+                    self.choices.append(move.name)
+                    self.in_battle.try_atk_status(move, target)
+                else:
+                    pkmn = choosen_action.target
+                    # remove substitute
+                    self.in_battle.substitute = False
+                    # reset all in-battle pkmn's temporary conditions and stats changements
+                    self.in_battle.reset_stats_mult()
+                    self.in_battle.reset_battle_stats()
+                    self.in_battle.temp_status = None
+                    self.in_battle.on_field = False
+                    # then replace the pokemon with the selected one
+                    self.in_battle = pkmn     
+                    pkmn.on_field = True
+            else:
+                # simply trigger struggle using the first move
+                self.in_battle.atk(self.in_battle.moves[0], target)
+
+    def minimax(self, depth, action, is_maximizing):
+        move_dmg = self.in_battle.calculate_damage(action.target, self.rival.in_battle)
+        if self.game_over_lose() or self.rival.game_over_lose():
+            if self.game_over_lose():
+                return -self.win_val
+            else:
+                return self.win_val
+        elif depth == 0:
+            return self.evaluate(move_dmg)
+
+        if is_maximizing:
+            best_val = -float('inf')
+            for move in self.get_possible_choices():
+                val = self.minimax(depth - 1, move, False)
+                best_val = max(best_val, val)
+            return best_val
+        else:
+            best_val = float('inf')
+            for move in self.rival.get_possible_choices():
+                val = self.minimax(depth - 1, move, True)
+                best_val = min(best_val, val)
+            return best_val
+
 
 class MMAlphaBetaAI(MinimaxAI):
-    def __init__(self, rival, max_play_depth = 5):
+    def __init__(self, rival, max_play_depth = 20):
         super(MMAlphaBetaAI, self).__init__(rival)
         self.alpha = -100000000
         self.beta = -self.alpha
 
-    def self_minimax(self, depth):
-        if self.game_over_lose() == False and self.rival.game_over_lose() == False:
-            game_over = False
-        else:
-            game_over = True
-
-        if depth >= self.max_play_depth:
-            return self.evaluate()
-        elif game_over:
-            # if winner is self
-            if self.rival.game_over_lose():
-                return self.win_val
-            # if winner is rival
-            else:
-                return -self.win_val
-
-        best_move_val = self.win_val * (-1)
-        possible_choices = self.rival.get_possible_choices()
-        for action in possible_choices:
-            val = self.rival_minimax(depth, action)
-            best_move_val = max(val, best_move_val)
-            if best_move_val >= self.beta:
-                return best_move_val
-            self.alpha = max(best_move_val, self.alpha)
-        
-        return best_move_val
-
-    def rival_minimax(self, depth, action):
-        if self.game_over_lose() == False and self.rival.game_over_lose() == False:
-            game_over = False
-        else:
-            game_over = True
-
-        if game_over:
-            # if winner is rival
+    def minimax(self, depth, action, is_maximizing):
+        move_dmg = self.in_battle.calculate_damage(action.target, self.rival.in_battle)
+        if self.game_over_lose() or self.rival.game_over_lose():
             if self.game_over_lose():
-                return self.win_val
-            # if winner is self
-            else:
                 return -self.win_val
+            else:
+                return self.win_val
+        elif depth == 0:
+            return self.evaluate(move_dmg)
 
-        best_move_val = self.win_val
-        rival_choices = self.rival.get_possible_choices()
-
-        for rival_action in rival_choices:
-            if rival_action == SWITCH:
-                continue
-                
-            if self.rival.is_turn():
-                continue
-
-            val = self.self_minimax(depth + 1)
-            best_move_val = min(val, best_move_val)
-            
-            if best_move_val <= self.alpha:
-                return best_move_val
-            
-            self.beta = min(best_move_val, self.beta)
-        
-        return best_move_val
+        if is_maximizing:
+            best_val = -float('inf')
+            for move in self.get_possible_choices():
+                val = self.minimax(depth - 1, move, False)
+                best_val = max(best_val, val)
+                self.alpha = max(self.alpha, best_val)
+                if self.beta <= self.alpha:
+                    break
+            return best_val
+        else:
+            best_val = float('inf')
+            for move in self.rival.get_possible_choices():
+                val = self.minimax(depth - 1, move, True)
+                best_val = min(best_val, val)
+                self.beta = min(self.beta, best_val)
+                if self.beta <= self.alpha:
+                    break
+            return best_val
