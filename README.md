@@ -43,4 +43,4 @@ python main.py --ai alphabeta --s y
 
 
 ### Author
-- @nebuchadneZZar91 (Michele Ferro)
+- @nebuchadneZZar01 (Michele Ferro)
