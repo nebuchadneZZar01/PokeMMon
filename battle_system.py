@@ -42,11 +42,11 @@ class TurnBattleSystem:
 
         if self.player.game_over_lose() or self.ai.game_over_lose():
             if self.player.game_over_lose():
-                self.player_mon.msg = 'AI Trainer won the battle!'
-                self.enemy_mon.msg = 'AI Trainer won the battle!'
+                self.player_mon.msg = 'AI Trainer won the battle...\nThe battle lasted {n_turns} turns.'.format(n_turns = self.turn_count)
+                self.enemy_mon.msg = 'AI Trainer won the battle...\nThe battle lasted {n_turns} turns.'.format(n_turns = self.turn_count)
             else:
-                self.player_mon.msg = 'AI Trainer lost the battle!' 
-                self.enemy_mon.msg = 'AI Trainer lost the battle!'
+                self.player_mon.msg = 'AI Trainer lost the battle!\nThe battle lasted {n_turns} turns.'.format(n_turns = self.turn_count) 
+                self.enemy_mon.msg = 'AI Trainer lost the battle!\nThe battle lasted {n_turns} turns.'.format(n_turns = self.turn_count)
         else:
             if self.player.is_turn():
                 pass

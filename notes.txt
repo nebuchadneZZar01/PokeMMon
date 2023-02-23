@@ -72,7 +72,6 @@ functions to add:
 - multi-attack move [OK]
 - selection sound [OK]
 - switch sound [OK]
-- hit (with effectiveness) sound
 - victory sound [OK]
 - defeat no-music [OK]
 
@@ -89,5 +88,7 @@ things to fix
 - self switching [OK]
 - substitute hit message [OK]
 - rest healing other statuses [OK]
-- refactoring damage function
-- consider pp in AI (eval function)
+- refactoring damage function [OK]
+- consider pp in AI (eval function) [OK]
+- display generated rival's pokemon on commandline during program opening
+- display possible rival's moves on commandline when is put on field

@@ -667,7 +667,7 @@ class Pokemon:
                 if self.hp > self.max_hp: self.hp = self.max_hp
                 self.msg += '\n{pkmn} restores half of its hp!'.format(pkmn = self.name)
             else:
-                self.msg = '\nBut {pkmn} already has all its hp!'.format(pkmn = self.name)
+                self.msg += '\nBut {pkmn} already has all its hp!'.format(pkmn = self.name)
         elif move.name == 'Reflect':
             if not self.reflect: 
                 self.reflect = True
