@@ -17,11 +17,16 @@ class TurnBattleSystem:
         if self.player.token == True:
             self.player.token = False
             self.ai.token = True
+            print("----- END PLAYER TURN -----\n")
+            print("\n----- START AI TURN -----")
         elif self.ai.token == True:
             self.ai.token = False
             self.player.token = True
+            print("----- END AI TURN -----\n")
+            print("\n----- START PLAYER TURN -----")
         
         self.turn_count += 1
+        print('Turn n: {turn}'.format(turn = self.turn_count))
 
     def get_turn(self):
         if self.player.token == True:
@@ -39,14 +44,16 @@ class TurnBattleSystem:
 
     def handle_turns(self):
         self.player_mon = self.player.in_battle         # prevents non updating target
+        ai_win_msg = 'AI Trainer won the battle...\nThe battle lasted {n_turns} turns.'.format(n_turns = self.turn_count)
+        ai_lose_msg = 'AI Trainer lost the battle!\nThe battle lasted {n_turns} turns.'.format(n_turns = self.turn_count)
 
         if self.player.game_over_lose() or self.ai.game_over_lose():
             if self.player.game_over_lose():
-                self.player_mon.msg = 'AI Trainer won the battle...\nThe battle lasted {n_turns} turns.'.format(n_turns = self.turn_count)
-                self.enemy_mon.msg = 'AI Trainer won the battle...\nThe battle lasted {n_turns} turns.'.format(n_turns = self.turn_count)
+                self.player_mon.msg = ai_win_msg
+                self.enemy_mon.msg = ai_win_msg
             else:
-                self.player_mon.msg = 'AI Trainer lost the battle!\nThe battle lasted {n_turns} turns.'.format(n_turns = self.turn_count) 
-                self.enemy_mon.msg = 'AI Trainer lost the battle!\nThe battle lasted {n_turns} turns.'.format(n_turns = self.turn_count)
+                self.player_mon.msg = ai_lose_msg
+                self.enemy_mon.msg = ai_lose_msg
         else:
             if self.player.is_turn():
                 pass
