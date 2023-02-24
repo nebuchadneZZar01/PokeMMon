@@ -457,7 +457,7 @@ class Pokemon:
                                 self.hp = self.max_hp
                             else:
                                 self.hp += regain
-                            self.msg += '\n{pkmn} dream was eaten!'.format(pkmn = self.enemy.name)
+                            self.msg += '\n{pkmn} dream was eaten!'.format(pkmn = enemy.name)
                         else:
                             self.msg += '\nIt does nothing...'
                             return
