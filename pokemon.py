@@ -330,8 +330,8 @@ class Pokemon:
         return damage
 
     # causes enemy's hp update throug the damage
-    def hit(self, damage, attacker = None):
-        # if there is not substitute, simply take damage
+    def hit(self, damage, attacker = None, status = False):
+        # if there is not substitute (or there is, ), simply take damage
         if not self.substitute:
             self.hp -= damage
             if self.hp <= 0: 
@@ -339,12 +339,18 @@ class Pokemon:
                 self.fainted = True
         # else the substitute will take the damage
         else:
-            self.sub_damage += damage
-            attacker.msg += '\n{pkmn}\'s substitute was hit!'.format(pkmn = self.name)
-            if self.sub_damage >= 255:
-                self.substitute = False
-                self.sub_damage = 0
-                attacker.msg += '\n{pkmn}\'s substitute vanished!'.format(pkmn = self.name) 
+            if status == False:
+                self.sub_damage += damage
+                attacker.msg += '\n{pkmn}\'s substitute was hit!'.format(pkmn = self.name)
+                if self.sub_damage >= 255:
+                    self.substitute = False
+                    self.sub_damage = 0
+                    attacker.msg += '\n{pkmn}\'s substitute vanished!'.format(pkmn = self.name) 
+            else:
+                self.hp -= damage
+                if self.hp <= 0: 
+                    self.hp = 0
+                    self.fainted = True
 
     # attack function that handles the actual status modifier
     def try_atk_status(self, move, enemy):

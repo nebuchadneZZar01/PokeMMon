@@ -71,14 +71,14 @@ class TurnBattleSystem:
 
         if self.player_mon.status == 'BRN' or self.player_mon.status == 'PSN':
             player_mon_max_hp = self.player_mon.max_hp
-            self.player_mon.hit(math.floor((1/16)*player_mon_max_hp))
+            self.player_mon.hit(math.floor((1/16)*player_mon_max_hp), None, status = True)
             if self.player_mon.status == 'BRN':
                 self.player_mon.msg += '\n{pkmn} is hurt by its burn!'.format(pkmn = self.player_mon.name)
             else:
                 self.player_mon.msg += '\n{pkmn} is hurt by poison!'.format(pkmn = self.player_mon.name)
         if self.enemy_mon.status == 'BRN' or self.enemy_mon.status == 'PSN':
             enemy_mon_max_hp = self.enemy_mon.max_hp
-            self.enemy_mon.hit(math.floor((1/16)*enemy_mon_max_hp))
+            self.enemy_mon.hit(math.floor((1/16)*enemy_mon_max_hp), None, status = True)
             if self.player_mon.status == 'BRN':
                 self.enemy_mon.msg += '\n{pkmn} is hurt by its burn!'.format(pkmn = self.enemy_mon.name)
             else:
@@ -96,7 +96,7 @@ class TurnBattleSystem:
             damage = math.floor(1/16 * player_mon_max_hp) * self.player_mon.toxic_turns
             if damage >= 15 * math.floor(1/16 * player_mon_max_hp):
                 damage = math.floor(1/16 * player_mon_max_hp)
-            self.player_mon.hit(damage)
+            self.player_mon.hit(damage, None, status = True)
             self.player_mon.msg += '\n{pkmn} is hurt by toxine!'.format(pkmn = self.player_mon.name)
         if self.enemy_mon.status == 'TOX':
             self.enemy_mon.toxic_turns += 1
@@ -104,7 +104,7 @@ class TurnBattleSystem:
             damage = math.floor(1/16 * enemy_mon_max_hp) * self.enemy_mon.toxic_turns
             if damage >= 15 * math.floor(1/16 * enemy_mon_max_hp):
                 damage = math.floor(1/16 * enemy_mon_max_hp)
-            self.enemy_mon.hit(damage)
+            self.enemy_mon.hit(damage, None, status = True)
             self.enemy_mon.msg += '\n{pkmn} is hurt by toxine!'.format(pkmn = self.enemy_mon.name)
 
     # damage mon and heals enemy_mon every turn if mon is seeded (and viceversa)
@@ -116,7 +116,7 @@ class TurnBattleSystem:
         if self.player_mon.seeded:
             player_mon_max_hp = self.player_mon.max_hp
             damage = math.floor((1/16)*player_mon_max_hp)
-            self.player_mon.hit(damage)
+            self.player_mon.hit(damage, None, status = True)
             if (self.enemy_mon.hp + damage) > self.enemy_mon.max_hp:
                 self.enemy_mon.hp = self.enemy_mon.max_hp
             else:
@@ -126,7 +126,7 @@ class TurnBattleSystem:
         if self.enemy_mon.seeded:
             enemy_mon_max_hp = self.enemy_mon.max_hp
             damage = math.floor(math.floor((1/16)*enemy_mon_max_hp))
-            self.enemy_mon.hit(damage)
+            self.enemy_mon.hit(damage, None, status = True)
             if (self.player_mon.hp + damage) > self.player_mon.max_hp:
                 self.player_mon.hp = self.player_mon.max_hp
             else:
