@@ -202,7 +202,7 @@ class MinimaxAI(TrainerAI):
         print('possible move:', move.name)
         print('possible damage:', move_damage)
 
-        value = hp_diff * .35 + move_damage * .35 + status_diff * 100 * .25 + stats_diff * 100 * .5 + fainted_diff * 100
+        value = hp_diff * .35 + move_damage * .35 + status_diff * 100 * .25 + stats_diff * 100 * .05 + fainted_diff * 100
         print('value: {value}\n'.format(value = value))
         return value
 
@@ -279,7 +279,7 @@ class MinimaxAI(TrainerAI):
 class MMAlphaBetaAI(MinimaxAI):
     def __init__(self, rival, max_play_depth = 20):
         super(MMAlphaBetaAI, self).__init__(rival)
-        self.alpha = -100000000
+        self.alpha = -float('inf')
         self.beta = -self.alpha
 
     def minimax(self, depth, action, is_maximizing):

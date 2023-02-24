@@ -10,7 +10,6 @@ mon_size = 150
 mon_type_size = 15
 
 size = (width, height)
-screen = pygame.display.set_mode(size)
 
 # gui colors
 white = (255, 255, 255)
@@ -22,25 +21,15 @@ red = (255, 0, 0)
 blue = (0, 0, 255)
 gray = (46, 52, 64)
 
-pygame.mixer.init()
-
-battle_ost = pygame.mixer.Sound(os.path.join('assets/sounds/battle.mp3'))
-victory_ost = pygame.mixer.Sound(os.path.join('assets/sounds/victory.mp3'))
-
-sel_sfx = pygame.mixer.Sound(os.path.join('assets/sounds/sfx/selection.mp3'))
-ball_sfx = pygame.mixer.Sound(os.path.join('assets/sounds/sfx/ball.mp3'))
-hit_sfx = pygame.mixer.Sound(os.path.join('assets/sounds/sfx/hit.mp3'))
-super_sfx = pygame.mixer.Sound(os.path.join('assets/sounds/sfx/super.mp3'))
-faint_sfx = pygame.mixer.Sound(os.path.join('assets/sounds/sfx/super.mp3'))
-
 # class that defines the textbox
 class TextBox:
-    def __init__(self, x, y, text):
+    def __init__(self, x, y, text, screen):
         self.x = x
         self.y = y
         self.clicked = False
         self.text = text
         self.font = pygame.font.Font('assets/font/RBYGSC.ttf', 18)
+        self.screen = screen
 
     def blit_text(self, box, text, pos):
         words = [word.split(' ') for word in text.splitlines()]
@@ -57,7 +46,7 @@ class TextBox:
                 if x + word_width >= max_width:
                     x = pos[0]
                     y += word_height
-                screen.blit(word_surface, (x, y))
+                self.screen.blit(word_surface, (x, y))
                 x += word_width + space
             x = pos[0]
             y += word_height
@@ -65,14 +54,14 @@ class TextBox:
     def draw(self, text):
         border = pygame.Rect(self.x, self.y, 500, 120)
         inner = pygame.Rect(self.x+5, self.y+5, 490, 110)
-        pygame.draw.rect(screen, black, border)
-        pygame.draw.rect(screen, white, inner)
+        pygame.draw.rect(self.screen, black, border)
+        pygame.draw.rect(self.screen, white, inner)
         self.blit_text(inner, text, (self.x+10, self.y+10))
     
 # identifies the move (of the pokemon in battle)
 # that the player can use to attack the enemy's one
 class MoveButton:
-    def __init__(self, x, y, move: Move = None, bs: TurnBattleSystem = None, sound = False):
+    def __init__(self, x, y, move: Move = None, bs: TurnBattleSystem = None, sound = False, screen = None):
         self.x = x
         self.y = y
         self.clicked = False
@@ -96,6 +85,9 @@ class MoveButton:
         self.enemy_mon = self.enemy.in_battle
 
         self.sound = sound
+        self.screen = screen
+
+        self.sel_sfx = pygame.mixer.Sound(os.path.join('assets/sounds/sfx/selection.mp3'))
 
     def draw(self):
         if self.move is not None:
@@ -103,22 +95,22 @@ class MoveButton:
 
         outer = pygame.Rect(self.x, self.y, 125, 100)
         inner = pygame.Rect(self.x+5, self.y+5, 115, 90)
-        pygame.draw.rect(screen, black, outer)
-        pygame.draw.rect(screen, white, inner)
+        pygame.draw.rect(self.screen, black, outer)
+        pygame.draw.rect(self.screen, white, inner)
 
-        screen.blit(self.rendered_name, (self.x+10, self.y+45))
+        self.screen.blit(self.rendered_name, (self.x+10, self.y+45))
 
         if self.move is not None:
-            screen.blit(rendered_pp, (self.x+75, self.y+75))
-            screen.blit(self.kind_img, (self.x+10, self.y+71))
-            screen.blit(self.type_img, (self.x+11, self.y+10))
+            self.screen.blit(rendered_pp, (self.x+75, self.y+75))
+            self.screen.blit(self.kind_img, (self.x+10, self.y+71))
+            self.screen.blit(self.type_img, (self.x+11, self.y+10))
 
         mouse = pygame.mouse.get_pos()
 
         if inner.collidepoint(mouse):
             if pygame.mouse.get_pressed()[0] == 1 and self.clicked == False:
                 if self.sound: 
-                    pygame.mixer.Channel(0).play(sel_sfx)
+                    pygame.mixer.Channel(0).play(self.sel_sfx)
                 if self.move != None:
                     if self.player.is_turn():
                         self.enemy_mon = self.enemy.in_battle                           # prevents non updating target when after the previous one is fainted 
@@ -139,7 +131,7 @@ class MoveButton:
 
 # encloses the (max of) four moves of the pokemon in battle
 class MoveSelector:
-    def __init__(self, bs: TurnBattleSystem = None, sound = False):
+    def __init__(self, bs: TurnBattleSystem = None, sound = False, screen = None):
         self.bs = bs
         self.player = self.bs.get_player()        
 
@@ -148,9 +140,10 @@ class MoveSelector:
         self.moves = [None] * 4
 
         self.sound = sound
+        self.screen = screen
 
         for i in range(len(self.moves)):
-            self.moves[i] = MoveButton(i*125, 500, self.player_mon.moves[i], self.bs, self.sound)
+            self.moves[i] = MoveButton(i*125, 500, self.player_mon.moves[i], self.bs, self.sound, self.screen)
 
     def draw(self):
         for m in self.moves:
@@ -161,7 +154,7 @@ class MoveSelector:
         self.player_mon = pkmn
 
         for i in range(len(self.moves)):
-            self.moves[i] = MoveButton(i*125, 500, self.player_mon.moves[i], self.bs, self.sound)
+            self.moves[i] = MoveButton(i*125, 500, self.player_mon.moves[i], self.bs, self.sound, self.screen)
 
     # updates player moves target when enemy's pokemon is changed
     def update_enemy_mon(self):
@@ -173,7 +166,7 @@ class MoveSelector:
 # button that identifies a pokemon in the player team
 # it can be used to change the pokemon in battle
 class TeamButton:
-    def __init__(self, x, y, pkmn: Pokemon = None, bs: TurnBattleSystem = None, sound = False):
+    def __init__(self, x, y, pkmn: Pokemon = None, bs: TurnBattleSystem = None, sound = False, screen = None):
         self.x = x
         self.y = y
         self.clicked = False
@@ -183,6 +176,8 @@ class TeamButton:
         self.player = self.bs.get_player()
 
         self.sound = sound
+        self.screen = screen
+        self.ball_sfx = pygame.mixer.Sound(os.path.join('assets/sounds/sfx/ball.mp3'))
 
         self.font = pygame.font.Font('assets/font/RBYGSC.ttf', 14)
 
@@ -201,25 +196,25 @@ class TeamButton:
     def draw(self):
         outer = pygame.Rect(self.x, self.y, 200, 100)
         inner = pygame.Rect(self.x+5, self.y+5, 190, 90)
-        pygame.draw.rect(screen, black, outer)
-        pygame.draw.rect(screen, white, inner)
+        pygame.draw.rect(self.screen, black, outer)
+        pygame.draw.rect(self.screen, white, inner)
 
         rendered_hp = self.font.render('{hp}/{max_hp}'.format(hp = int(self.pkmn.hp), max_hp = self.pkmn.max_hp), True, black)
         rendered_status = self.font.render(self.pkmn.status, True, black)
 
-        screen.blit(self.pkmn_img, (self.x+10, self.y+10))
-        screen.blit(self.rendered_name, (self.x+65, self.y+10))
-        screen.blit(self.rendered_lv, (self.x+10, self.y+75))
-        screen.blit(rendered_status, (self.x+100, self.y+75))
-        screen.blit(rendered_hp, (self.x+65, self.y+40))
+        self.screen.blit(self.pkmn_img, (self.x+10, self.y+10))
+        self.screen.blit(self.rendered_name, (self.x+65, self.y+10))
+        self.screen.blit(self.rendered_lv, (self.x+10, self.y+75))
+        self.screen.blit(rendered_status, (self.x+100, self.y+75))
+        self.screen.blit(rendered_hp, (self.x+65, self.y+40))
 
         if len(self.pkmn.typing) == 2:
-            screen.blit(self.pkmn_type1_img, (self.x+155, self.y+75))
+            self.screen.blit(self.pkmn_type1_img, (self.x+155, self.y+75))
             try:
-                screen.blit(self.pkmn_type2_img, (self.x+175, self.y+75))
+                self.screen.blit(self.pkmn_type2_img, (self.x+175, self.y+75))
             except: pass
         else:
-            screen.blit(self.pkmn_type1_img, (self.x+175, self.y+75))
+            self.screen.blit(self.pkmn_type1_img, (self.x+175, self.y+75))
 
         # health bar
         perc = (self.pkmn.hp/self.pkmn.max_hp)
@@ -231,9 +226,9 @@ class TeamButton:
 
         # on field indicator
         if self.pkmn.on_field:
-            pygame.draw.circle(screen, blue, (self.x+180, self.y+48), 5)
+            pygame.draw.circle(self.screen, blue, (self.x+180, self.y+48), 5)
 
-        pygame.draw.rect(screen, health_color, pygame.Rect(self.x+65, self.y+30, perc*120, 5))
+        pygame.draw.rect(self.screen, health_color, pygame.Rect(self.x+65, self.y+30, perc*120, 5))
 
         mouse = pygame.mouse.get_pos()
 
@@ -253,7 +248,7 @@ class TeamButton:
                         self.pkmn.on_field = True
                         # then play sound
                         if self.sound: 
-                            pygame.mixer.Channel(1).play(ball_sfx)
+                            pygame.mixer.Channel(1).play(self.ball_sfx)
                         # then switch turn
                         self.bs.switch_turn()
                     else:
@@ -274,7 +269,7 @@ class TeamButton:
 
 # class containing six teambuttons
 class TeamSelector:
-    def __init__(self, bs: TurnBattleSystem = None, sound = False):
+    def __init__(self, bs: TurnBattleSystem = None, sound = False, screen = None):
         self.font = pygame.font.Font('assets/font/RBYGSC.ttf', 14)
         self.bs = bs
         self.player = self.bs.get_player()
@@ -285,7 +280,7 @@ class TeamSelector:
         self.pkmn = [None] * 6
 
         for i in range(len(self.pkmn)):
-            self.pkmn[i] = TeamButton(500, i*100, self.team[i], self.bs, sound)
+            self.pkmn[i] = TeamButton(500, i*100, self.team[i], self.bs, sound, screen)
 
     def draw(self):
         for p in self.pkmn:
@@ -299,6 +294,9 @@ class TeamSelector:
         
 class GameWindow:
     def __init__(self, bs: TurnBattleSystem = None, sound=False):
+        self.screen = pygame.display.set_mode(size)
+        pygame.mixer.init()
+
         self.font = pygame.font.Font('assets/font/RBYGSC.ttf', 14)
         self.hp_text = self.font.render('HP :', True, gold)
         self.lv_text = self.font.render('L. :', True, black)
@@ -337,20 +335,20 @@ class GameWindow:
             self.enemy_mon_type2_img = pygame.image.load(os.path.join('assets/sprites/types/{type2}.png'.format(type2 = self.enemy_mon.typing[1].lower())))
             self.enemy_mon_type2_img = pygame.transform.scale(self.enemy_mon_type2_img, (mon_type_size, mon_type_size))
 
-        self.enemy_timestep = False
-
-        if sound == True:
-            pygame.mixer.Channel(6).play(battle_ost)
-
-        self.textbox = TextBox(0, 380, 'init text')
+        self.textbox = TextBox(0, 380, '', self.screen)
      
-        self.move_selector = MoveSelector(self.bs, sound)
-        self.team_selector = TeamSelector(self.bs, sound)
+        self.move_selector = MoveSelector(self.bs, sound, self.screen)
+        self.team_selector = TeamSelector(self.bs, sound, self.screen)
 
         # define if whether victory ost is playing
-        self.vic_ost = False
-
         self.sound = sound
+        self.battle_ost = pygame.mixer.Sound(os.path.join('assets/sounds/battle.mp3'))
+        self.victory_ost = pygame.mixer.Sound(os.path.join('assets/sounds/victory.mp3'))
+        
+        if sound == True:
+            pygame.mixer.Channel(6).play(self.battle_ost)
+        
+        self.vic_ost = False
 
     def update_text(self):
         self.hp_player = [self.player_mon.hp, self.player_mon.max_hp]
@@ -419,7 +417,7 @@ class GameWindow:
             self.enemy_mon_sprite = pygame.image.load(os.path.join('assets/sprites/front/{id}.png'.format(id = self.enemy_mon.id)))
             self.enemy_mon_sprite = pygame.transform.scale(self.enemy_mon_sprite, (mon_size, mon_size))
         
-        screen.fill(white)
+        self.screen.fill(white)
 
         self.textbox.draw(self.enemy_mon.msg)
 
@@ -433,25 +431,25 @@ class GameWindow:
         
         # ENEMY GUI
         # Enemy arrow
-        screen.blit(self.enemy_mon_name, (20, 10))
-        screen.blit(self.lv_text, (185, 10))
-        screen.blit(self.lv_enemy_text, (220, 10))
-        pygame.draw.rect(screen, black, pygame.Rect(20, 30, 10, 60))
-        pygame.draw.rect(screen, black, pygame.Rect(270, 80, 5, 10))
-        pygame.draw.rect(screen, black, pygame.Rect(275, 84, 5, 6))
-        pygame.draw.rect(screen, black, pygame.Rect(280, 88, 5, 2))
-        pygame.draw.rect(screen, black, pygame.Rect(20, 90, 270, 2))
+        self.screen.blit(self.enemy_mon_name, (20, 10))
+        self.screen.blit(self.lv_text, (185, 10))
+        self.screen.blit(self.lv_enemy_text, (220, 10))
+        pygame.draw.rect(self.screen, black, pygame.Rect(20, 30, 10, 60))
+        pygame.draw.rect(self.screen, black, pygame.Rect(270, 80, 5, 10))
+        pygame.draw.rect(self.screen, black, pygame.Rect(275, 84, 5, 6))
+        pygame.draw.rect(self.screen, black, pygame.Rect(280, 88, 5, 2))
+        pygame.draw.rect(self.screen, black, pygame.Rect(20, 90, 270, 2))
 
         # enemy bar
-        pygame.draw.rect(screen, black, pygame.Rect(45, 35, 40, 15))
-        pygame.draw.rect(screen, black, pygame.Rect(45, 50, 215, 2))
-        pygame.draw.rect(screen, black, pygame.Rect(250, 35, 10, 15))
-        screen.blit(self.hp_text, (47,36))
-        screen.blit(self.hp_enemy_text, (45, 55))
+        pygame.draw.rect(self.screen, black, pygame.Rect(45, 35, 40, 15))
+        pygame.draw.rect(self.screen, black, pygame.Rect(45, 50, 215, 2))
+        pygame.draw.rect(self.screen, black, pygame.Rect(250, 35, 10, 15))
+        self.screen.blit(self.hp_text, (47,36))
+        self.screen.blit(self.hp_enemy_text, (45, 55))
         if self.enemy_mon.status != None:
-            screen.blit(self.status_enemy_text, (155, 55))
+            self.screen.blit(self.status_enemy_text, (155, 55))
         if self.enemy_mon.temp_status != None:
-            screen.blit(self.temp_status_enemy_text, (205, 55))
+            self.screen.blit(self.temp_status_enemy_text, (205, 55))
 
         # enemy health bar
         perc_en = (self.hp_enemy[0]/self.hp_enemy[1])
@@ -461,7 +459,7 @@ class GameWindow:
         elif perc_en < 0.2:
             health_en_color = red
 
-        pygame.draw.rect(screen, health_en_color, pygame.Rect(85, 40, perc_en*165, 5))
+        pygame.draw.rect(self.screen, health_en_color, pygame.Rect(85, 40, perc_en*165, 5))
 
         # enemy mons
         for i in (range(len(self.enemy.team))):
@@ -473,34 +471,34 @@ class GameWindow:
             elif not self.enemy.team[i].on_field and self.enemy.team[i].status != None:
                 color = yellow
 
-            pygame.draw.circle(screen, color, (50+(i*20), 80), 5)
+            pygame.draw.circle(self.screen, color, (50+(i*20), 80), 5)
 
         # enemy types
         if len(self.enemy_mon.typing) == 2:
-            screen.blit(self.enemy_mon_type1_img, (220, 72))
-            screen.blit(self.enemy_mon_type2_img, (240, 72))
+            self.screen.blit(self.enemy_mon_type1_img, (220, 72))
+            self.screen.blit(self.enemy_mon_type2_img, (240, 72))
         else:
-            screen.blit(self.enemy_mon_type1_img, (240, 72))
+            self.screen.blit(self.enemy_mon_type1_img, (240, 72))
 
         # enemy sprite
-        screen.blit(self.enemy_mon_sprite, (320,20))
+        self.screen.blit(self.enemy_mon_sprite, (320,20))
 
         # PLAYER GUI
-        screen.blit(self.player_mon_name, (255,245))
-        screen.blit(self.lv_text, (405, 245))
-        screen.blit(self.lv_player_text, (440, 245))
+        self.screen.blit(self.player_mon_name, (255,245))
+        self.screen.blit(self.lv_text, (405, 245))
+        self.screen.blit(self.lv_player_text, (440, 245))
 
         #Player bar
-        pygame.draw.rect(screen, black, pygame.Rect(255, 265, 40, 15))
-        pygame.draw.rect(screen, black, pygame.Rect(460, 265, 10, 15))
-        pygame.draw.rect(screen, black, pygame.Rect(470, 265, 10, 60))
-        pygame.draw.rect(screen, black, pygame.Rect(255, 280, 225, 2))
-        screen.blit(self.hp_text, (257,266))
-        screen.blit(self.hp_player_text, (255, 285))
+        pygame.draw.rect(self.screen, black, pygame.Rect(255, 265, 40, 15))
+        pygame.draw.rect(self.screen, black, pygame.Rect(460, 265, 10, 15))
+        pygame.draw.rect(self.screen, black, pygame.Rect(470, 265, 10, 60))
+        pygame.draw.rect(self.screen, black, pygame.Rect(255, 280, 225, 2))
+        self.screen.blit(self.hp_text, (257,266))
+        self.screen.blit(self.hp_player_text, (255, 285))
         if self.player_mon.status != None:
-            screen.blit(self.status_player_text, (363, 285))
+            self.screen.blit(self.status_player_text, (363, 285))
         if self.player_mon.temp_status != None:
-            screen.blit(self.temp_status_player_text, (413, 285))
+            self.screen.blit(self.temp_status_player_text, (413, 285))
 
         # player health bar
         perc_pl = (self.hp_player[0]/self.hp_player[1])
@@ -510,19 +508,19 @@ class GameWindow:
         elif perc_pl < 0.2:
             health_pl_color = red
 
-        pygame.draw.rect(screen, health_pl_color, pygame.Rect(295, 270, perc_pl*165, 5))
+        pygame.draw.rect(self.screen, health_pl_color, pygame.Rect(295, 270, perc_pl*165, 5))
 
         # Player arrow
-        pygame.draw.rect(screen, black, pygame.Rect(230, 325, 250, 2))
-        pygame.draw.rect(screen, black, pygame.Rect(235, 323, 5, 2))
-        pygame.draw.rect(screen, black, pygame.Rect(240, 319, 5, 6))
-        pygame.draw.rect(screen, black, pygame.Rect(245, 315, 5, 10))
+        pygame.draw.rect(self.screen, black, pygame.Rect(230, 325, 250, 2))
+        pygame.draw.rect(self.screen, black, pygame.Rect(235, 323, 5, 2))
+        pygame.draw.rect(self.screen, black, pygame.Rect(240, 319, 5, 6))
+        pygame.draw.rect(self.screen, black, pygame.Rect(245, 315, 5, 10))
 
         # enemy types
-        screen.blit(self.player_mon_type1_img, (260, 308))
+        self.screen.blit(self.player_mon_type1_img, (260, 308))
         if len(self.player_mon.typing) == 2:
             try:
-                screen.blit(self.player_mon_type2_img, (280, 308))
+                self.screen.blit(self.player_mon_type2_img, (280, 308))
             except: 
                 pass
 
@@ -536,9 +534,9 @@ class GameWindow:
             elif not self.player.team[i].on_field and self.player.team[i].status != None:
                 color = yellow
 
-            pygame.draw.circle(screen, color, (350+(i*20), 315), 5)
+            pygame.draw.circle(self.screen, color, (350+(i*20), 315), 5)
 
-        screen.blit(self.player_mon_sprite, (30, 220))
+        self.screen.blit(self.player_mon_sprite, (30, 220))
 
         if self.sound == True:
             if self.player.game_over_lose():
@@ -547,6 +545,6 @@ class GameWindow:
                 if self.vic_ost == False:
                     self.vic_ost = True
                     pygame.mixer.Channel(6).stop()
-                    pygame.mixer.Channel(7).play(victory_ost)
+                    pygame.mixer.Channel(7).play(self.victory_ost)
 
         pygame.display.update()
