@@ -2,12 +2,14 @@ import math
 import random
 import moves
 import pkmn_types
-from itertools import combinations
 from copy import deepcopy
 
+# service procedure to calculate maximum value of the stats
 def calculate_max_stat(base_stat, level):
     return math.floor((base_stat*2*level)/100) + 5
 
+
+# identifies every move
 class Move:
     def __init__(self, name, typing, power, pp, physical, accuracy):
         self.name = name
@@ -26,6 +28,8 @@ class Move:
         print('Category:', self.physical)
         print('Accuracy:', self.accuracy)
 
+
+# Identifies every pokemon
 class Pokemon:
     def __init__(self, pkmn_id, name, typing, level, base_stats):
         # PKMN generals
@@ -288,6 +292,7 @@ class Pokemon:
         else: 
             return 1
 
+    # calculates the damage to enemy using a certain move
     def calculate_damage(self, move, enemy):
         power = move.power                                                                  # move base power
         # same-type attack bonus      
@@ -324,6 +329,7 @@ class Pokemon:
 
         return damage
 
+    # causes enemy's hp update throug the damage
     def hit(self, damage, attacker = None):
         # if there is not substitute, simply take damage
         if not self.substitute:
@@ -340,7 +346,7 @@ class Pokemon:
                 self.sub_damage = 0
                 attacker.msg += '\n{pkmn}\'s substitute vanished!'.format(pkmn = self.name) 
 
-    # attack function that handles the status modifier
+    # attack function that handles the actual status modifier
     def try_atk_status(self, move, enemy):
         # PERMANENT STATUS
         if self.status != None:
@@ -518,6 +524,8 @@ class Pokemon:
         recoil = int(damage_caused * scaler)
         return recoil
 
+    # handles all moves that cause a
+    # status or stat-multiplier update
     def handle_status_move(self, move, enemy):
         if move.name == 'Acid Armor':
             self.def_mult = self.inc_dec_stat_mult(self.def_mult, increase=True, highly=True)
@@ -632,11 +640,11 @@ class Pokemon:
             if m != None:
                 if m.name == 'Mimic':
                     self.msg += '\nBut it failed...'
-            elif m == None: 
+                else:
+                    self.atk(m, enemy)
+                    self.msg += '\n{player_mon} copies one of {enemy_mon}\'s moves!'.format(player_mon = self.name, enemy_mon = enemy.name)
+            else: 
                 self.msg += '\nBut it failed...'
-            else:
-                self.atk(m, enemy)
-                self.msg += '\n{player_mon} copies one of {enemy_mon}\'s moves!'.format(player_mon = self.name, enemy_mon = enemy.name)
         elif move.name == 'Mist':
             if not self.mist:
                 self.mist = True
@@ -763,7 +771,9 @@ class Pokemon:
             for m in self.moves:
                 if m != None:
                     m.pp = int(m.max_pp/2)
-            
+    
+    # handles all physical/special moves that have
+    # particular or secondary effects (like status modifier)
     def handle_special_physical_move(self, move, enemy, damage):
         if move.typing == 'Fire':
             enemy.hit(damage, self)

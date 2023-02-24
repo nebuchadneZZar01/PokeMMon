@@ -11,7 +11,8 @@ class Action:
         self.user = user
         self.target = target                # Pokemon() if action is switch, Move() if action is Attack
 
-
+# general Trainer superclass
+# (for player and agent)
 class Trainer:
     def __init__(self):
         self.team = [None, None, None, None, None, None]    # Trainer Pokemon team
@@ -23,15 +24,6 @@ class Trainer:
         for i in range(len(self.team)):
             tmp = random.choice(list(pokedex_list.items()))[1]
             self.team[i] = Pokemon(tmp.num, tmp.species, tmp.elements, 100, tmp.base_stats)
-
-        # self.team[2] = Pokemon(1, 'Mew', ['PSYCHIC'], 100, [3,5,520,3,4,6])
-        # self.team[3] = Pokemon(1, 'Mewtwo', ['PSYCHIC'], 100, [3,5,520,3,4,6])
-        # self.team[4] = Pokemon(1, 'Dragonite', ['DRAGON', 'FLYING'], 100, [3,5,520,3,4,6])
-        # self.team[5] = Pokemon(1, 'Blastoise', ['WATER'], 100, [3,5,520,3,4,6])
-
-        # FOR TESTING PURPOSES
-        # for i in range(len(self.team)):
-        #     self.team[i] = Pokemon(1, 'Blastoise', ['WATER'], 100, [3,5,4,3,4,6])
 
         self.in_battle = self.team[0]
         self.team[0].on_field = True
@@ -51,10 +43,6 @@ class Trainer:
     def get_possible_choices(self):
         possible_choices = [ ]
 
-        # for pkmn in self.team:
-        #     if (pkmn.fainted == False or pkmn.on_field == False):
-        #         possible_choices.append(Action(SWITCH, self, pkmn))
-        
         for move in self.in_battle.moves:
             if move != None:
                 if move.pp > 0:
@@ -92,7 +80,8 @@ class Trainer:
     def set_turn(self, _token):
         self.token = _token
 
-
+# general AI class
+# (for all kinds of agent)
 class TrainerAI(Trainer):
     def __init__(self):
         super(TrainerAI, self).__init__()
@@ -111,7 +100,8 @@ class TrainerAI(Trainer):
                         self.team[i].on_field = True
                         break
 
-
+# RandomAI: does random actions
+# generally used for testing
 class RandomAI(TrainerAI):
     def __init__(self):
         super(RandomAI, self).__init__()
@@ -131,7 +121,7 @@ class RandomAI(TrainerAI):
             self.in_battle.try_atk_status(move, target)
 
 
-# base minimax: ai tries to maximize the value function,
+# base MiniMax: ai tries to maximize the value function,
 # while the player tries to minimize it
 class MinimaxAI(TrainerAI):
     # depth to edit
@@ -233,18 +223,6 @@ class MinimaxAI(TrainerAI):
                     print('Choosen move:', move.name)
                     self.choices.append(move.name)
                     self.in_battle.try_atk_status(move, target)
-                else:
-                    pkmn = choosen_action.target
-                    # remove substitute
-                    self.in_battle.substitute = False
-                    # reset all in-battle pkmn's temporary conditions and stats changements
-                    self.in_battle.reset_stats_mult()
-                    self.in_battle.reset_battle_stats()
-                    self.in_battle.temp_status = None
-                    self.in_battle.on_field = False
-                    # then replace the pokemon with the selected one
-                    self.in_battle = pkmn     
-                    pkmn.on_field = True
             else:
                 # simply trigger struggle using the first move
                 self.in_battle.atk(self.in_battle.moves[0], target)
@@ -273,6 +251,7 @@ class MinimaxAI(TrainerAI):
             return best_val
 
 
+# AlphaBeta Pruning Minimax
 # the algorithm does a cut-off of all those edges that
 # it doesn't need to explore, through the the update of
 # the alpha and beta values
@@ -312,6 +291,7 @@ class MMAlphaBetaAI(MinimaxAI):
             return best_val
 
 
+# ExpectiMax
 # as the agent doesn't know what the player will do,
 # he tries to calculate the weighted average between
 # its possible choices, guessing what he could do,

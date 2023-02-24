@@ -21,6 +21,7 @@ red = (255, 0, 0)
 blue = (0, 0, 255)
 gray = (46, 52, 64)
 
+
 # class that defines the textbox
 class TextBox:
     def __init__(self, x, y, text, screen):
@@ -57,7 +58,8 @@ class TextBox:
         pygame.draw.rect(self.screen, black, border)
         pygame.draw.rect(self.screen, white, inner)
         self.blit_text(inner, text, (self.x+10, self.y+10))
-    
+
+
 # identifies the move (of the pokemon in battle)
 # that the player can use to attack the enemy's one
 class MoveButton:
@@ -129,6 +131,7 @@ class MoveButton:
     def get_clicked(self):
         return self.clicked
 
+
 # encloses the (max of) four moves of the pokemon in battle
 class MoveSelector:
     def __init__(self, bs: TurnBattleSystem = None, sound = False, screen = None):
@@ -162,6 +165,7 @@ class MoveSelector:
 
     def get_buttons(self):
         return self.moves
+
 
 # button that identifies a pokemon in the player team
 # it can be used to change the pokemon in battle
@@ -267,6 +271,7 @@ class TeamButton:
     def emit_signal(self):
         return self.clicked
 
+
 # class containing six teambuttons
 class TeamSelector:
     def __init__(self, bs: TurnBattleSystem = None, sound = False, screen = None):
@@ -291,7 +296,8 @@ class TeamSelector:
         for p in self.pkmn:
             if p.emit_signal() is True:
                 return True
-        
+
+
 class GameWindow:
     def __init__(self, bs: TurnBattleSystem = None, sound=False):
         self.screen = pygame.display.set_mode(size)

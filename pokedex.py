@@ -1,4 +1,4 @@
-# Pokedex class helper to instantiate pokemons in trainer's team
+# pokedex class helper to initialize the mons
 class DexSlot:
 	def __init__(self, num, species, elements, base_stats):
 		self.num = num
@@ -6,7 +6,8 @@ class DexSlot:
 		self.elements = elements
 		self.base_stats = base_stats
 
-# All Gen1 pokemon, types, base stats, etc
+
+# all Gen1 pokemon, types, base stats, etc
 pokedex_list = {
     "BULBASAUR" : DexSlot(1,"Bulbasaur",["GRASS","POISON"],[45,49,49,65,65,45]),
     "IVYSAUR" : DexSlot(2,"Ivysaur",["GRASS","POISON"],[60,62,63,80,80,60]),
