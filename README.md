@@ -8,6 +8,8 @@
 
 This is a *Pokémon* battles' implementation with the use of MiniMax-type algorithms, developed as project for the Artificial Intelligence course (university subject).
 
+All credits of the material used (characters, sounds, images and ideas) belong to The Pokémon Company, Nintendo, Game Freak and Creatures Inc.
+
 <div align="center">
   <img align="center" src="./assets/preview.png">
 </div>
