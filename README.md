@@ -65,5 +65,5 @@ During the execution of the game you could see the following logs on the command
   <img src="./assets/term_ex.png">
 </div>
 
-### Author
+## Author
 - [@nebuchadneZZar01](https://github.com/nebuchadneZZar01) (Michele Ferro)
