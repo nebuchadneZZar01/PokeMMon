@@ -17,7 +17,6 @@ All credits of the material used (characters, sounds, images and ideas) belong t
 ## Description
 This Python software is a *PyGame* re-implementation of the 1st gen. Pokémon games' (Red/Blue/Yellow versions) **battle system**, with some QoL changes and bugfixes from the 2nd gen. (Gold/Silver/Crystal) ones.
 It implements **MiniMax-type algoritms** to move the CPU player.\
-All credits of the material used (characters, sounds, images and ideas) belong to *The Pokémon Company*, *Nintendo*, *Game Freak* and *Creatures Inc.*
 
 These are the possible **algorithms** that could move the rival agent:
 - MiniMax (vanilla);
