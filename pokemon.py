@@ -15,7 +15,7 @@ class Move:
         self.name = name
         self.typing = typing
         self.power = power
-        self.pp = 1
+        self.pp = pp
         self.max_pp = pp
         self.physical = physical
         self.accuracy = accuracy
