@@ -224,8 +224,8 @@ class MinimaxAI(TrainerAI):
                     self.choices.append(move.name)
                     self.in_battle.try_atk_status(move, target)
             else:
-                # simply trigger struggle using the first move
-                self.in_battle.atk(self.in_battle.moves[0], target)
+                # simply trigger struggle
+                self.in_battle.struggle_no_pp(target)
 
     def minimax(self, depth, action, is_maximizing):
         print('\n--- NODE DEPTH: {depth} ---'.format(depth = depth))
