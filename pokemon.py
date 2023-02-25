@@ -15,7 +15,7 @@ class Move:
         self.name = name
         self.typing = typing
         self.power = power
-        self.pp = pp
+        self.pp = 1
         self.max_pp = pp
         self.physical = physical
         self.accuracy = accuracy
@@ -410,114 +410,102 @@ class Pokemon:
             self.atk(move, enemy)
 
     def atk(self, move, enemy):
-        if move.pp > 0:
-            # T will determine whether the move will hit
-            T = move.accuracy * self.accuracy * enemy.evasion
+        # T will determine whether the move will hit
+        T = move.accuracy * self.accuracy * enemy.evasion
 
-            rand_t = random.randint(0, 255)
-            self.msg = '{pkmn} used {mv}!'.format(pkmn = self.name, mv = move.name)
+        rand_t = random.randint(0, 255)
+        self.msg = '{pkmn} used {mv}!'.format(pkmn = self.name, mv = move.name)
 
-            # the first condition removes a bug that affects gen I
-            # in fact, in gen I, if T == 255, the move will miss
-            # this resulted in bug where no move can be guaranteed to hit
-            if T == 255 or T < rand_t:
-                if move.physical == 'Physical' or move.physical == 'Special':
-                    # handling effectiveness
-                    type2 = 1
-                    type1 = pkmn_types.get_effectiveness(move.typing, enemy.typing[0])                  # effectiveness vs enemy's type1
-                    tmp = '' 
-                    if move.name != 'Dream Eater' and enemy.status != 'SLP':                                                                           # tmp variable with effectiveness status, to send to textbox
-                        if len(enemy.typing) == 2:
-                            type2 = pkmn_types.get_effectiveness(move.typing, enemy.typing[1])              # effectiveness vs enemy's type2
-                            if ((type1 == 0.5 and type2 == 1) or (type1 == 1 and type2 == 0.5)) or (type1 == 0.5 and type2 == 0.5):
-                                tmp += '\nIt\'s not very effective...'
-                            elif ((type1 == 2 and type2 == 1) or (type1 == 1 and type2 == 2)) or (type1 == 2 and type2 == 2):
-                                tmp += '\nIt\'s super effective!'
-                            elif type1 == 0 or type2 == 0:
-                                tmp += '\nIt has no effect...'
-                        else:
-                            if type1 == 0.5:
-                                tmp += '\nIt\'s not very effective...'
-                            elif type1 == 2:
-                                tmp += '\nIt\'s super effective!'
-                            elif type1 == 0:
-                                tmp += '\nIt has no effect...'
+        # the first condition removes a bug that affects gen I
+        # in fact, in gen I, if T == 255, the move will miss
+        # this resulted in bug where no move can be guaranteed to hit
+        if T == 255 or T < rand_t:
+            if move.physical == 'Physical' or move.physical == 'Special':
+                # handling effectiveness
+                type2 = 1
+                type1 = pkmn_types.get_effectiveness(move.typing, enemy.typing[0])                  # effectiveness vs enemy's type1
+                tmp = '' 
+                if move.name != 'Dream Eater' and enemy.status != 'SLP':                                                                           # tmp variable with effectiveness status, to send to textbox
+                    if len(enemy.typing) == 2:
+                        type2 = pkmn_types.get_effectiveness(move.typing, enemy.typing[1])              # effectiveness vs enemy's type2
+                        if ((type1 == 0.5 and type2 == 1) or (type1 == 1 and type2 == 0.5)) or (type1 == 0.5 and type2 == 0.5):
+                            tmp += '\nIt\'s not very effective...'
+                        elif ((type1 == 2 and type2 == 1) or (type1 == 1 and type2 == 2)) or (type1 == 2 and type2 == 2):
+                            tmp += '\nIt\'s super effective!'
+                        elif type1 == 0 or type2 == 0:
+                            tmp += '\nIt has no effect...'
+                    else:
+                        if type1 == 0.5:
+                            tmp += '\nIt\'s not very effective...'
+                        elif type1 == 2:
+                            tmp += '\nIt\'s super effective!'
+                        elif type1 == 0:
+                            tmp += '\nIt has no effect...'
 
-                    self.msg += tmp
-                    
-                    damage = self.calculate_damage(move, enemy)
-                    if self.status == 'BRN': damage /= 2
+                self.msg += tmp
+                
+                damage = self.calculate_damage(move, enemy)
+                if self.status == 'BRN': damage /= 2
 
-                    # handlng moves with regain
-                    if move.name == 'Absorb' or move.name == 'Mega Drain' or move.name == 'Leech Life':
+                # handlng moves with regain
+                if move.name == 'Absorb' or move.name == 'Mega Drain' or move.name == 'Leech Life':
+                    regain = self.handle_recoil(enemy, damage, 50)
+                    if self.hp + regain > self.max_hp:
+                        self.hp = self.max_hp
+                    else:
+                        self.hp += regain
+                    self.msg += '\nSucked health from {pkmn}!'.format(pkmn = enemy.name)
+                elif move.name == 'Dream Eater':
+                    if enemy.status == 'SLP':
                         regain = self.handle_recoil(enemy, damage, 50)
                         if self.hp + regain > self.max_hp:
                             self.hp = self.max_hp
                         else:
                             self.hp += regain
-                        self.msg += '\nSucked health from {pkmn}!'.format(pkmn = enemy.name)
-                    elif move.name == 'Dream Eater':
-                        if enemy.status == 'SLP':
-                            regain = self.handle_recoil(enemy, damage, 50)
-                            if self.hp + regain > self.max_hp:
-                                self.hp = self.max_hp
-                            else:
-                                self.hp += regain
-                            self.msg += '\n{pkmn} dream was eaten!'.format(pkmn = enemy.name)
-                        else:
-                            self.msg += '\nIt does nothing...'
-                            return
-
-                    if self.temp_status != "CONF":
-                        if enemy != self: 
-                            self.handle_special_physical_move(move, enemy, damage)
-                            if enemy.fainted:
-                                self.msg += '\n{enemy} fainted!'.format(enemy = enemy.name)
+                        self.msg += '\n{pkmn} dream was eaten!'.format(pkmn = enemy.name)
                     else:
-                        # if attacking pkmn is confused, it can hit hitself
-                        prob = random.random()
-                        if prob <= 0.5: 
-                            self.msg = '{pkmn} is so confused to hit itself!'.format(pkmn = self.name)
-                            self.hit(damage)
-                            if self.fainted:
-                                self.msg += '\n{pkmn} fainted!'.format(pkmn = self.name)
-                else:
-                    # print("Non damaging move")
-                    self.handle_status_move(move, enemy)
-            else:
-                if 'jump kick' in move.name.lower():
-                    self.msg += '\n{pkmn} lost its poise and damaged itself!'.format(pkmn = self.name)
-                    self.hit(1)
-                else:
-                    self.msg += '\nBut it failed...'
+                        self.msg += '\nIt does nothing...'
+                        return
 
-            move.pp = move.pp - 1
-        # if move has any pp left
+                if self.temp_status != "CONF":
+                    if enemy != self: 
+                        self.handle_special_physical_move(move, enemy, damage)
+                        if enemy.fainted:
+                            self.msg += '\n{enemy} fainted!'.format(enemy = enemy.name)
+                else:
+                    # if attacking pkmn is confused, it can hit hitself
+                    prob = random.random()
+                    if prob <= 0.5: 
+                        self.msg = '{pkmn} is so confused to hit itself!'.format(pkmn = self.name)
+                        self.hit(damage)
+                        if self.fainted:
+                            self.msg += '\n{pkmn} fainted!'.format(pkmn = self.name)
+            else:
+                # print("Non damaging move")
+                self.handle_status_move(move, enemy)
         else:
-            cnt_moves = 0                           # number of actual moves in moveset
-            cnt_no_pp = 0                           # number of moves with no pp
-            for mv in self.moves:
-                if mv != None:
-                    cnt_moves += 1 
-                    if mv.pp == 0:
-                        cnt_no_pp += 1
-
-            # if no move has pp left
-            if cnt_no_pp == cnt_moves:
-                power = 50
-                a = self.level
-                b = self.attack
-                c = enemy.defense
-
-                damage = int((((2*a/5 + 2) * b * 40)/c)/50) + 2
-                    
-                recoil = self.handle_recoil(enemy, damage, 50)
-                self.msg = '{pkmn} has no moves left!\n{pkmn} uses Struggle!\n{pkmn} is hit with recoil!'.format(pkmn = self.name)
-                enemy.hit(damage, self)
-                self.hit(recoil, self)
-            # if other moves have pp left
+            if 'jump kick' in move.name.lower():
+                self.msg += '\n{pkmn} lost its poise and damaged itself!'.format(pkmn = self.name)
+                self.hit(1)
             else:
-                self.msg = 'This move has any pp left!'
+                self.msg += '\nBut it failed...'
+
+        move.pp = move.pp - 1
+
+    # struggle is a physical move with recoil
+    # done if all pp = 0
+    def struggle_no_pp(self, enemy):
+        power = 50
+        a = self.level
+        b = self.attack
+        c = enemy.defense
+
+        damage = int((((2*a/5 + 2) * b * 40)/c)/50) + 2
+            
+        recoil = self.handle_recoil(enemy, damage, 50)
+        self.msg = '{pkmn} has no moves left!\n{pkmn} uses Struggle!\n{pkmn} is hit with recoil!'.format(pkmn = self.name)
+        enemy.hit(damage, self)
+        self.hit(recoil, self)
 
     # calculate recoil with moves that cause recoil
     def handle_recoil(self, enemy, damage, perc_scaler):
@@ -791,11 +779,23 @@ class Pokemon:
         if move.name == 'Body Slam':
             enemy.hit(damage, self)
             if not enemy.substitute:
-                prob = random.randint(0, 100)
-                if prob <= 30:
-                    enemy.status = 'PAR'
-                    enemy.speed -= (0.75 * enemy.speed)
-                    self.msg += '\n{pkmn} is paralized! Maybe it can\'t attack!'.format(pkmn = enemy.name)
+                if (len(enemy.typing) == 2):
+                    if enemy.typing[0] != 'GHOST' and enemy.typing[1] != 'GHOST':
+                        prob = random.randint(0, 100)
+                        if prob <= 30:
+                            enemy.status = 'PAR'
+                            enemy.speed -= (0.75 * enemy.speed)
+                            self.msg += '\n{pkmn} is paralized! Maybe it can\'t attack!'.format(pkmn = enemy.name)
+                    else:
+                        pass
+                elif enemy.typing[0] != 'GHOST':
+                    prob = random.randint(0, 100)
+                    if prob <= 30:
+                        enemy.status = 'PAR'
+                        enemy.speed -= (0.75 * enemy.speed)
+                        self.msg += '\n{pkmn} is paralized! Maybe it can\'t attack'.format(pkmn = enemy.name)
+                else:
+                    pass
         if move.name == 'Confusion':
             enemy.hit(damage, self)
             prob = random.randint(0, 100)

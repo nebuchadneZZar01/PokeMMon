@@ -115,12 +115,27 @@ class MoveButton:
                     pygame.mixer.Channel(0).play(self.sel_sfx)
                 if self.move != None:
                     if self.player.is_turn():
-                        self.enemy_mon = self.enemy.in_battle                           # prevents non updating target when after the previous one is fainted 
-                        if not self.player_mon.fainted:
-                            self.player_mon.try_atk_status(self.move, self.enemy_mon)
-                            self.bs.switch_turn()
+                        if self.move.pp > 0:
+                            self.enemy_mon = self.enemy.in_battle                           # prevents non updating target when after the previous one is fainted 
+                            if not self.player_mon.fainted:
+                                self.player_mon.try_atk_status(self.move, self.enemy_mon)
+                                self.bs.switch_turn()
+                            else:
+                                self.player_mon.msg = 'You can\'t attack with a fainted Pokémon! You have to switch in another one!'
                         else:
-                            self.player_mon.msg = 'You can\'t attack with a fainted Pokémon! You have to switch in another one!'
+                            cnt_moves = 0                           # number of actual moves in moveset
+                            cnt_no_pp = 0                           # number of moves with no pp
+                            for mv in self.player_mon.moves:
+                                if mv != None:
+                                    cnt_moves += 1 
+                                    if mv.pp == 0:
+                                        cnt_no_pp += 1
+
+                            # if no move has pp left
+                            if cnt_no_pp == cnt_moves:
+                                self.player_mon.struggle_no_pp(self.enemy_mon)
+                            else:
+                                self.player_mon.msg = 'This move has any pp left!'
                     else:
                         print('other turn')
                     self.clicked = True
