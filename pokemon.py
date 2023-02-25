@@ -314,6 +314,9 @@ class Pokemon:
         type2 = 1
         type1 = pkmn_types.get_effectiveness(move.typing, enemy.typing[0])                  # effectiveness vs enemy's type1
 
+        if len(enemy.typing) == 2:
+            type2 = pkmn_types.get_effectiveness(move.typing, enemy.typing[1])                  # effectiveness vs enemy's type1
+
         if type1 == 0 or type2 == 0:
             crit = 0
         else:
@@ -419,7 +422,7 @@ class Pokemon:
         # the first condition removes a bug that affects gen I
         # in fact, in gen I, if T == 255, the move will miss
         # this resulted in bug where no move can be guaranteed to hit
-        if T == 255 or T < rand_t:
+        if T == 255 or T < rand_t or move.accuracy == 100:
             if move.physical == 'Physical' or move.physical == 'Special':
                 # handling effectiveness
                 type2 = 1

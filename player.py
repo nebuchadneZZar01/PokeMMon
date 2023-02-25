@@ -1,5 +1,6 @@
 from pokedex import *
 from pokemon import *
+from pkmn_types import get_effectiveness
 import random
 
 ATTACK = 0
@@ -131,6 +132,8 @@ class MinimaxAI(TrainerAI):
         self.win_val = 1000000
         self.max_play_depth = max_play_depth
 
+        self.last_move = None
+
         self.rival = rival
 
     # computes evaluation function; it's based on:
@@ -193,7 +196,29 @@ class MinimaxAI(TrainerAI):
         print('possible damage:', move_damage)
 
         value = hp_diff * .35 + move_damage * .35 + status_diff * 100 * .25 + stats_diff * 100 * .05 + fainted_diff * 100
+
+        # malus if move was used last turn
+        if move == self.last_move:
+            value -= 100
+
+        type1 = pkmn_types.get_effectiveness(move.typing, self.rival.in_battle.typing[0])                  # effectiveness vs enemy's type1
+        type2 = 1
+
+        if len(self.rival.in_battle.typing) == 2:
+            type2 = pkmn_types.get_effectiveness(move.typing, self.rival.in_battle.typing[1])                  # effectiveness vs enemy's type1
+
+        # effectiveness bonus/malus
+        if type1 * type2 == 4:
+            value += 100
+        elif type1 * type2 == 2:
+            value += 50
+        elif type1 * type2 == 0.5:
+            value -= 50
+        elif type1 * type2 == 0:
+            value -= 100
+
         print('value: {value}\n'.format(value = value))
+
         return value
 
     def get_choice(self, target):
@@ -214,6 +239,7 @@ class MinimaxAI(TrainerAI):
                             best_val = val
                 
                     choosen_action = best_action
+                    self.last_move = choosen_action
                 else:
                     choosen_action = 'no_pp'
 
