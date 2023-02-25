@@ -33,7 +33,7 @@ After ensuring that Python $\geq$ 3.10 is installed on your personal environment
 ```
 pip install pygame
 ```
-Then, make a `git clone` of this repository.
+Then, make a `git clone` of this repository or simply download it.
 
 ### Execution
 Run the `main.py` script in the root of the cloned folder to play the game.
@@ -66,7 +66,7 @@ During the execution of the game you could see the following logs on the command
 </div>
 
 ## Known bugs
-- When using a non-damaging move that updates the stats multiplier (like "Growl", "Tail Whip", "Double Team" and so on), the first time the text message will say that the Attack stat is being updated (desping is actually being updated the actual stat); the next times, this will not happen and the actual stat will be displayed on the Text Message.  
+- When using a non-damaging move that updates the stats multiplier (like "Growl", "Tail Whip", "Double Team" and so on), the first time the text message will say that the Attack stat is being updated (despite is actually being updated the actual stat); the next times, this will not happen and the actual stat will be displayed on the Text Message.  
 
 ## Author
 - [@nebuchadneZZar01](https://github.com/nebuchadneZZar01) (Michele Ferro)
