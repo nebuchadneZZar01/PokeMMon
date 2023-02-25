@@ -65,5 +65,8 @@ During the execution of the game you could see the following logs on the command
   <img src="./assets/term_ex.png">
 </div>
 
+## Known bugs
+- When using a non-damaging move that updates the stats multiplier (like "Growl", "Tail Whip", "Double Team" and so on), the first time the text message will say that the Attack stat is being updated (desping is actually being updated the actual stat); the next times, this will not happen and the actual stat will be displayed on the Text Message.  
+
 ## Author
 - [@nebuchadneZZar01](https://github.com/nebuchadneZZar01) (Michele Ferro)
