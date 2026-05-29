@@ -1,5 +1,5 @@
 <h1 align="center">
-  <img src="./assets/icon.svg" width=100>
+  <img src="./docs/icon.svg" width=100>
   <br>
   <b>PokéMMon</b>
   <br>
@@ -8,65 +8,117 @@
 
 This is a *Pokémon* battles' implementation with the use of MiniMax-type algorithms, developed as project for the Artificial Intelligence course (university subject).
 
-All credits of the material used (characters, sounds, images and ideas) belong to The Pokémon Company, Nintendo, Game Freak and Creatures Inc.
+All credits of the material used (characters and ideas) belong to The Pokémon Company, Nintendo, Game Freak and Creatures Inc.
 
-<div align="center">
-  <img align="center" src="./assets/preview.png">
-</div>
 
 ## Description
-This Python software is a *PyGame* re-implementation of the 1st gen. Pokémon games' (Red/Blue/Yellow versions) **battle system**, with some QoL changes and bugfixes from the 2nd gen. (Gold/Silver/Crystal) ones.
-It implements **MiniMax-type algoritms** to move the CPU player.
+This Python software is a terminal-based re-implementation of the 1st gen. Pokémon games' (Red/Blue/Yellow versions) **battle system** via `rich` TUI, with data models via `pydantic` v2.
+It implements **MiniMax-type algorithms** to move the CPU player.
 
 These are the possible **algorithms** that could move the rival agent:
+- _Random_;
 - _MiniMax_ (vanilla);
 - _Alpha-Beta pruning MiniMax_;
 - _ExpectiMax_.
 
 ## Usage
 ### Dependencies
-- Python 3.10
-- `pygame` module
+- Python >=3.14
+- [`uv`](https://docs.astral.sh/uv/) package manager (or `pip`)
 
 ### Installation
-After ensuring that Python $\geq$ 3.10 is installed on your personal environment (*GNU/Linux*, *Windows*, *MacOS*), install the `pygame` module through the command:
+After ensuring that Python >=3.14 is available and `uv` is installed:
 ```
-pip install pygame
+uv sync
+```
+Or with pip:
+```
+pip install pydantic rich
 ```
 Then, make a `git clone` of this repository or simply download it.
 
 ### Execution
-Run the `main.py` script in the root of the cloned folder to play the game.
+Run the `main.py` script via `uv` (or activate the venv and use `python` directly):
 
 ```
-python main.py -h
+uv run python main.py -h
 
-usage: main.py [-h] [--ai AI] [--depth DEPTH] [--s S]
+usage: main.py [-h] [--ai AI] [--depth DEPTH] [--log LOG]
 
-Pokémon combat system (1st gen) re-implementation using MiniMax-type algorithms.                                            
-Author: nebuchadneZZar01 (Michele Ferro)                                            
-GitHub: https://github.com/nebuchadneZZar01/PokeMMon                                            
-All credits of the material used (characters, sounds, images and ideas) belong to The Pokémon Company, Nintendo, Game Freak and Creatures Inc.
+Pokémon battle simulator — terminal edition.                                            
 
 options:
   -h, --help     show this help message and exit
-  --ai AI        artificial intelligence algorithm used
-                 [random/minimax/alphabeta/expectimax] (default: minimax)
-  --depth DEPTH  maximum depth of the nodes to visit in game's tree (default: 7)
-  --s S          sound [Y/n] (default: yes)
+  --ai AI        AI algorithm [random/minimax/alphabeta/expectimax] (default: minimax)
+  --depth DEPTH  max search depth (default: 7)
+  --log LOG      show AI battle logs [info/debug]
 ```
-Example using *Alpha-Beta pruning* algorithm (default depth), with sound activated:
+Example using *Alpha-Beta pruning* algorithm (default depth), with AI logs:
 ```
-python main.py --ai alphabeta --s y
+uv run python main.py --ai alphabeta --log info
 ```
-During the execution of the game you could see the following logs on the commandline, explaining the algorithm(s) computations (which are correlated to the agent moves).
+During the execution of the game you choose actions via keyboard: 1-4 to attack, 5 to open team view, 6 to forfeit.
+The AI logs can be enabled via `--log {info,debug}` to explain the algorithm(s) computations.
 
-<div align="center">
-  <img src="./assets/term_ex.png">
-</div>
+- **Battle view** (default):
+  ```
+  ╭────────────────────────────────────  AI  ────────────────────────────────────╮
+  │   Tangela    Lv100                                                           │
+  │   HP ████████████████████  240/240                                           │
+  │   OK               Team ●●●●●●                                               │
+  ╰──────────────────────────────────────────────────────────────────────────────╯
+  ╭──────────────────────────────────  Player  ──────────────────────────────────╮
+  │   Flareon    Lv100                                                           │
+  │   HP ████████████████████  240/240                                           │
+  │   OK               Team ●●●●●●                                               │
+  ╰──────────────────────────────────────────────────────────────────────────────╯
+  ╭─────────────────────────────────  Message  ──────────────────────────────────╮
+  │ Flareon used Take Down!                                                      │
+  ╰──────────────────────────────────────────────────────────────────────────────╯
+    [1] Skull Bash       - NORMAL 15/15
+    [2] Double Team      - NORMAL 15/15
+    [3] Take Down        - NORMAL 20/20
+    [4] Substitute       - NORMAL 10/10
+
+    [5] Team     [6] Forfeit
+  Action [1/2/3/4/5/6]:
+  ```
+
+- **Team view** (press <kbd>5</kbd>):
+  ```
+  ╭───────────────────────────────  Your Team  ──────────────────────────────────╮
+  │                                                                              │
+  │   [1] Flareon   ████████████████   240/240          OK                       │
+  │                 NORMAL                                                       │
+  │                                                                              │
+  │   [2] Vaporeon  ████████████████   240/240          OK                       │
+  │                 WATER                                                        │
+  │                                                                              │
+  │   [3] Jolteon   ████████████████   130/240          OK                       │
+  │                 ELECTRIC                                                     │
+  │                                                                              │
+  │   [4] Espeon    ████████████████   240/240          OK                       │
+  │                 PSYCHIC                                                      │
+  │                                                                              │
+  │   [5] Umbreon   ████████████████   240/240          OK                       │
+  │                 DARK                                                         │
+  │                                                                              │
+  │   [6] Leafeon   ████████████████   240/240          OK                       │
+  │                 GRASS                                                        │
+  ╰──────────────────────────────────────────────────────────────────────────────╯
+
+    Choose (1-6) to switch, [0] back to battle
+  ```
+
+## Development
+
+```bash
+uv run ruff check          # lint
+uv run pytest tests/ -v    # run tests
+```
 
 ## Known bugs
-- When using a non-damaging move that updates the stats multiplier (like "Growl", "Tail Whip", "Double Team" and so on), the first time the text message will say that the Attack stat is being updated (despite is actually being updated the actual stat); the next times, this will not happen and the actual stat will be displayed on the Text Message.  
+- When using a non-damaging move that updates stat multipliers (like "Growl", "Tail Whip", "Double Team" etc.), the first use may display the wrong stat name in the message; subsequent uses display correctly.
 
 ## Author
 - [@nebuchadneZZar01](https://github.com/nebuchadneZZar01) (Michele Ferro)
