@@ -596,9 +596,15 @@ def try_atk_status(attacker, move, defender):
                 attacker.status = None
                 attacker.msg = '{pkmn} woke up!'.format(pkmn=attacker.name)
                 atk(attacker, move, defender)
-        else:
+        elif attacker.status == 'BRN':
             atk(attacker, move, defender)
-    if attacker.temp_status is not None:
+        elif attacker.status == 'PSN':
+            atk(attacker, move, defender)
+        elif attacker.status == 'TOX':
+            atk(attacker, move, defender)
+        elif attacker.status == 'FRZ':
+            atk(attacker, move, defender)
+    elif attacker.temp_status is not None:
         if attacker.confused_turns < 5:
             p = random.random()
             if p <= 0.33:
@@ -618,7 +624,7 @@ def try_atk_status(attacker, move, defender):
             attacker.temp_status = None
             atk(attacker, move, defender)
             attacker.msg += '\n{pkmn} is not confused anymore!'.format(pkmn=attacker.name)
-    elif attacker.temp_status is None and attacker.status is None:
+    else:
         atk(attacker, move, defender)
 
 

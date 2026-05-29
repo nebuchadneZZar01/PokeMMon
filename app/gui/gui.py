@@ -2,7 +2,6 @@ import pygame, os
 from app.core.battle_system import TurnBattleSystem
 from app.core.player import *
 from app.core.combat import try_atk_status, struggle_no_pp, reset_stats_mult, reset_battle_stats
-import time
 
 width = 700
 height = 600
@@ -117,6 +116,7 @@ class MoveButton:
                 if self.move != None:
                     if self.player.is_turn():
                         if self.move.pp > 0:
+                            self.player_mon = self.player.in_battle
                             self.enemy_mon = self.enemy.in_battle                           # prevents non updating target when after the previous one is fainted 
                             if not self.player_mon.fainted:
                                 try_atk_status(self.player_mon, self.move, self.enemy_mon)
@@ -372,6 +372,8 @@ class GameWindow:
         
         self.vic_ost = False
 
+        self.show_msg_frames = 0
+
     def update_text(self):
         self.hp_player = [self.player_mon.hp, self.player_mon.max_hp]
         self.hp_player_text = self.font.render(str(int(self.hp_player[0])) + '/' + str(int(self.hp_player[1])), True, black)
@@ -441,12 +443,15 @@ class GameWindow:
         
         self.screen.fill(white)
 
-        self.textbox.draw(self.enemy_mon.msg)
+        if self.show_msg_frames > 0:
+            self.textbox.draw(self.player_mon.msg)
+            self.show_msg_frames -= 1
+        else:
+            self.textbox.draw(self.enemy_mon.msg)
 
         for mv_btn in self.move_selector.get_buttons():
             if mv_btn.get_clicked():
-                self.update_textbox(self.player_mon.msg)
-                time.sleep(1.25)
+                self.show_msg_frames = 75
 
         self.move_selector.draw()
         self.team_selector.draw()
