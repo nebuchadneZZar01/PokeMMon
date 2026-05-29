@@ -80,14 +80,17 @@ For switch (slot 0 = active Pokémon, bench slots are 1-5):
 '''
 
 
-def _create_model(provider: str, model: str | None = None):
+def _create_model(provider: str, model: str | None = None, api_key: str | None = None):
+    kwargs = {}
+    if api_key:
+        kwargs['api_key'] = api_key
     match provider:
         case 'openai':
-            return ChatOpenAI(model=model or 'gpt-4o', temperature=0.2)
+            return ChatOpenAI(model=model or 'gpt-4o', temperature=0.2, **kwargs)
         case 'anthropic':
-            return ChatAnthropic(model=model or 'claude-sonnet-4-20250514')
+            return ChatAnthropic(model=model or 'claude-sonnet-4-20250514', **kwargs)
         case 'gemini':
-            return ChatGoogleGenerativeAI(model=model or 'gemini-2.0-flash')
+            return ChatGoogleGenerativeAI(model=model or 'gemini-2.0-flash', **kwargs)
         case 'ollama':
             return ChatOllama(model=model or 'llama3.1', temperature=0.2)
         case _:
@@ -209,11 +212,11 @@ def _build_state_str(trainer: Trainer, rival: Trainer) -> str:
 
 
 class LLMAgentStrategy:
-    def __init__(self, provider: str, model: str | None = None):
+    def __init__(self, provider: str, model: str | None = None, api_key: str | None = None):
         self.choices: list[str] = []
         self._battle_log: list[str] = []
         self._turn_count: int = 0
-        self._llm = _create_model(provider, model)
+        self._llm = _create_model(provider, model, api_key)
 
     def get_choice(self, trainer: Trainer, rival: Trainer) -> str | None:
         trainer.verify_fainted_switch()
