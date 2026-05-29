@@ -130,11 +130,7 @@ def calculate_damage(attacker: BattlePokemon, move: Move, defender: BattlePokemo
 
     crit, crit_msg = calculate_crit_multiplier(attacker)
 
-    rand_list = [random.randint(217, 255) for _ in range(9)]
-    rand = 1
-    for r in rand_list:
-        rand *= r
-    rand = r / 255
+    rand = random.randint(217, 255) / 255
 
     damage = int(((2 * attacker.level * crit / 5 + 2) * power * (a / d) / 50 + 2)
                   * stab * effectiveness * rand)
