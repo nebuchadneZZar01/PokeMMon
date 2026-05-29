@@ -45,12 +45,12 @@ class BattlePokemon(BaseModel):
     base_sp_def: int = 0
     base_speed: int = 0
 
-    max_hp: float = 0
-    max_attack: float = 0
-    max_defense: float = 0
-    max_sp_atk: float = 0
-    max_sp_def: float = 0
-    max_speed: float = 0
+    max_hp: int = 0
+    max_attack: int = 0
+    max_defense: int = 0
+    max_sp_atk: int = 0
+    max_sp_def: int = 0
+    max_speed: int = 0
 
     hp: float = 0
     attack: float = 0

@@ -1,28 +1,10 @@
 from app.data.pokedex import *
 from app.schemas.pokemon import BattlePokemon
+from app.schemas.action import Action, ActionKind
 from app.core.combat import calculate_damage, try_atk_status, struggle_no_pp, reset_stats_mult, reset_battle_stats, inc_dec_stat_mult, update_battle_stat
 import app.data.pkmn_types as pkmn_types
 from app.data.pkmn_types import get_effectiveness
 import random
-
-ATTACK = 0
-SWITCH = 1
-
-class Action:
-    """
-    Represents a possible action that a Pokémon can take during a turn in battle.
-
-    Attributes:
-        action (int): The type of action — ATTACK (0) or SWITCH (1).
-        user (BattlePokemon): The Pokémon performing the action.
-        target (BattlePokemon | Move | None): The target of the action — a BattlePokemon
-            if switching, a Move if attacking.
-    """
-
-    def __init__(self, action, user, target = None):
-        self.action = action
-        self.user = user
-        self.target = target
 
 class Trainer:
     """
@@ -67,7 +49,7 @@ class Trainer:
         for move in self.in_battle.moves:
             if move != None:
                 if move.pp > 0:
-                    possible_choices.append(Action(ATTACK, self.in_battle, move))
+                    possible_choices.append(Action(kind=ActionKind.ATTACK, user=self.in_battle.name, target=move))
 
         return possible_choices
 
@@ -227,7 +209,7 @@ class MinimaxAI(TrainerAI):
         print('status_diff:', status_diff)
         print('stats_diff:', stats_diff)
         print('fainted_diff:', fainted_diff)
-        print('user:', user.name)
+        print('user:', user)
         print('possible move:', move.name)
         print('possible damage:', move_damage)
 
@@ -280,7 +262,7 @@ class MinimaxAI(TrainerAI):
                     choosen_action = 'no_pp'
 
             if choosen_action != 'no_pp':
-                if choosen_action.action == ATTACK:        
+                if choosen_action.kind == ActionKind.ATTACK:        
                     move = choosen_action.target    
                     print('Choosen move:', move.name)
                     self.choices.append(move.name)

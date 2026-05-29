@@ -219,7 +219,7 @@ class TeamButton:
         pygame.draw.rect(self.screen, black, outer)
         pygame.draw.rect(self.screen, white, inner)
 
-        rendered_hp = self.font.render('{hp}/{max_hp}'.format(hp = int(self.pkmn.hp), max_hp = self.pkmn.max_hp), True, black)
+        rendered_hp = self.font.render('{hp}/{max_hp}'.format(hp = int(self.pkmn.hp), max_hp = int(self.pkmn.max_hp)), True, black)
         rendered_status = self.font.render(self.pkmn.status, True, black)
 
         self.screen.blit(self.pkmn_img, (self.x+10, self.y+10))
@@ -331,7 +331,7 @@ class GameWindow:
         self.player_mon_sprite = pygame.image.load(os.path.join('assets/sprites/back/{id}.png'.format(id = self.player_mon.id)))
         self.player_mon_sprite = pygame.transform.scale(self.player_mon_sprite, (mon_size, mon_size))
         self.hp_player = [self.player_mon.hp, self.player_mon.max_hp]
-        self.hp_player_text = self.font.render(str(int(self.hp_player[0])) + '/' + str(self.hp_player[1]), True, black)
+        self.hp_player_text = self.font.render(str(int(self.hp_player[0])) + '/' + str(int(self.hp_player[1])), True, black)
         self.lv_player_text = self.font.render(str(self.player_mon.level), True, black)
         self.status_player_text = self.font.render(self.player_mon.status, True, black)
         self.temp_status_player_text = self.font.render(self.player_mon.temp_status, True, black)
@@ -347,7 +347,7 @@ class GameWindow:
         self.enemy_mon_sprite = pygame.image.load(os.path.join('assets/sprites/front/{id}.png').format(id = self.enemy_mon.id))
         self.enemy_mon_sprite = pygame.transform.scale(self.enemy_mon_sprite, (mon_size, mon_size))
         self.hp_enemy = [self.enemy_mon.hp, self.enemy_mon.max_hp]
-        self.hp_enemy_text = self.font.render(str(int(self.hp_enemy[0])) + '/' + str(self.hp_enemy[1]), True, black)
+        self.hp_enemy_text = self.font.render(str(int(self.hp_enemy[0])) + '/' + str(int(self.hp_enemy[1])), True, black)
         self.lv_enemy_text = self.font.render(str(self.enemy_mon.level), True, black)
         self.status_enemy_text = self.font.render(self.enemy_mon.status, True, black)
         self.temp_status_enemy_text = self.font.render(self.enemy_mon.temp_status, True, black)
@@ -374,12 +374,12 @@ class GameWindow:
 
     def update_text(self):
         self.hp_player = [self.player_mon.hp, self.player_mon.max_hp]
-        self.hp_player_text = self.font.render(str(int(self.hp_player[0])) + '/' + str(self.hp_player[1]), True, black)
+        self.hp_player_text = self.font.render(str(int(self.hp_player[0])) + '/' + str(int(self.hp_player[1])), True, black)
         self.status_player_text = self.font.render(self.player_mon.status, True, black)
         self.temp_status_player_text = self.font.render(self.player_mon.temp_status, True, black)
 
         self.hp_enemy = [self.enemy_mon.hp, self.enemy_mon.max_hp]
-        self.hp_enemy_text = self.font.render(str(int(self.hp_enemy[0])) + '/' + str(self.hp_enemy[1]), True, black)
+        self.hp_enemy_text = self.font.render(str(int(self.hp_enemy[0])) + '/' + str(int(self.hp_enemy[1])), True, black)
         self.status_enemy_text = self.font.render(self.enemy_mon.status, True, black)
         self.temp_status_enemy_text = self.font.render(self.enemy_mon.temp_status, True, black)
 
@@ -389,7 +389,7 @@ class GameWindow:
         self.player_mon_sprite = pygame.image.load(os.path.join('assets/sprites/back/{id}.png'.format(id = self.player_mon.id)))
         self.player_mon_sprite = pygame.transform.scale(self.player_mon_sprite, (mon_size, mon_size))
         self.hp_player = [self.player_mon.hp, self.player_mon.max_hp]
-        self.hp_player_text = self.font.render(str(self.hp_player[0]) + '/' + str(self.hp_player[1]), True, black)
+        self.hp_player_text = self.font.render(str(int(self.hp_player[0])) + '/' + str(int(self.hp_player[1])), True, black)
         self.lv_player_text = self.font.render(str(self.player_mon.level), True, black)
         self.player_mon_type1_img = pygame.image.load(os.path.join('assets/sprites/types/{type1}.png'.format(type1 = self.player_mon.typing[0].value.lower())))
         self.player_mon_type1_img = pygame.transform.scale(self.player_mon_type1_img, (mon_type_size, mon_type_size))
@@ -404,7 +404,7 @@ class GameWindow:
         self.enemy_mon_sprite = pygame.image.load(os.path.join('assets/sprites/front/{id}.png'.format(id = self.enemy_mon.id)))
         self.enemy_mon_sprite = pygame.transform.scale(self.enemy_mon_sprite, (mon_size, mon_size))
         self.hp_enemy = [self.enemy_mon.hp, self.enemy_mon.max_hp]
-        self.hp_enemy_text = self.font.render(str(self.hp_enemy[0]) + '/' + str(self.hp_enemy[1]), True, black)
+        self.hp_enemy_text = self.font.render(str(int(self.hp_enemy[0])) + '/' + str(int(self.hp_enemy[1])), True, black)
         self.lv_enemy_text = self.font.render(str(self.enemy_mon.level), True, black)
         self.enemy_mon_type1_img = pygame.image.load(os.path.join('assets/sprites/types/{type1}.png'.format(type1 = self.enemy_mon.typing[0].value.lower())))
         self.enemy_mon_type1_img = pygame.transform.scale(self.enemy_mon_type1_img, (mon_type_size, mon_type_size))
