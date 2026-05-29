@@ -1,8 +1,8 @@
-from pokedex import *
-from pokemon import BattlePokemon
+from app.data.pokedex import *
+from app.schemas.pokemon import BattlePokemon
 from app.core.combat import calculate_damage, try_atk_status, struggle_no_pp, reset_stats_mult, reset_battle_stats, inc_dec_stat_mult, update_battle_stat
-import pkmn_types
-from pkmn_types import get_effectiveness
+import app.data.pkmn_types as pkmn_types
+from app.data.pkmn_types import get_effectiveness
 import random
 
 ATTACK = 0

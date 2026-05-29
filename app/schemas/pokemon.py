@@ -3,7 +3,7 @@ import random
 from typing import Optional
 from pydantic import BaseModel, Field
 
-import moves
+from app.data import moves
 from app.schemas.typing import Typing
 from app.schemas.move import Move, MoveCategory
 

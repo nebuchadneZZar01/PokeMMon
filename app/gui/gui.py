@@ -1,6 +1,6 @@
 import pygame, os
-from battle_system import TurnBattleSystem
-from player import *
+from app.core.battle_system import TurnBattleSystem
+from app.core.player import *
 from app.core.combat import try_atk_status, struggle_no_pp, reset_stats_mult, reset_battle_stats
 import time
 

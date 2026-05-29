@@ -2,8 +2,8 @@ import math
 import random
 from copy import deepcopy
 
-import moves
-import pkmn_types
+from app.data import moves
+from app.data import pkmn_types
 from app.schemas.move import Move, MoveCategory
 from app.schemas.typing import Typing
 

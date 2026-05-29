@@ -1,9 +1,9 @@
 import os, sys
 import argparse
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
-import battle_system
-import gui
-from player import *
+from app.core import battle_system
+from app.gui import gui
+from app.core.player import *
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Pokémon combat system (1st gen) re-implementation using MiniMax-type algorithms.\
