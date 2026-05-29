@@ -1,5 +1,5 @@
 <h1 align="center">
-  <img src="./assets/icon.svg" width=100>
+  <img src="./docs/icon.svg" width=100>
   <br>
   <b>PokéMMon</b>
   <br>
