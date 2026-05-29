@@ -1,8 +1,10 @@
 from enum import Enum
 
 from pydantic import BaseModel
-from app.schemas.pokemon import Pokemon
+
 from app.schemas.move import Move
+from app.schemas.pokemon import Pokemon
+
 
 class ActionKind(str, Enum):
     ATTACK = "Attack"

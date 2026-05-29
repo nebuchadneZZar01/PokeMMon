@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class Typing(Enum):
     """Represents the elemental type of a Pokemon or move."""
     

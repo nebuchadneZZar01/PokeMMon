@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class EffectStatus(str, Enum):
     """Status effects that can be inflicted on a Pokemon."""
     

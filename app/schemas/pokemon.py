@@ -1,12 +1,12 @@
+import logging
 import math
 import random
-import logging
-from typing import Optional
+
 from pydantic import BaseModel, Field
 
 from app.data import moves
+from app.schemas.move import Move
 from app.schemas.typing import Typing
-from app.schemas.move import Move, MoveCategory
 
 logger = logging.getLogger(__name__)
 
@@ -34,10 +34,10 @@ class BattlePokemon(BaseModel):
     name: str
     typing: list[Typing] = []
     level: int = 100
-    moves: list[Optional[Move]] = Field(default_factory=lambda: [None] * 4)
+    moves: list[Move | None] = Field(default_factory=lambda: [None] * 4)
 
-    status: Optional[str] = None
-    temp_status: Optional[str] = None
+    status: str | None = None
+    temp_status: str | None = None
     on_field: bool = False
     fainted: bool = False
 

@@ -1,6 +1,6 @@
-import math
 import logging
-from app.core.combat import hit, handle_burn_poison, handle_toxicity, handle_leech_seed
+
+from app.core.combat import handle_burn_poison, handle_leech_seed, handle_toxicity
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ class TurnBattleSystem:
             logger.info("----- START PLAYER TURN -----")
         
         self.turn_count += 1
-        logger.info('Turn n: {turn}'.format(turn = self.turn_count))
+        logger.info(f'Turn n: {self.turn_count}')
 
     def get_turn(self):
         if self.player.token == True:
@@ -59,8 +59,8 @@ class TurnBattleSystem:
 
     def handle_turns(self):
         self.player_mon = self.player.in_battle         # prevents non updating target
-        ai_win_msg = 'AI Trainer won the battle...\nThe battle lasted {n_turns} turns.'.format(n_turns = self.turn_count)
-        ai_lose_msg = 'AI Trainer lost the battle!\nThe battle lasted {n_turns} turns.'.format(n_turns = self.turn_count)
+        ai_win_msg = f'AI Trainer won the battle...\nThe battle lasted {self.turn_count} turns.'
+        ai_lose_msg = f'AI Trainer lost the battle!\nThe battle lasted {self.turn_count} turns.'
 
         if self.player.game_over_lose() or self.ai.game_over_lose():
             if self.player.game_over_lose():

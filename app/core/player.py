@@ -1,11 +1,15 @@
 import logging
 import random
-from app.data.pokedex import pokedex
-from app.schemas.pokemon import BattlePokemon
-from app.schemas.action import Action, ActionKind
-from app.core.combat import calculate_damage, try_atk_status, struggle_no_pp, reset_stats_mult, reset_battle_stats, inc_dec_stat_mult, update_battle_stat
+
 import app.data.pkmn_types as pkmn_types
-from app.data.pkmn_types import get_effectiveness
+from app.core.combat import (
+    calculate_damage,
+    struggle_no_pp,
+    try_atk_status,
+)
+from app.data.pokedex import pokedex
+from app.schemas.action import Action, ActionKind
+from app.schemas.pokemon import BattlePokemon
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +95,7 @@ class TrainerAI(Trainer):
     """
 
     def __init__(self):
-        super(TrainerAI, self).__init__()
+        super().__init__()
         self.is_ai = True
 
     def verify_fainted_switch(self):
@@ -117,7 +121,7 @@ class RandomAI(TrainerAI):
     """
 
     def __init__(self):
-        super(RandomAI, self).__init__()
+        super().__init__()
         self.choices = [ ]
 
     def get_choice(self, rival):
@@ -149,7 +153,7 @@ class MinimaxAI(TrainerAI):
     """
 
     def __init__(self, rival, max_play_depth = 7):
-        super(MinimaxAI, self).__init__()
+        super().__init__()
         self.choices = [ ]
         self.win_val = 1000000
         self.max_play_depth = max_play_depth
@@ -303,7 +307,7 @@ class MMAlphaBetaAI(MinimaxAI):
     """
 
     def __init__(self, rival, max_play_depth = 20):
-        super(MMAlphaBetaAI, self).__init__(rival)
+        super().__init__(rival)
         self.alpha = -float('inf')
         self.beta = -self.alpha
 
@@ -348,7 +352,7 @@ class ExpectiMaxAI(MinimaxAI):
     """
 
     def __init__(self, rival, max_play_depth = 7):
-        super(ExpectiMaxAI, self).__init__(rival)
+        super().__init__(rival)
 
     def minimax(self, depth, action, is_maximizing):
         logger.debug('\n--- NODE DEPTH: %s ---', depth)

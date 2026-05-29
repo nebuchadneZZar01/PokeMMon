@@ -1,18 +1,23 @@
+from __future__ import annotations
+
 import math
 import random
 from copy import deepcopy
+from typing import TYPE_CHECKING
 
-from app.data import moves
-from app.data import pkmn_types
+from app.data import moves, pkmn_types
 from app.schemas.move import Move, MoveCategory
 from app.schemas.typing import Typing
 
+if TYPE_CHECKING:
+    from app.schemas.pokemon import BattlePokemon
 
-def calculate_max_stat(base_stat, level):
+
+def calculate_max_stat(base_stat: int, level: int) -> int:
     return math.floor((base_stat * 2 * level) / 100) + 5
 
 
-def update_battle_stat(stat, multiplier):
+def update_battle_stat(stat: float, multiplier: int) -> float:
     if multiplier >= 0:
         stat *= ((multiplier * 50) + 100) / 100
     elif multiplier == -1:
@@ -30,16 +35,16 @@ def update_battle_stat(stat, multiplier):
     return stat
 
 
-def handle_recoil(target, damage, perc_scaler):
+def handle_recoil(target: BattlePokemon, damage: int, perc_scaler: int) -> int:
     scaler = perc_scaler / 100
-    if target.hp - damage < 0:
-        damage_caused = damage - (target.hp - damage)
-    else:
-        damage_caused = damage
+    damage_caused = damage - (target.hp - damage) if target.hp - damage < 0 else damage
     return int(damage_caused * scaler)
 
 
-def inc_dec_stat_mult(attacker, stat_owner, stat_attr, increase, highly=False):
+def inc_dec_stat_mult(
+    attacker: BattlePokemon, stat_owner: BattlePokemon, stat_attr: str,
+    increase: bool, highly: bool = False,
+) -> int:
     display_names = {
         'atk_mult': 'Attack',
         'def_mult': 'Defense',
@@ -77,7 +82,7 @@ def inc_dec_stat_mult(attacker, stat_owner, stat_attr, increase, highly=False):
     return multiplier
 
 
-def reset_stats_mult(pokemon):
+def reset_stats_mult(pokemon: BattlePokemon) -> None:
     pokemon.atk_mult = 0
     pokemon.def_mult = 0
     pokemon.sp_atk_mult = 0
@@ -90,7 +95,7 @@ def reset_stats_mult(pokemon):
     pokemon.mist = False
 
 
-def reset_battle_stats(pokemon):
+def reset_battle_stats(pokemon: BattlePokemon) -> None:
     pokemon.attack = pokemon.max_attack
     pokemon.defense = pokemon.max_defense
     pokemon.sp_atk = pokemon.max_sp_atk
@@ -100,7 +105,7 @@ def reset_battle_stats(pokemon):
     pokemon.evasion = 1
 
 
-def calculate_crit_multiplier(attacker):
+def calculate_crit_multiplier(attacker: BattlePokemon) -> int:
     treshold = math.floor(attacker.base_speed / 2)
     if treshold > 255:
         treshold = 255
@@ -111,18 +116,12 @@ def calculate_crit_multiplier(attacker):
     return 1
 
 
-def calculate_damage(attacker, move, defender):
+def calculate_damage(attacker: BattlePokemon, move: Move, defender: BattlePokemon) -> int:
     power = move.power
     if len(attacker.typing) == 2:
-        if move.typing == attacker.typing[0] or move.typing == attacker.typing[1]:
-            stab = 2
-        else:
-            stab = 1
+        stab = 2 if move.typing in (attacker.typing[0], attacker.typing[1]) else 1
     else:
-        if len(attacker.typing) >= 1 and move.typing == attacker.typing[0]:
-            stab = 2
-        else:
-            stab = 1
+        stab = 2 if len(attacker.typing) >= 1 and move.typing == attacker.typing[0] else 1
 
     a = attacker.attack if move.category == MoveCategory.PHYSICAL else attacker.sp_atk
     d = defender.defense if move.category == MoveCategory.PHYSICAL else defender.sp_def
@@ -132,10 +131,7 @@ def calculate_damage(attacker, move, defender):
     if len(defender.typing) == 2:
         type2 = pkmn_types.get_effectiveness(move.typing, defender.typing[1])
 
-    if type1 == 0 or type2 == 0:
-        crit = 0
-    else:
-        crit = calculate_crit_multiplier(attacker)
+    crit = 0 if type1 == 0 or type2 == 0 else calculate_crit_multiplier(attacker)
 
     rand_list = [random.randint(217, 255) for _ in range(9)]
     rand = 1
@@ -143,11 +139,15 @@ def calculate_damage(attacker, move, defender):
         rand *= r
     rand = r / 255
 
-    damage = int(((((2 * attacker.level * crit) / 5 + 2) * power * (a / d)) / 50 + 2) * stab * type1 * type2 * rand)
+    damage = int(((2 * attacker.level * crit / 5 + 2) * power * (a / d) / 50 + 2)
+                 * stab * type1 * type2 * rand)
     return damage
 
 
-def hit(defender, damage, attacker=None, status=False):
+def hit(
+    defender: BattlePokemon, damage: int,
+    attacker: BattlePokemon | None = None, status: bool = False,
+) -> None:
     if not defender.substitute:
         defender.hp -= damage
         if defender.hp <= 0:
@@ -168,19 +168,24 @@ def hit(defender, damage, attacker=None, status=False):
                 defender.fainted = True
 
 
-def struggle_no_pp(attacker, defender):
-    power = 50
+def struggle_no_pp(attacker: BattlePokemon, defender: BattlePokemon) -> None:
     a = attacker.level
     b = attacker.attack
     c = defender.defense
     damage = int((((2 * a / 5 + 2) * b * 40) / c) / 50) + 2
     recoil = handle_recoil(defender, damage, 50)
-    attacker.msg = '{pkmn} has no moves left!\n{pkmn} uses Struggle!\n{pkmn} is hit with recoil!'.format(pkmn=attacker.name)
+    attacker.msg = (
+        f'{attacker.name} has no moves left!\n'
+        f'{attacker.name} uses Struggle!\n'
+        f'{attacker.name} is hit with recoil!'
+    )
     hit(defender, damage, attacker)
     hit(attacker, recoil, attacker)
 
 
-def handle_special_physical_move(attacker, move, defender, damage):
+def handle_special_physical_move(
+    attacker: BattlePokemon, move: Move, defender: BattlePokemon, damage: int,
+) -> None:
     if move.typing == Typing.FIRE:
         hit(defender, damage, attacker)
         if not defender.substitute:
@@ -251,7 +256,7 @@ def handle_special_physical_move(attacker, move, defender, damage):
         hit(defender, damage, attacker)
 
 
-def handle_status_move(attacker, move, defender):
+def handle_status_move(attacker: BattlePokemon, move: Move, defender: BattlePokemon) -> None:
     if move.name == 'Acid Armor':
         inc_dec_stat_mult(attacker, attacker, 'def_mult', increase=True, highly=True)
         attacker.defense = update_battle_stat(attacker.defense, attacker.def_mult)
@@ -328,14 +333,14 @@ def handle_status_move(attacker, move, defender):
                         defender.seeded = True
                         attacker.msg += f'\n{defender.name} was seeded!'
                     else:
-                        attacker.msg += '\nIt has no effect on {pkmn}...'.format(pkmn=defender.name)
+                        attacker.msg += f'\nIt has no effect on {defender.name}...'
                 elif defender.typing[0] != Typing.GRASS:
                     defender.seeded = True
                     attacker.msg += f'\n{defender.name} was seeded!'
                 else:
-                    attacker.msg += '\nIt has no effect on {pkmn}...'.format(pkmn=defender.name)
+                    attacker.msg += f'\nIt has no effect on {defender.name}...'
             else:
-                attacker.msg += '\nBut {pkmn}\'s is already seeded...'.format(pkmn=defender.name)
+                attacker.msg += f'\nBut {defender.name}\'s is already seeded...'
         else:
             attacker.msg += f'\n{defender.name}\'s Substitute prevents Leech Seed!'
     elif move.name == 'Light Screen':
@@ -347,7 +352,7 @@ def handle_status_move(attacker, move, defender):
                 attacker.sp_def *= 2
             attacker.msg += f'\n{attacker.name} protected against special attacks!'
         else:
-            attacker.msg += '\nBut Light Screen is already covering {pkmn}...'.format(pkmn=attacker.name)
+            attacker.msg += f'\nBut Light Screen is already covering {attacker.name}...'
     elif move.name in ('Meditate', 'Minimize'):
         inc_dec_stat_mult(attacker, attacker, 'ev_mult', increase=True)
         attacker.evasion = update_battle_stat(attacker.evasion, attacker.ev_mult)
@@ -368,7 +373,7 @@ def handle_status_move(attacker, move, defender):
             attacker.mist = True
             attacker.msg += f'\n{attacker.name} is shrouded in Mist!'
         else:
-            attacker.msg += '\nBut there is already a Mist covering {pkmn}...'.format(pkmn=attacker.name)
+            attacker.msg += f'\nBut there is already a Mist covering {attacker.name}...'
     elif move.name in ('Poison Gas', 'Poison Powder'):
         if not defender.substitute:
             if defender.status is None:
@@ -377,12 +382,12 @@ def handle_status_move(attacker, move, defender):
                         defender.status = 'PSN'
                         attacker.msg += f'\n{defender.name} is poisoned!'
                     else:
-                        attacker.msg += '\nIt has no effect on {pkmn}...'.format(pkmn=defender.name)
+                        attacker.msg += f'\nIt has no effect on {defender.name}...'
                 elif defender.typing[0] != Typing.POISON:
                     defender.status = 'PSN'
                     attacker.msg += f'\n{defender.name} is poisoned!'
                 else:
-                    attacker.msg += '\nIt has no effect on {pkmn}...'.format(pkmn=defender.name)
+                    attacker.msg += f'\nIt has no effect on {defender.name}...'
             else:
                 attacker.msg += '\nBut nothing happened...'
         else:
@@ -394,7 +399,7 @@ def handle_status_move(attacker, move, defender):
                 attacker.hp = attacker.max_hp
             attacker.msg += f'\n{attacker.name} restores half of its hp!'
         else:
-            attacker.msg += '\nBut {pkmn} already has all its hp!'.format(pkmn=attacker.name)
+            attacker.msg += f'\nBut {attacker.name} already has all its hp!'
     elif move.name == 'Reflect':
         if not attacker.reflect:
             attacker.reflect = True
@@ -404,7 +409,7 @@ def handle_status_move(attacker, move, defender):
                 attacker.defense *= 2
             attacker.msg += f'\n{attacker.name} gained armor!'
         else:
-            attacker.msg += '\nBut Reflect is already covering {pkmn}...'.format(pkmn=attacker.name)
+            attacker.msg += f'\nBut Reflect is already covering {attacker.name}...'
     elif move.name == 'Rest':
         if attacker.hp < attacker.max_hp or attacker.status is not None:
             if attacker.status is not None:
@@ -415,7 +420,7 @@ def handle_status_move(attacker, move, defender):
             attacker.status = 'SLP'
             attacker.msg += f'\n{attacker.name} went to sleep and regained health!'
         else:
-            attacker.msg += '\nBut {pkmn} already has all its hp!'.format(pkmn=attacker.name)
+            attacker.msg += f'\nBut {attacker.name} already has all its hp!'
     elif move.name in ('Roar', 'Splash', 'Teleport', 'Whirlwind'):
         attacker.msg += '\nBut nothing happened...'
     elif move.name == 'Screech':
@@ -423,13 +428,13 @@ def handle_status_move(attacker, move, defender):
             inc_dec_stat_mult(attacker, defender, 'def_mult', increase=False)
             defender.defense = update_battle_stat(defender.defense, defender.def_mult)
         else:
-            attacker.msg += '\nBut {pkmn}\'s Mist prevents its stats decrease...'.format(pkmn=defender.name)
+            attacker.msg += f'\nBut {defender.name}\'s Mist prevents its stats decrease...'
     elif move.name == 'String Shot':
         if not defender.mist:
             inc_dec_stat_mult(attacker, defender, 'speed_mult', increase=False)
             defender.speed = update_battle_stat(defender.speed, defender.speed_mult)
         else:
-            attacker.msg += '\nBut {pkmn}\'s Mist prevents its stats decrease...'.format(pkmn=defender.name)
+            attacker.msg += f'\nBut {defender.name}\'s Mist prevents its stats decrease...'
     elif move.name == 'Substitute':
         if not attacker.substitute:
             if attacker.hp >= 0.3 * attacker.max_hp:
@@ -437,7 +442,7 @@ def handle_status_move(attacker, move, defender):
                 attacker.substitute = True
                 attacker.msg += f'\n{attacker.name} is replaced by a substitute doll!'
         else:
-            attacker.msg += '\nBut {pkmn} is already protected by a substitute doll...'.format(pkmn=attacker.name)
+            attacker.msg += f'\nBut {attacker.name} is already protected by a substitute doll...'
     elif move.name == 'Sharpen':
         inc_dec_stat_mult(attacker, attacker, 'atk_mult', increase=True)
         attacker.attack = update_battle_stat(attacker.attack, attacker.atk_mult)
@@ -458,12 +463,12 @@ def handle_status_move(attacker, move, defender):
                         defender.status = 'TOX'
                         attacker.msg += f'\n{defender.name} is intoxicated!'
                     else:
-                        attacker.msg += '\nIt has no effect on {pkmn}...'.format(pkmn=defender.name)
+                        attacker.msg += f'\nIt has no effect on {defender.name}...'
                 elif defender.typing[0] != Typing.POISON:
                     defender.status = 'TOX'
                     attacker.msg += f'\n{defender.name} is intoxicated!'
                 else:
-                    attacker.msg += '\nIt has no effect on {pkmn}...'.format(pkmn=defender.name)
+                    attacker.msg += f'\nIt has no effect on {defender.name}...'
             else:
                 attacker.msg += '\nBut nothing happened...'
         else:
@@ -489,12 +494,12 @@ def handle_status_move(attacker, move, defender):
                 m.pp = int(m.max_pp / 2)
 
 
-def atk(attacker, move, defender):
-    T = move.accuracy * attacker.accuracy * defender.evasion
+def atk(attacker: BattlePokemon, move: Move, defender: BattlePokemon) -> None:
+    t_ = move.accuracy * attacker.accuracy * defender.evasion
     rand_t = random.randint(0, 255)
-    attacker.msg = '{pkmn} used {mv}!'.format(pkmn=attacker.name, mv=move.name)
+    attacker.msg = f'{attacker.name} used {move.name}!'
 
-    if T == 255 or T < rand_t or move.accuracy == 100:
+    if t_ == 255 or rand_t > t_ or move.accuracy == 100:
         if move.category in (MoveCategory.PHYSICAL, MoveCategory.SPECIAL):
             type2 = 1
             type1 = pkmn_types.get_effectiveness(move.typing, defender.typing[0])
@@ -502,9 +507,20 @@ def atk(attacker, move, defender):
             if move.name != 'Dream Eater' and defender.status != 'SLP':
                 if len(defender.typing) == 2:
                     type2 = pkmn_types.get_effectiveness(move.typing, defender.typing[1])
-                    if ((type1 == 0.5 and type2 == 1) or (type1 == 1 and type2 == 0.5)) or (type1 == 0.5 and type2 == 0.5):
+                    t1_half, t1_double = type1 == 0.5, type1 == 2
+                    nve = (
+                        (t1_half and type2 == 1)
+                        or (type1 == 1 and type2 == 0.5)
+                        or (t1_half and type2 == 0.5)
+                    )
+                    se = (
+                        (t1_double and type2 == 1)
+                        or (type1 == 1 and type2 == 2)
+                        or (t1_double and type2 == 2)
+                    )
+                    if nve:
                         tmp += '\nIt\'s not very effective...'
-                    elif ((type1 == 2 and type2 == 1) or (type1 == 1 and type2 == 2)) or (type1 == 2 and type2 == 2):
+                    elif se:
                         tmp += '\nIt\'s super effective!'
                     elif type1 == 0 or type2 == 0:
                         tmp += '\nIt has no effect...'
@@ -528,7 +544,7 @@ def atk(attacker, move, defender):
                     attacker.hp = attacker.max_hp
                 else:
                     attacker.hp += regain
-                attacker.msg += '\nSucked health from {pkmn}!'.format(pkmn=defender.name)
+                attacker.msg += f'\nSucked health from {defender.name}!'
             elif move.name == 'Dream Eater':
                 if defender.status == 'SLP':
                     regain = handle_recoil(defender, damage, 50)
@@ -536,7 +552,7 @@ def atk(attacker, move, defender):
                         attacker.hp = attacker.max_hp
                     else:
                         attacker.hp += regain
-                    attacker.msg += '\n{pkmn} dream was eaten!'.format(pkmn=defender.name)
+                    attacker.msg += f'\n{defender.name} dream was eaten!'
                 else:
                     attacker.msg += '\nIt does nothing...'
                     return
@@ -545,19 +561,19 @@ def atk(attacker, move, defender):
                 if defender != attacker:
                     handle_special_physical_move(attacker, move, defender, damage)
                     if defender.fainted:
-                        attacker.msg += '\n{enemy} fainted!'.format(enemy=defender.name)
+                        attacker.msg += f'\n{defender.name} fainted!'
             else:
                 prob = random.random()
                 if prob <= 0.5:
-                    attacker.msg = '{pkmn} is so confused to hit itself!'.format(pkmn=attacker.name)
+                    attacker.msg = f'{attacker.name} is so confused to hit itself!'
                     hit(attacker, damage)
                     if attacker.fainted:
-                        attacker.msg += '\n{pkmn} fainted!'.format(pkmn=attacker.name)
+                        attacker.msg += f'\n{attacker.name} fainted!'
         else:
             handle_status_move(attacker, move, defender)
     else:
         if 'jump kick' in move.name.lower():
-            attacker.msg += '\n{pkmn} lost its poise and damaged itself!'.format(pkmn=attacker.name)
+            attacker.msg += f'\n{attacker.name} lost its poise and damaged itself!'
             hit(attacker, 1)
         else:
             attacker.msg += '\nBut it failed...'
@@ -565,35 +581,29 @@ def atk(attacker, move, defender):
     move.pp -= 1
 
 
-def try_atk_status(attacker, move, defender):
+def try_atk_status(attacker: BattlePokemon, move: Move, defender: BattlePokemon) -> None:
     if attacker.status is not None:
         if attacker.status == 'PAR':
             p = random.random()
             if p <= 0.25:
                 atk(attacker, move, defender)
             else:
-                attacker.msg = '{pkmn} is paralyzed and can\'t move!'.format(pkmn=attacker.name)
+                attacker.msg = f'{attacker.name} is paralyzed and can\'t move!'
         elif attacker.status == 'SLP':
             if attacker.sleeping_turns < 7:
                 p = random.random()
                 if p <= 0.33:
                     attacker.status = None
                     atk(attacker, move, defender)
-                    attacker.msg += '\n{pkmn} woke up!'.format(pkmn=attacker.name)
+                    attacker.msg += f'\n{attacker.name} woke up!'
                 else:
                     attacker.sleeping_turns += 1
-                    attacker.msg = '{pkmn} is sleeping...'.format(pkmn=attacker.name)
+                    attacker.msg = f'{attacker.name} is sleeping...'
             else:
                 attacker.status = None
-                attacker.msg = '{pkmn} woke up!'.format(pkmn=attacker.name)
+                attacker.msg = f'{attacker.name} woke up!'
                 atk(attacker, move, defender)
-        elif attacker.status == 'BRN':
-            atk(attacker, move, defender)
-        elif attacker.status == 'PSN':
-            atk(attacker, move, defender)
-        elif attacker.status == 'TOX':
-            atk(attacker, move, defender)
-        elif attacker.status == 'FRZ':
+        elif attacker.status in ('BRN', 'PSN', 'TOX', 'FRZ'):
             atk(attacker, move, defender)
     elif attacker.temp_status is not None:
         if attacker.confused_turns < 5:
@@ -601,10 +611,10 @@ def try_atk_status(attacker, move, defender):
             if p <= 0.33:
                 attacker.temp_status = None
                 atk(attacker, move, defender)
-                attacker.msg += '\n{pkmn} is not confused anymore!'.format(pkmn=attacker.name)
+                attacker.msg += f'\n{attacker.name} is not confused anymore!'
             else:
                 attacker.confused_turns += 1
-                attacker.msg = '{pkmn} is confused...'.format(pkmn=attacker.name)
+                attacker.msg = f'{attacker.name} is confused...'
                 power = 40
                 a = attacker.attack
                 d = attacker.defense
@@ -614,29 +624,29 @@ def try_atk_status(attacker, move, defender):
         else:
             attacker.temp_status = None
             atk(attacker, move, defender)
-            attacker.msg += '\n{pkmn} is not confused anymore!'.format(pkmn=attacker.name)
+            attacker.msg += f'\n{attacker.name} is not confused anymore!'
     else:
         atk(attacker, move, defender)
 
 
-def handle_burn_poison(player_mon, enemy_mon):
+def handle_burn_poison(player_mon: BattlePokemon, enemy_mon: BattlePokemon) -> None:
     if player_mon.status in ('BRN', 'PSN'):
         player_mon_max_hp = player_mon.max_hp
         hit(player_mon, math.floor((1 / 16) * player_mon_max_hp), None, status=True)
         if player_mon.status == 'BRN':
-            player_mon.msg += '\n{pkmn} is hurt by its burn!'.format(pkmn=player_mon.name)
+            player_mon.msg += f'\n{player_mon.name} is hurt by its burn!'
         else:
-            player_mon.msg += '\n{pkmn} is hurt by poison!'.format(pkmn=player_mon.name)
+            player_mon.msg += f'\n{player_mon.name} is hurt by poison!'
     if enemy_mon.status in ('BRN', 'PSN'):
         enemy_mon_max_hp = enemy_mon.max_hp
         hit(enemy_mon, math.floor((1 / 16) * enemy_mon_max_hp), None, status=True)
         if enemy_mon.status == 'BRN':
-            enemy_mon.msg += '\n{pkmn} is hurt by its burn!'.format(pkmn=enemy_mon.name)
+            enemy_mon.msg += f'\n{enemy_mon.name} is hurt by its burn!'
         else:
-            enemy_mon.msg += '\n{pkmn} is hurt by poison!'.format(pkmn=enemy_mon.name)
+            enemy_mon.msg += f'\n{enemy_mon.name} is hurt by poison!'
 
 
-def handle_toxicity(player_mon, enemy_mon):
+def handle_toxicity(player_mon: BattlePokemon, enemy_mon: BattlePokemon) -> None:
     if player_mon.status == 'TOX':
         player_mon.toxic_turns += 1
         player_mon_max_hp = player_mon.max_hp
@@ -644,7 +654,7 @@ def handle_toxicity(player_mon, enemy_mon):
         if damage >= 15 * math.floor(1 / 16 * player_mon_max_hp):
             damage = math.floor(1 / 16 * player_mon_max_hp)
         hit(player_mon, damage, None, status=True)
-        player_mon.msg += '\n{pkmn} is hurt by toxine!'.format(pkmn=player_mon.name)
+        player_mon.msg += f'\n{player_mon.name} is hurt by toxine!'
     if enemy_mon.status == 'TOX':
         enemy_mon.toxic_turns += 1
         enemy_mon_max_hp = enemy_mon.max_hp
@@ -652,10 +662,10 @@ def handle_toxicity(player_mon, enemy_mon):
         if damage >= 15 * math.floor(1 / 16 * enemy_mon_max_hp):
             damage = math.floor(1 / 16 * enemy_mon_max_hp)
         hit(enemy_mon, damage, None, status=True)
-        enemy_mon.msg += '\n{pkmn} is hurt by toxine!'.format(pkmn=enemy_mon.name)
+        enemy_mon.msg += f'\n{enemy_mon.name} is hurt by toxine!'
 
 
-def handle_leech_seed(player_mon, enemy_mon):
+def handle_leech_seed(player_mon: BattlePokemon, enemy_mon: BattlePokemon) -> None:
     if player_mon.seeded:
         player_mon_max_hp = player_mon.max_hp
         damage = math.floor((1 / 16) * player_mon_max_hp)
@@ -664,7 +674,7 @@ def handle_leech_seed(player_mon, enemy_mon):
             enemy_mon.hp = enemy_mon.max_hp
         else:
             enemy_mon.hp += damage
-        player_mon.msg += '\nLeech Seed saps {pkmn}!'.format(pkmn=player_mon.name)
+        player_mon.msg += f'\nLeech Seed saps {player_mon.name}!'
     if enemy_mon.seeded:
         enemy_mon_max_hp = enemy_mon.max_hp
         damage = math.floor(math.floor((1 / 16) * enemy_mon_max_hp))
@@ -673,4 +683,4 @@ def handle_leech_seed(player_mon, enemy_mon):
             player_mon.hp = player_mon.max_hp
         else:
             player_mon.hp += damage
-        enemy_mon.msg += '\nLeech Seeds saps {pkmn}!'.format(pkmn=enemy_mon.name)
+        enemy_mon.msg += f'\nLeech Seeds saps {enemy_mon.name}!'

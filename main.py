@@ -1,13 +1,14 @@
 import argparse
 import logging
 import time
-from typing import Optional
+
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt
+
 from app.core import battle_system
+from app.core.combat import reset_battle_stats, reset_stats_mult, struggle_no_pp, try_atk_status
 from app.core.player import *
-from app.core.combat import try_atk_status, struggle_no_pp, reset_stats_mult, reset_battle_stats
 
 console = Console()
 
@@ -122,7 +123,7 @@ def render_team(bs):
     console.print('  Choose (1-6) to switch, [0] back to battle')
 
 
-def switch_valid(bs, idx: int) -> Optional[str]:
+def switch_valid(bs, idx: int) -> str | None:
     target = bs.player.team[idx]
     if target is None:
         return 'Invalid slot.'

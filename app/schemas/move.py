@@ -1,8 +1,10 @@
 from enum import Enum
-from typing import Optional
+
 from pydantic import BaseModel
-from app.schemas.typing import Typing
+
 from app.schemas.effect_status import EffectStatus
+from app.schemas.typing import Typing
+
 
 class SecondaryEffect(BaseModel):
     """
@@ -42,7 +44,7 @@ class Move(BaseModel):
     accuracy: int
     pp: int
     max_pp: int = 0
-    secondary_effect: Optional[SecondaryEffect] = None
+    secondary_effect: SecondaryEffect | None = None
 
     def model_post_init(self, __context):
         if self.max_pp == 0:

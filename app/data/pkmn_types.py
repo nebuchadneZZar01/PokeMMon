@@ -1,6 +1,5 @@
 from app.schemas.typing import Typing
 
-
 type_chart: dict[Typing, dict[Typing, float]] = {
     Typing.NORMAL: {
         Typing.NORMAL: 1,

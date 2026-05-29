@@ -1,7 +1,6 @@
 from app.schemas.move import Move, MoveCategory
 from app.schemas.typing import Typing
 
-
 attacks: list[Move] = [
     Move(name='Absorb', category=MoveCategory.SPECIAL, power=20, accuracy=100, pp=20, typing=Typing.GRASS),
     Move(name='Acid', category=MoveCategory.PHYSICAL, power=40, accuracy=100, pp=30, typing=Typing.POISON),

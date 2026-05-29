@@ -1,7 +1,7 @@
 from app.schemas.effect_status import EffectStatus
-from app.schemas.pokemon import Pokemon, Stats, BattlePokemon
-from app.schemas.typing import Typing
 from app.schemas.move import Move, MoveCategory, SecondaryEffect
+from app.schemas.pokemon import BattlePokemon, Pokemon, Stats
+from app.schemas.typing import Typing
 
 test_pokemon = Pokemon(
     id=1, 
