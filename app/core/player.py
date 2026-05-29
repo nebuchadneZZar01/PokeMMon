@@ -13,22 +13,11 @@ from app.schemas.battle_pokemon import BattlePokemon
 
 logger = logging.getLogger(__name__)
 
+
 class Trainer:
-    """
-    Represents a Pokémon Trainer, either human or AI, with a team of six Pokémon.
-
-    Attributes:
-        team (list[BattlePokemon | None]): The trainer's team of up to six Pokémon.
-        token (bool | None): Turn token indicating whether it is this trainer's turn.
-        is_ai (bool): Whether this trainer is controlled by an AI (False for human players).
-        in_battle (BattlePokemon): The currently active Pokémon on the field.
-    """
-
     def __init__(self):
-        self.team = [None, None, None, None, None, None]    # Trainer Pokemon team
-
-        self.token = None                                   # token used to assingnate actual turn
-
+        self.team = [None, None, None, None, None, None]
+        self.token = None
         self.is_ai = False
 
         for i in range(len(self.team)):
@@ -37,7 +26,7 @@ class Trainer:
 
         self.in_battle = self.team[0]
         self.team[0].on_field = True
-        
+
     def get_team_with_stats(self):
         for pkmn in self.team:
             pkmn.get_stats()
@@ -51,10 +40,10 @@ class Trainer:
             logger.info('- %s \t%s', pkmn.name, [t.value for t in pkmn.typing])
 
     def get_possible_choices(self):
-        possible_choices = [ ]
+        possible_choices = []
 
         for move in self.in_battle.moves:
-            if move != None:
+            if move is not None:
                 if move.pp > 0:
                     possible_choices.append(Action(kind=ActionKind.ATTACK, user=self.in_battle.name, target=move))
 
@@ -66,18 +55,15 @@ class Trainer:
             logger.debug('- %d) name: %s, power: %s, type: %s, kind: %s',
                          i + 1, c.target.name, c.target.power,
                          c.target.typing.value, c.target.category.value)
-            
+
     def game_over_lose(self):
         faint_cnt = 0
 
         for pkmn in self.team:
             if pkmn.fainted:
                 faint_cnt += 1
-        
-        if faint_cnt == 6:
-            return True
-        else:
-            return False
+
+        return faint_cnt == 6
 
     def is_turn(self):
         return self.token
@@ -85,44 +71,30 @@ class Trainer:
     def set_turn(self, _token):
         self.token = _token
 
+
 class TrainerAI(Trainer):
-    """
-    Base class for AI-controlled trainers. Provides common utilities such as
-    automatically switching in the next non-fainted Pokémon when the current one faints.
-
-    Attributes:
-        is_ai (bool): Always True for AI trainers.
-    """
-
     def __init__(self):
         super().__init__()
         self.is_ai = True
 
     def verify_fainted_switch(self):
-        if self.game_over_lose() == False:
-            if self.in_battle.fainted == True:
+        if not self.game_over_lose():
+            if self.in_battle.fainted:
                 self.in_battle.on_field = False
                 i = 0
                 while True:
-                    if self.team[i].fainted == True:
+                    if self.team[i].fainted:
                         i += 1
                     else:
                         self.in_battle = self.team[i]
                         self.team[i].on_field = True
                         break
 
+
 class RandomAI(TrainerAI):
-    """
-    AI that selects a random move from the current Pokémon's moveset.
-    Primarily used for testing and baseline comparison.
-
-    Attributes:
-        choices (list[str]): History of chosen move names.
-    """
-
     def __init__(self):
         super().__init__()
-        self.choices = [ ]
+        self.choices = []
 
     def get_choice(self, rival):
         target = rival
@@ -130,31 +102,18 @@ class RandomAI(TrainerAI):
         if self.is_turn():
             self.verify_fainted_switch()
             move = None
-            while move == None: 
+            while move is None:
                 move = random.choice(self.in_battle.moves)
-            
+
             logger.info(move.name)
             self.choices.append(move.name)
-            try_atk_status(self.in_battle, move, target)
+            return try_atk_status(self.in_battle, move, target)
 
 
 class MinimaxAI(TrainerAI):
-    """
-    AI that uses the Minimax algorithm to select the best move by simulating
-    the game tree up to a given depth. The AI maximises its evaluation function
-    while the opponent tries to minimise it.
-
-    Attributes:
-        choices (list[str]): History of chosen actions.
-        win_val (int): The value assigned to a winning terminal state.
-        max_play_depth (int): Maximum depth of the game tree to explore.
-        last_move (Move | None): The last move used; penalised to discourage repetition.
-        rival (Trainer): The opposing trainer.
-    """
-
-    def __init__(self, rival, max_play_depth = 7):
+    def __init__(self, rival, max_play_depth=7):
         super().__init__()
-        self.choices = [ ]
+        self.choices = []
         self.win_val = 1000000
         self.max_play_depth = max_play_depth
 
@@ -162,8 +121,7 @@ class MinimaxAI(TrainerAI):
 
         self.rival = rival
 
-    def evaluate(self, action):        
-        # self vars
+    def evaluate(self, action):
         s_hp = 0
         s_hp_full = 0
         s_stats = 0
@@ -175,13 +133,12 @@ class MinimaxAI(TrainerAI):
             s_hp_full += pkmn.max_hp
             s_stats += pkmn.atk_mult + pkmn.def_mult + pkmn.sp_atk_mult + pkmn.sp_def_mult + pkmn.speed_mult + pkmn.acc_mult + pkmn.ev_mult
 
-            if pkmn.status != None and pkmn.fainted == False:
+            if pkmn.status is not None and not pkmn.fainted:
                 s_status += 1
 
-            if pkmn.fainted != False:
+            if pkmn.fainted:
                 s_fainted += 1
 
-        # target vars
         t_hp = 0
         t_hp_full = 0
         t_stats = 0
@@ -193,19 +150,19 @@ class MinimaxAI(TrainerAI):
             t_hp_full += pkmn.max_hp
             t_stats += pkmn.atk_mult + pkmn.def_mult + pkmn.sp_atk_mult + pkmn.sp_def_mult + pkmn.speed_mult + pkmn.acc_mult + pkmn.ev_mult
 
-            if pkmn.status != None and pkmn.fainted == False:
+            if pkmn.status is not None and not pkmn.fainted:
                 t_status += 1
 
-            if pkmn.fainted != False:
+            if pkmn.fainted:
                 t_fainted += 1
-        
+
         hp_diff = (s_hp_full - t_hp_full) - (s_hp - t_hp)
         status_diff = t_status - s_status
         stats_diff = s_stats - t_stats
         fainted_diff = t_fainted - s_fainted
         move = action.target
         user = action.user
-        move_damage = calculate_damage(self.in_battle, move, self.rival.in_battle)
+        move_damage, _ = calculate_damage(self.in_battle, move, self.rival.in_battle)
 
         logger.debug('hp_diff: %s', hp_diff)
         logger.debug('status_diff: %s', status_diff)
@@ -243,10 +200,10 @@ class MinimaxAI(TrainerAI):
         if self.is_turn():
             self.verify_fainted_switch()
             choosen_action = None
-            while choosen_action == None:
+            while choosen_action is None:
                 possible_choices = self.get_possible_choices()
                 self.print_choices(possible_choices)
-                
+
                 if len(possible_choices) >= 1:
                     best_action = possible_choices[0]
                     best_val = -float('inf')
@@ -255,21 +212,20 @@ class MinimaxAI(TrainerAI):
                         if val >= best_val:
                             best_action = action
                             best_val = val
-                
+
                     choosen_action = best_action
                     self.last_move = choosen_action
                 else:
                     choosen_action = 'no_pp'
 
             if choosen_action != 'no_pp':
-                if choosen_action.kind == ActionKind.ATTACK:        
-                    move = choosen_action.target    
+                if choosen_action.kind == ActionKind.ATTACK:
+                    move = choosen_action.target
                     logger.info('Choosen move: %s', move.name)
                     self.choices.append(move.name)
-                    try_atk_status(self.in_battle, move, target)
+                    return try_atk_status(self.in_battle, move, target)
             else:
-                # simply trigger struggle
-                struggle_no_pp(self.in_battle, target)
+                return struggle_no_pp(self.in_battle, target)
 
     def minimax(self, depth, action, is_maximizing):
         logger.debug('\n--- NODE DEPTH: %s ---', depth)
@@ -296,17 +252,7 @@ class MinimaxAI(TrainerAI):
 
 
 class MMAlphaBetaAI(MinimaxAI):
-    """
-    Minimax AI enhanced with Alpha-Beta pruning, which cuts off branches of the
-    game tree that cannot influence the final decision, allowing deeper search
-    than plain Minimax.
-
-    Attributes:
-        alpha (float): The best value currently achievable by the maximising player.
-        beta (float): The best value currently achievable by the minimising player.
-    """
-
-    def __init__(self, rival, max_play_depth = 20):
+    def __init__(self, rival, max_play_depth=20):
         super().__init__(rival)
         self.alpha = -float('inf')
         self.beta = -self.alpha
@@ -342,16 +288,7 @@ class MMAlphaBetaAI(MinimaxAI):
 
 
 class ExpectiMaxAI(MinimaxAI):
-    """
-    Expectimax AI that computes a weighted average of the opponent's possible
-    moves instead of assuming they will always choose the minimal value.
-    This is suitable when the opponent's behaviour is unknown or stochastic.
-
-    Attributes:
-        max_play_depth (int): Maximum depth of the game tree to explore.
-    """
-
-    def __init__(self, rival, max_play_depth = 7):
+    def __init__(self, rival, max_play_depth=7):
         super().__init__(rival)
 
     def minimax(self, depth, action, is_maximizing):
@@ -375,5 +312,5 @@ class ExpectiMaxAI(MinimaxAI):
             n_moves = len(self.rival.get_possible_choices())
             for move in self.rival.get_possible_choices():
                 val = self.minimax(depth - 1, move, True)
-                avg_val += val/n_moves
+                avg_val += val / n_moves
             return avg_val

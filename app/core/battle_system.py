@@ -27,6 +27,9 @@ class TurnBattleSystem:
 
         self.player.token = True
         self.ai.token = False
+
+        self.player_msg = 'You are challenged by AI Trainer!'
+        self.enemy_msg = ''
     
     def switch_turn(self):
         if self.player.token == True:
@@ -64,34 +67,29 @@ class TurnBattleSystem:
 
         if self.player.game_over_lose() or self.ai.game_over_lose():
             if self.player.game_over_lose():
-                self.player_mon.msg = ai_win_msg
-                self.enemy_mon.msg = ai_win_msg
+                self.player_msg = ai_win_msg
+                self.enemy_msg = ai_win_msg
             else:
-                self.player_mon.msg = ai_lose_msg
-                self.enemy_mon.msg = ai_lose_msg
+                self.player_msg = ai_lose_msg
+                self.enemy_msg = ai_lose_msg
         else:
             if self.player.is_turn():
                 pass
             else:
-                self.ai.get_choice(self.player_mon)
+                ai_msg = self.ai.get_choice(self.player_mon)
+                if ai_msg:
+                    self.enemy_msg = ai_msg
                 self.handle_status_by_turn()
-                self.handle_leech_seed()
                 self.switch_turn()
 
-    # damages every turn
-    def handle_burn_poison(self):
-        # prevents non updating in battle pokemons
+    def handle_status_by_turn(self):
         self.player_mon = self.player.in_battle
         self.enemy_mon = self.ai.in_battle
 
-        handle_burn_poison(self.player_mon, self.enemy_mon)
-
-    def handle_toxicity(self):
-        handle_toxicity(self.player_mon, self.enemy_mon)
-
-    def handle_leech_seed(self):
-        handle_leech_seed(self.player_mon, self.enemy_mon)
-
-    def handle_status_by_turn(self):
-        self.handle_burn_poison()
-        self.handle_toxicity()            
+        msgs = []
+        for fn in (handle_burn_poison, handle_toxicity, handle_leech_seed):
+            msg = fn(self.player_mon, self.enemy_mon)
+            if msg:
+                msgs.append(msg)
+        if msgs:
+            self.player_msg = '\n'.join(msgs)

@@ -53,14 +53,14 @@ def team_dots(team) -> str:
     return ''.join('○' if (p is None or p.fainted) else '●' for p in team)
 
 
-def battle_messages(p, e) -> str:
+def battle_messages(player_msg: str, enemy_msg: str) -> str:
     parts = []
-    for mon in (e, p):
-        if mon.msg and mon.msg != 'You are challenged by AI Trainer!':
-            parts.append(mon.msg)
+    for msg in (enemy_msg, player_msg):
+        if msg and msg != 'You are challenged by AI Trainer!':
+            parts.append(msg)
     if parts:
         return '\n'.join(parts)
-    return p.msg or ' '
+    return player_msg or ' '
 
 
 def render_core(bs: TurnBattleSystem) -> None:
@@ -83,7 +83,7 @@ def render_core(bs: TurnBattleSystem) -> None:
     )
     console.print(Panel(p_content, title=' Player ', border_style='bold'))
 
-    console.print(Panel(battle_messages(p, e), title=' Message ', border_style='bold'))
+    console.print(Panel(battle_messages(bs.player_msg, bs.enemy_msg), title=' Message ', border_style='bold'))
 
     for i, move in enumerate(p.moves):
         if move is None:

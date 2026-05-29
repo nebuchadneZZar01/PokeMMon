@@ -33,7 +33,7 @@ def exec_switch(bs, idx: int):
     player.in_battle = target
     target.on_field = True
     bs.switch_turn()
-    player.in_battle.msg = f'Go, {target.name}!'
+    bs.player_msg = f'Go, {target.name}!'
 
 
 def exec_move(bs, idx: int) -> bool:
@@ -41,21 +41,21 @@ def exec_move(bs, idx: int) -> bool:
     e = bs.ai.in_battle
     move = p.moves[idx]
     if move is None:
-        p.msg = 'No move in that slot.'
+        bs.player_msg = 'No move in that slot.'
         return False
     if p.fainted:
-        p.msg = "Can't attack — Pokémon fainted! Switch or forfeit."
+        bs.player_msg = "Can't attack — Pokémon fainted! Switch or forfeit."
         return False
     if move.pp <= 0:
         cnt_moves = sum(1 for m in p.moves if m is not None)
         cnt_no_pp = sum(1 for m in p.moves if m is not None and m.pp <= 0)
         if cnt_no_pp == cnt_moves:
-            struggle_no_pp(p, e)
+            bs.player_msg = struggle_no_pp(p, e)
             bs.switch_turn()
             return True
-        p.msg = 'No PP left for this move!'
+        bs.player_msg = 'No PP left for this move!'
         return False
-    try_atk_status(p, move, e)
+    bs.player_msg = try_atk_status(p, move, e)
     bs.switch_turn()
     return True
 

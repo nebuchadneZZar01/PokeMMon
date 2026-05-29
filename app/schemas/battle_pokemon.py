@@ -69,8 +69,6 @@ class BattlePokemon(BaseModel):
     light_screen: bool = False
     mist: bool = False
 
-    msg: str = 'You are challenged by AI Trainer!'
-
     def model_post_init(self, __context):
         if all(m is None for m in self.moves):
             self._select_random_moves()
