@@ -2,15 +2,26 @@ import math
 from app.core.combat import hit, handle_burn_poison, handle_toxicity, handle_leech_seed
 
 class TurnBattleSystem:
+    """
+    Manages the turn-based flow of a Pokémon battle between a player and an AI opponent.
+    Tracks turn ownership, switches turns, and triggers per-turn status effects.
+
+    Attributes:
+        player (Trainer): The human or player-controlled trainer.
+        ai (TrainerAI): The AI-controlled trainer.
+        player_mon (BattlePokemon): The player's currently active Pokémon.
+        enemy_mon (BattlePokemon): The AI's currently active Pokémon.
+        turn_count (int): Counter for the number of turns elapsed since battle start.
+    """
+
     def __init__(self, player, ai):
         self.player = player
         self.ai = ai
         self.player_mon = self.player.in_battle
         self.enemy_mon = self.ai.in_battle
 
-        self.turn_count = 1                     # turn counter
+        self.turn_count = 1
 
-        # first turn is of the player
         self.player.token = True
         self.ai.token = False
     

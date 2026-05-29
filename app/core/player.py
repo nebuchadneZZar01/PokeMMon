@@ -9,14 +9,32 @@ ATTACK = 0
 SWITCH = 1
 
 class Action:
+    """
+    Represents a possible action that a Pokémon can take during a turn in battle.
+
+    Attributes:
+        action (int): The type of action — ATTACK (0) or SWITCH (1).
+        user (BattlePokemon): The Pokémon performing the action.
+        target (BattlePokemon | Move | None): The target of the action — a BattlePokemon
+            if switching, a Move if attacking.
+    """
+
     def __init__(self, action, user, target = None):
         self.action = action
         self.user = user
-        self.target = target                # BattlePokemon() if action is switch, Move() if action is Attack
+        self.target = target
 
-# general Trainer superclass
-# (for player and agent)
 class Trainer:
+    """
+    Represents a Pokémon Trainer, either human or AI, with a team of six Pokémon.
+
+    Attributes:
+        team (list[BattlePokemon | None]): The trainer's team of up to six Pokémon.
+        token (bool | None): Turn token indicating whether it is this trainer's turn.
+        is_ai (bool): Whether this trainer is controlled by an AI (False for human players).
+        in_battle (BattlePokemon): The currently active Pokémon on the field.
+    """
+
     def __init__(self):
         self.team = [None, None, None, None, None, None]    # Trainer Pokemon team
 
@@ -83,9 +101,15 @@ class Trainer:
     def set_turn(self, _token):
         self.token = _token
 
-# general AI class
-# (for all kinds of agent)
 class TrainerAI(Trainer):
+    """
+    Base class for AI-controlled trainers. Provides common utilities such as
+    automatically switching in the next non-fainted Pokémon when the current one faints.
+
+    Attributes:
+        is_ai (bool): Always True for AI trainers.
+    """
+
     def __init__(self):
         super(TrainerAI, self).__init__()
         self.is_ai = True
@@ -103,9 +127,15 @@ class TrainerAI(Trainer):
                         self.team[i].on_field = True
                         break
 
-# RandomAI: does random actions
-# generally used for testing
 class RandomAI(TrainerAI):
+    """
+    AI that selects a random move from the current Pokémon's moveset.
+    Primarily used for testing and baseline comparison.
+
+    Attributes:
+        choices (list[str]): History of chosen move names.
+    """
+
     def __init__(self):
         super(RandomAI, self).__init__()
         self.choices = [ ]
@@ -124,10 +154,20 @@ class RandomAI(TrainerAI):
             try_atk_status(self.in_battle, move, target)
 
 
-# base MiniMax: ai tries to maximize the value function,
-# while the player tries to minimize it
 class MinimaxAI(TrainerAI):
-    # depth to edit
+    """
+    AI that uses the Minimax algorithm to select the best move by simulating
+    the game tree up to a given depth. The AI maximises its evaluation function
+    while the opponent tries to minimise it.
+
+    Attributes:
+        choices (list[str]): History of chosen actions.
+        win_val (int): The value assigned to a winning terminal state.
+        max_play_depth (int): Maximum depth of the game tree to explore.
+        last_move (Move | None): The last move used; penalised to discourage repetition.
+        rival (Trainer): The opposing trainer.
+    """
+
     def __init__(self, rival, max_play_depth = 7):
         super(MinimaxAI, self).__init__()
         self.choices = [ ]
@@ -138,12 +178,6 @@ class MinimaxAI(TrainerAI):
 
         self.rival = rival
 
-    # computes evaluation function; it's based on:
-    # - total actual hp;
-    # - total max hp;
-    # - total stats;
-    # - number of pkmn with status;
-    # - number of fainted pkmn
     def evaluate(self, action):        
         # self vars
         s_hp = 0
@@ -279,11 +313,17 @@ class MinimaxAI(TrainerAI):
             return best_val
 
 
-# AlphaBeta Pruning Minimax
-# the algorithm does a cut-off of all those edges that
-# it doesn't need to explore, through the the update of
-# the alpha and beta values
 class MMAlphaBetaAI(MinimaxAI):
+    """
+    Minimax AI enhanced with Alpha-Beta pruning, which cuts off branches of the
+    game tree that cannot influence the final decision, allowing deeper search
+    than plain Minimax.
+
+    Attributes:
+        alpha (float): The best value currently achievable by the maximising player.
+        beta (float): The best value currently achievable by the minimising player.
+    """
+
     def __init__(self, rival, max_play_depth = 20):
         super(MMAlphaBetaAI, self).__init__(rival)
         self.alpha = -float('inf')
@@ -319,12 +359,16 @@ class MMAlphaBetaAI(MinimaxAI):
             return best_val
 
 
-# ExpectiMax
-# as the agent doesn't know what the player will do,
-# he tries to calculate the weighted average between
-# its possible choices, guessing what he could do,
-# rather than searching the minimum value
 class ExpectiMaxAI(MinimaxAI):
+    """
+    Expectimax AI that computes a weighted average of the opponent's possible
+    moves instead of assuming they will always choose the minimal value.
+    This is suitable when the opponent's behaviour is unknown or stochastic.
+
+    Attributes:
+        max_play_depth (int): Maximum depth of the game tree to explore.
+    """
+
     def __init__(self, rival, max_play_depth = 7):
         super(ExpectiMaxAI, self).__init__(rival)
 
