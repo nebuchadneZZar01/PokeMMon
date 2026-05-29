@@ -9,7 +9,7 @@ from app.core.combat import (
 )
 from app.data.pokedex import pokedex
 from app.schemas.action import Action, ActionKind
-from app.schemas.pokemon import BattlePokemon
+from app.schemas.battle_pokemon import BattlePokemon
 
 logger = logging.getLogger(__name__)
 

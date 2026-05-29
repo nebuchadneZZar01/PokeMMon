@@ -12,15 +12,11 @@ from app.schemas.move import Move, MoveCategory
 from app.schemas.typing import Typing
 
 if TYPE_CHECKING:
-    from app.schemas.pokemon import BattlePokemon
+    from app.schemas.battle_pokemon import BattlePokemon
 
 
 def has_type(pkmn: BattlePokemon, t: Typing) -> bool:
     return any(ty == t for ty in pkmn.typing)
-
-
-def calculate_max_stat(base_stat: int, level: int) -> int:
-    return math.floor((base_stat * 2 * level) / 100) + 5
 
 
 def update_battle_stat(stat: float, multiplier: int) -> float:
