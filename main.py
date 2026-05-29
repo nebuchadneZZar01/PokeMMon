@@ -1,5 +1,6 @@
 import argparse
 import logging
+import time
 from typing import Optional
 from rich.console import Console
 from rich.panel import Panel
@@ -46,11 +47,14 @@ def team_dots(team) -> str:
     return ''.join('○' if (p is None or p.fainted) else '●' for p in team)
 
 
-def get_message(p, e) -> str:
+def battle_messages(p, e) -> str:
+    parts = []
     for mon in (e, p):
         if mon.msg and mon.msg != 'You are challenged by AI Trainer!':
-            return mon.msg
-    return p.msg or ''
+            parts.append(mon.msg)
+    if parts:
+        return '\n'.join(parts)
+    return p.msg or ' '
 
 
 def render_core(bs):
@@ -73,7 +77,7 @@ def render_core(bs):
     )
     console.print(Panel(p_content, title=' Player ', border_style='bold'))
 
-    console.print(Panel(get_message(p, e), title=' Message ', border_style='bold'))
+    console.print(Panel(battle_messages(p, e), title=' Message ', border_style='bold'))
 
     for i, move in enumerate(p.moves):
         if move is None:
@@ -129,7 +133,7 @@ def switch_valid(bs, idx: int) -> Optional[str]:
     return None
 
 
-def exec_switch(bs, idx: int) -> str:
+def exec_switch(bs, idx: int):
     player = bs.player
     target = player.team[idx]
     old = player.in_battle
@@ -141,28 +145,31 @@ def exec_switch(bs, idx: int) -> str:
     player.in_battle = target
     target.on_field = True
     bs.switch_turn()
-    return f'Go, {target.name}!'
+    player.in_battle.msg = f'Go, {target.name}!'
 
 
-def exec_move(bs, idx: int) -> str:
+def exec_move(bs, idx: int) -> bool:
     p = bs.player.in_battle
     e = bs.ai.in_battle
     move = p.moves[idx]
     if move is None:
-        return 'No move in that slot.'
+        p.msg = 'No move in that slot.'
+        return False
+    if p.fainted:
+        p.msg = "Can't attack — Pokémon fainted! Switch or forfeit."
+        return False
     if move.pp <= 0:
         cnt_moves = sum(1 for m in p.moves if m is not None)
         cnt_no_pp = sum(1 for m in p.moves if m is not None and m.pp <= 0)
         if cnt_no_pp == cnt_moves:
             struggle_no_pp(p, e)
             bs.switch_turn()
-            return p.msg or 'Struggle!'
-        return 'No PP left for this move!'
-    if p.fainted:
-        return "Can't attack — Pokémon fainted! Switch or forfeit."
+            return True
+        p.msg = 'No PP left for this move!'
+        return False
     try_atk_status(p, move, e)
     bs.switch_turn()
-    return p.msg or ''
+    return True
 
 
 def do_ai_turn(bs):
@@ -213,7 +220,6 @@ Log levels:
     ai.get_team()
     bs = battle_system.TurnBattleSystem(player, ai)
 
-    msg = ''
     while True:
         console.clear()
         p = bs.player.in_battle
@@ -241,9 +247,14 @@ Log levels:
 
         if not bs.player.is_turn():
             do_ai_turn(bs)
+            render_core(bs)
+            time.sleep(1.2)
             continue
 
         if p.fainted:
+            console.clear()
+            render_core(bs)
+            console.print()
             render_team(bs)
             console.print('[red]Your Pokémon fainted! Choose a replacement.[/]')
             while True:
@@ -255,23 +266,24 @@ Log levels:
                 if err:
                     console.print(f'[red]{err}[/]')
                     continue
-                msg = exec_switch(bs, idx)
+                exec_switch(bs, idx)
                 break
+            console.clear()
+            render_core(bs)
+            time.sleep(1.2)
             continue
 
         render_core(bs)
-        if msg:
-            console.print(f'\n[italic]{msg}[/]')
-            msg = ''
 
         choice = Prompt.ask('Action', choices=['1', '2', '3', '4', '5', '6'])
         if choice in ('1', '2', '3', '4'):
             idx = int(choice) - 1
-            if p.moves[idx] is None:
-                msg = 'No move in that slot.'
-                continue
-            msg = exec_move(bs, idx)
+            if exec_move(bs, idx):
+                console.clear()
+                render_core(bs)
+                time.sleep(1.2)
         elif choice == '5':
+            console.clear()
             render_team(bs)
             while True:
                 sub = Prompt.ask('Switch to', choices=['0', '1', '2', '3', '4', '5', '6'])
@@ -280,19 +292,19 @@ Log levels:
                 idx = int(sub) - 1
                 err = switch_valid(bs, idx)
                 if err:
+                    console.clear()
                     render_team(bs)
                     console.print(f'[red]{err}[/]')
                     continue
-                msg = exec_switch(bs, idx)
+                exec_switch(bs, idx)
+                console.clear()
+                render_core(bs)
+                time.sleep(1.2)
                 break
         elif choice == '6':
             confirm = Prompt.ask('Forfeit? (y/n)', choices=['y', 'n'], default='n')
             if confirm == 'y':
                 bs.player.team = [None] * 6
-
-
-if __name__ == '__main__':
-    main()
 
 
 if __name__ == '__main__':
