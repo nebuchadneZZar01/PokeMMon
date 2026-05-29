@@ -1,4 +1,4 @@
-from app.data.pokedex import *
+from app.data.pokedex import pokedex
 from app.schemas.pokemon import BattlePokemon
 from app.schemas.action import Action, ActionKind
 from app.core.combat import calculate_damage, try_atk_status, struggle_no_pp, reset_stats_mult, reset_battle_stats, inc_dec_stat_mult, update_battle_stat

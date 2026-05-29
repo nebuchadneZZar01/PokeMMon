@@ -352,16 +352,7 @@ def handle_status_move(attacker, move, defender):
         inc_dec_stat_mult(attacker, attacker, 'ev_mult', increase=True)
         attacker.evasion = update_battle_stat(attacker.evasion, attacker.ev_mult)
     elif move.name == 'Metronome':
-        rand_move_tmp = random.choice(moves.attacks)
-        rand_move = Move(
-            name=rand_move_tmp['name'],
-            typing=Typing(rand_move_tmp['type']),
-            power=rand_move_tmp['power'],
-            pp=rand_move_tmp['pp'],
-            category=MoveCategory(rand_move_tmp['category']),
-            accuracy=rand_move_tmp['accuracy'],
-        )
-        atk(attacker, rand_move, defender)
+        atk(attacker, random.choice(moves.attacks), defender)
     elif move.name == 'Mimic':
         m = random.choice(defender.moves)
         if m is not None:

@@ -95,22 +95,15 @@ class BattlePokemon(BaseModel):
         return level
 
     def _select_random_moves(self):
-        available = [m for m in moves.attacks if moves.check_compatibility(m['name'], self.name)]
+        available = [m for m in moves.attacks if moves.is_compatible(m.name, self.name)]
         random.shuffle(available)
 
         chosen = []
         for move in available:
             if len(chosen) >= 4:
                 break
-            if move['name'] not in [m.name for m in chosen]:
-                chosen.append(Move(
-                    name=move['name'],
-                    typing=Typing(move['type']),
-                    power=move['power'],
-                    pp=move['pp'],
-                    category=MoveCategory(move['category']),
-                    accuracy=move['accuracy'],
-                ))
+            if move.name not in [m.name for m in chosen]:
+                chosen.append(move)
 
         for index, move in enumerate(chosen):
             self.moves[index] = move
