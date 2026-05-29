@@ -77,10 +77,15 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument('--ai', type=str, default='minimax',
-                        choices=['random', 'minimax', 'alphabeta', 'expectimax'],
+                        choices=['random', 'minimax', 'alphabeta', 'expectimax', 'llm'],
                         help='AI algorithm (default: minimax)')
     parser.add_argument('--depth', type=int, default=7,
                         help='max search depth for AI tree (default: 7)')
+    parser.add_argument('--llm-provider', type=str, default='openai',
+                        choices=['openai', 'anthropic', 'gemini', 'ollama'],
+                        help='LLM provider for --ai llm (default: openai)')
+    parser.add_argument('--llm-model', type=str, default=None,
+                        help='model override for LLM provider')
     parser.add_argument('--log', nargs='?', const='info', default=None,
                         choices=['info', 'debug'],
                         help='''Show AI battle logs.
@@ -108,6 +113,9 @@ Log levels:
         ai = Trainer(AlphaBetaStrategy(args.depth))
     elif args.ai == 'expectimax':
         ai = Trainer(ExpectiMaxStrategy(args.depth))
+    elif args.ai == 'llm':
+        from app.core.llm_strategy import LLMAgentStrategy
+        ai = Trainer(LLMAgentStrategy(args.llm_provider, args.llm_model))
     else:
         ai = Trainer(MinimaxStrategy(args.depth))
 
