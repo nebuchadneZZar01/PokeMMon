@@ -46,7 +46,9 @@ class Trainer:
 
         for move in self.in_battle.moves:
             if move is not None and move.pp > 0:
-                possible_choices.append(Action(kind=ActionKind.ATTACK, user=self.in_battle.name, target=move))
+                possible_choices.append(Action(
+                    kind=ActionKind.ATTACK, user=self.in_battle.name, target=move,
+                ))
 
         return possible_choices
 

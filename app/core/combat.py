@@ -117,7 +117,9 @@ def calculate_crit_multiplier(attacker: BattlePokemon) -> tuple[int, str]:
     return 1, ''
 
 
-def calculate_damage(attacker: BattlePokemon, move: Move, defender: BattlePokemon) -> tuple[int, str]:
+def calculate_damage(
+    attacker: BattlePokemon, move: Move, defender: BattlePokemon
+) -> tuple[int, str]:
     power = move.power
     stab = 2 if has_type(attacker, move.typing) else 1
 

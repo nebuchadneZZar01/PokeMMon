@@ -83,7 +83,8 @@ def render_core(bs: TurnBattleSystem) -> None:
     )
     console.print(Panel(p_content, title=' Player ', border_style='bold'))
 
-    console.print(Panel(battle_messages(bs.player_msg, bs.enemy_msg), title=' Message ', border_style='bold'))
+    msg_content = battle_messages(bs.player_msg, bs.enemy_msg)
+    console.print(Panel(msg_content, title=' Message ', border_style='bold'))
 
     for i, move in enumerate(p.moves):
         if move is None:

@@ -64,7 +64,10 @@ class _BaseMinimaxStrategy:
             + p.speed_mult + p.acc_mult + p.ev_mult
             for p in trainer.team if p is not None
         )
-        s_status = sum(1 for p in trainer.team if p is not None and p.status is not None and not p.fainted)
+        s_status = sum(
+            1 for p in trainer.team
+            if p is not None and p.status is not None and not p.fainted
+        )
         s_fainted = sum(1 for p in trainer.team if p is not None and p.fainted)
 
         t_hp = sum(p.hp for p in rival.team if p is not None)
@@ -74,7 +77,10 @@ class _BaseMinimaxStrategy:
             + p.speed_mult + p.acc_mult + p.ev_mult
             for p in rival.team if p is not None
         )
-        t_status = sum(1 for p in rival.team if p is not None and p.status is not None and not p.fainted)
+        t_status = sum(
+            1 for p in rival.team
+            if p is not None and p.status is not None and not p.fainted
+        )
         t_fainted = sum(1 for p in rival.team if p is not None and p.fainted)
 
         hp_diff = (s_hp_full - t_hp_full) - (s_hp - t_hp)
@@ -140,7 +146,7 @@ class MinimaxStrategy(_BaseMinimaxStrategy):
 
 
 class AlphaBetaStrategy(_BaseMinimaxStrategy):
-    def __init__(self, max_play_depth: int = 20):
+    def __init__(self, max_play_depth: int = 7):
         super().__init__(max_play_depth)
 
     def minimax(self, depth: int, action, is_maximizing: bool,
