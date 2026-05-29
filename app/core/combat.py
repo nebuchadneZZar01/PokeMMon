@@ -109,6 +109,8 @@ def reset_battle_stats(pokemon: BattlePokemon) -> None:
 
 def calculate_crit_multiplier(attacker: BattlePokemon) -> tuple[int, str]:
     treshold = math.floor(attacker.base_speed / 2)
+    if attacker.focus_energy:
+        treshold *= 4
     if treshold > 255:
         treshold = 255
     rate = random.randint(0, 255)
@@ -181,37 +183,50 @@ def struggle_no_pp(attacker: BattlePokemon, defender: BattlePokemon) -> str:
     )
 
 
+def _apply_secondary_effect(
+    defender: BattlePokemon, effect: EffectStatus,
+) -> str:
+    if defender.substitute:
+        return ''
+    if effect == EffectStatus.BURN:
+        defender.status = EffectStatus.BURN
+        return f'\n{defender.name} is burned!'
+    if effect == EffectStatus.PARALYZE:
+        if has_type(defender, Typing.GHOST):
+            return ''
+        defender.status = EffectStatus.PARALYZE
+        defender.speed -= 0.75 * defender.speed
+        return f'\n{defender.name} is paralyzed! Maybe it can\'t attack!'
+    if effect == EffectStatus.FREEZE:
+        defender.status = EffectStatus.FREEZE
+        return f'\n{defender.name} is frozen solid!'
+    if effect == EffectStatus.POISON:
+        if has_type(defender, Typing.POISON):
+            return ''
+        defender.status = EffectStatus.POISON
+        return f'\n{defender.name} is poisoned!'
+    if effect == EffectStatus.CONFUSION:
+        defender.temp_status = EffectStatus.CONFUSION
+        return f'\n{defender.name} is now confused!'
+    return ''
+
+
 def handle_special_physical_move(
     attacker: BattlePokemon, move: Move, defender: BattlePokemon, damage: int,
 ) -> str:
     msg = ''
-    if move.typing == Typing.FIRE:
-        hit(defender, damage, attacker)
-        if not defender.substitute:
-            prob = random.randint(0, 100)
-            if prob <= 10:
-                defender.status = EffectStatus.BURN
-                msg += f'\n{defender.name} is burned!'
-    if move.name == 'Body Slam':
-        hit(defender, damage, attacker)
-        if not defender.substitute and not has_type(defender, Typing.GHOST):
-            prob = random.randint(0, 100)
-            if prob <= 30:
-                defender.status = EffectStatus.PARALYZE
-                defender.speed -= 0.75 * defender.speed
-                msg += f'\n{defender.name} is paralyzed! Maybe it can\'t attack!'
-    if move.name == 'Confusion':
-        hit(defender, damage, attacker)
-        prob = random.randint(0, 100)
-        if prob <= 10:
-            defender.temp_status = EffectStatus.CONFUSION
-            msg += f'\n{defender.name} is now confused!'
-    if move.name == 'Explosion':
+
+    if move.name in ('Explosion', 'Self-Destruct'):
         hit(defender, damage, attacker)
         hit(attacker, attacker.max_hp)
-    elif move.name == 'Fissure' or move.name == 'Guillotine':
+        return msg
+    if move.name in ('Fissure', 'Guillotine', 'Horn Drill'):
         hit(defender, defender.max_hp, attacker)
-    elif move.name in ('Fury Swipes', 'Fury Attack', 'Double Slap', 'Wrap'):
+        return msg
+    if move.name in (
+        'Fury Swipes', 'Fury Attack', 'Double Slap', 'Wrap',
+        'Comet Punch', 'Barrage', 'Pin Missile', 'Spike Cannon',
+    ):
         cnt = 1
         hit(defender, damage, attacker)
         while cnt < 5:
@@ -229,15 +244,28 @@ def handle_special_physical_move(
                 else:
                     break
         msg += f'\nHit {cnt} time(s)!'
-    elif move.name == 'Poison Sting':
-        hit(defender, damage, attacker)
-        if not defender.substitute and not has_type(defender, Typing.POISON):
+        if move.secondary_effect and not defender.substitute:
             prob = random.randint(0, 100)
-            if prob <= 20:
-                defender.status = EffectStatus.POISON
-                msg += f'\n{defender.name} is poisoned!'
-    else:
+            if prob <= move.secondary_effect.chance:
+                msg += _apply_secondary_effect(defender, move.secondary_effect.effect)
+        return msg
+    if move.name in ('Bonemerang', 'Double Kick', 'Twineedle'):
         hit(defender, damage, attacker)
+        hit(defender, damage, attacker)
+        msg += '\nHit 2 time(s)!'
+        if move.secondary_effect and not defender.substitute:
+            prob = random.randint(0, 100)
+            if prob <= move.secondary_effect.chance:
+                msg += _apply_secondary_effect(defender, move.secondary_effect.effect)
+        return msg
+
+    hit(defender, damage, attacker)
+
+    if move.secondary_effect and not defender.substitute:
+        prob = random.randint(0, 100)
+        if prob <= move.secondary_effect.chance:
+            msg += _apply_secondary_effect(defender, move.secondary_effect.effect)
+
     return msg
 
 
@@ -312,6 +340,14 @@ def _reduce_atk(attacker: BattlePokemon, defender: BattlePokemon) -> str:
 def _reduce_def(attacker: BattlePokemon, defender: BattlePokemon) -> str:
     if not defender.mist:
         _, msg = inc_dec_stat_mult(attacker, defender, 'def_mult', increase=False)
+        defender.defense = update_battle_stat(defender.defense, defender.def_mult)
+        return msg
+    return f'\nBut {defender.name}\'s Mist prevents its stats decrease...'
+
+
+def _reduce_def_high(attacker: BattlePokemon, defender: BattlePokemon) -> str:
+    if not defender.mist:
+        _, msg = inc_dec_stat_mult(attacker, defender, 'def_mult', increase=False, highly=True)
         defender.defense = update_battle_stat(defender.defense, defender.def_mult)
         return msg
     return f'\nBut {defender.name}\'s Mist prevents its stats decrease...'
@@ -473,6 +509,35 @@ def _substitute(attacker: BattlePokemon, defender: BattlePokemon) -> str:
     return ''
 
 
+def _disable(attacker: BattlePokemon, defender: BattlePokemon) -> str:
+    if not defender.substitute:
+        available = [
+            (i, m) for i, m in enumerate(defender.moves)
+            if m is not None and i != defender.disabled_move
+        ]
+        if available:
+            idx, move = random.choice(available)
+            defender.disabled_move = idx
+            defender.disabled_turns = 4
+            return f'\n{defender.name}\'s {move.name} was disabled!'
+        return '\nBut nothing happened...'
+    return f'\n{defender.name}\'s Substitute prevents status change!'
+
+
+def _mirror_move(attacker: BattlePokemon, defender: BattlePokemon) -> str:
+    m = next((m for m in defender.moves if m is not None), None)
+    if m is not None:
+        return atk(attacker, m, defender)
+    return '\nBut nothing happened...'
+
+
+def _focus_energy(attacker: BattlePokemon, defender: BattlePokemon) -> str:
+    if not attacker.focus_energy:
+        attacker.focus_energy = True
+        return f'\n{attacker.name} is getting pumped!'
+    return '\nBut nothing happened...'
+
+
 def _transform(attacker: BattlePokemon, defender: BattlePokemon) -> str:
     attacker.transformed = True
     attacker.id = defender.id
@@ -502,8 +567,10 @@ MOVE_HANDLERS: dict[str, Callable[[BattlePokemon, BattlePokemon], str]] = {
     'Confuse Ray': _confuse,
     'Conversion': _conversion,
     'Defense Curl': _boost_def,
+    'Disable': _disable,
     'Double Team': _boost_ev,
     'Flash': _reduce_acc,
+    'Focus Energy': _focus_energy,
     'Glare': _paralyze,
     'Growl': _reduce_atk,
     'Growth': _boost_spatk_spdef,
@@ -515,10 +582,11 @@ MOVE_HANDLERS: dict[str, Callable[[BattlePokemon, BattlePokemon], str]] = {
     'Leer': _reduce_def,
     'Light Screen': _light_screen,
     'Lovely Kiss': _sleep,
-    'Meditate': _boost_ev,
+    'Meditate': _boost_atk,
     'Metronome': _metronome,
     'Mimic': _mimic,
     'Minimize': _boost_ev,
+    'Mirror Move': _mirror_move,
     'Mist': _mist,
     'Poison Gas': _poison,
     'Poison Powder': _poison,
@@ -527,10 +595,11 @@ MOVE_HANDLERS: dict[str, Callable[[BattlePokemon, BattlePokemon], str]] = {
     'Rest': _rest,
     'Roar': _noop,
     'Sand Attack': _reduce_acc,
-    'Screech': _reduce_def,
+    'Screech': _reduce_def_high,
     'Sharpen': _boost_atk,
     'Sing': _sleep,
     'Sleep Powder': _sleep,
+    'Smokescreen': _reduce_acc,
     'Soft-Boiled': _recover,
     'Splash': _noop,
     'Spore': _sleep,
@@ -582,6 +651,15 @@ def atk(attacker: BattlePokemon, move: Move, defender: BattlePokemon) -> str:
             if attacker.status == EffectStatus.BURN:
                 damage //= 2
 
+            if move.name == 'Dragon Rage':
+                damage = 40
+            elif move.name == 'Sonic Boom':
+                damage = 20
+            elif move.name in ('Seismic Toss', 'Night Shade'):
+                damage = attacker.level
+            elif move.name == 'Super Fang':
+                damage = defender.hp // 2
+
             if move.name in ('Absorb', 'Mega Drain', 'Leech Life'):
                 regain = handle_recoil(defender, damage, 50)
                 if attacker.hp + regain > attacker.max_hp:
@@ -605,6 +683,10 @@ def atk(attacker: BattlePokemon, move: Move, defender: BattlePokemon) -> str:
             if attacker.temp_status != EffectStatus.CONFUSION:
                 if defender != attacker:
                     msg += handle_special_physical_move(attacker, move, defender, damage)
+                    if move.name in ('Double-Edge', 'Take Down', 'Submission'):
+                        recoil = damage // 4
+                        msg += f'\n{attacker.name} is hit with recoil!'
+                        hit(attacker, recoil)
                     if defender.fainted:
                         msg += f'\n{defender.name} fainted!'
             else:

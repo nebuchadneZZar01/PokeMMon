@@ -68,6 +68,9 @@ class BattlePokemon(BaseModel):
     reflect: bool = False
     light_screen: bool = False
     mist: bool = False
+    disabled_move: int = -1
+    disabled_turns: int = 0
+    focus_energy: bool = False
 
     def model_post_init(self, __context):
         if all(m is None for m in self.moves):

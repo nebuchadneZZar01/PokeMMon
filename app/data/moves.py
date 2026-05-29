@@ -1,5 +1,17 @@
-from app.schemas.move import Move, MoveCategory
+from app.schemas.effect_status import EffectStatus
+from app.schemas.move import Move, MoveCategory, SecondaryEffect
 from app.schemas.typing import Typing
+
+BURN10 = SecondaryEffect(chance=10, effect=EffectStatus.BURN)
+BURN30 = SecondaryEffect(chance=30, effect=EffectStatus.BURN)
+FREEZE10 = SecondaryEffect(chance=10, effect=EffectStatus.FREEZE)
+PARA10 = SecondaryEffect(chance=10, effect=EffectStatus.PARALYZE)
+PARA30 = SecondaryEffect(chance=30, effect=EffectStatus.PARALYZE)
+POISON20 = SecondaryEffect(chance=20, effect=EffectStatus.POISON)
+POISON30 = SecondaryEffect(chance=30, effect=EffectStatus.POISON)
+POISON40 = SecondaryEffect(chance=40, effect=EffectStatus.POISON)
+CONFUSE10 = SecondaryEffect(chance=10, effect=EffectStatus.CONFUSION)
+CONFUSE20 = SecondaryEffect(chance=20, effect=EffectStatus.CONFUSION)
 
 attacks: list[Move] = [
     Move(name='Absorb', category=MoveCategory.SPECIAL, power=20, accuracy=100, pp=20, typing=Typing.GRASS),
@@ -12,8 +24,8 @@ attacks: list[Move] = [
     Move(name='Barrier', category=MoveCategory.NON_DAMAGING, power=0, accuracy=0, pp=30, typing=Typing.PSYCHIC),
     Move(name='Bind', category=MoveCategory.PHYSICAL, power=15, accuracy=75, pp=20, typing=Typing.NORMAL),
     Move(name='Bite', category=MoveCategory.PHYSICAL, power=60, accuracy=100, pp=25, typing=Typing.NORMAL),
-    Move(name='Blizzard', category=MoveCategory.SPECIAL, power=120, accuracy=90, pp=5, typing=Typing.ICE),
-    Move(name='Body Slam', category=MoveCategory.PHYSICAL, power=85, accuracy=100, pp=15, typing=Typing.NORMAL),
+    Move(name='Blizzard', category=MoveCategory.SPECIAL, power=120, accuracy=90, pp=5, typing=Typing.ICE, secondary_effect=FREEZE10),
+    Move(name='Body Slam', category=MoveCategory.PHYSICAL, power=85, accuracy=100, pp=15, typing=Typing.NORMAL, secondary_effect=PARA30),
     Move(name='Bone Club', category=MoveCategory.PHYSICAL, power=65, accuracy=85, pp=20, typing=Typing.GROUND),
     Move(name='Bonemerang', category=MoveCategory.PHYSICAL, power=50, accuracy=90, pp=10, typing=Typing.GROUND),
     Move(name='Bubble', category=MoveCategory.SPECIAL, power=20, accuracy=100, pp=30, typing=Typing.WATER),
@@ -21,14 +33,14 @@ attacks: list[Move] = [
     Move(name='Clamp', category=MoveCategory.SPECIAL, power=35, accuracy=75, pp=10, typing=Typing.WATER),
     Move(name='Comet Punch', category=MoveCategory.PHYSICAL, power=18, accuracy=85, pp=15, typing=Typing.NORMAL),
     Move(name='Confuse Ray', category=MoveCategory.NON_DAMAGING, power=0, accuracy=100, pp=10, typing=Typing.GHOST),
-    Move(name='Confusion', category=MoveCategory.SPECIAL, power=50, accuracy=100, pp=25, typing=Typing.PSYCHIC),
+    Move(name='Confusion', category=MoveCategory.SPECIAL, power=50, accuracy=100, pp=25, typing=Typing.PSYCHIC, secondary_effect=CONFUSE10),
     Move(name='Constrict', category=MoveCategory.PHYSICAL, power=10, accuracy=100, pp=35, typing=Typing.NORMAL),
     Move(name='Conversion', category=MoveCategory.NON_DAMAGING, power=0, accuracy=0, pp=30, typing=Typing.NORMAL),
     Move(name='Crabhammer', category=MoveCategory.SPECIAL, power=90, accuracy=85, pp=10, typing=Typing.WATER),
     Move(name='Cut', category=MoveCategory.PHYSICAL, power=50, accuracy=95, pp=30, typing=Typing.NORMAL),
     Move(name='Defense Curl', category=MoveCategory.NON_DAMAGING, power=0, accuracy=0, pp=40, typing=Typing.NORMAL),
     Move(name='Dig', category=MoveCategory.PHYSICAL, power=100, accuracy=100, pp=10, typing=Typing.GROUND),
-    Move(name='Dizzy Punch', category=MoveCategory.PHYSICAL, power=70, accuracy=100, pp=10, typing=Typing.NORMAL),
+    Move(name='Dizzy Punch', category=MoveCategory.PHYSICAL, power=70, accuracy=100, pp=10, typing=Typing.NORMAL, secondary_effect=CONFUSE20),
     Move(name='Double Kick', category=MoveCategory.PHYSICAL, power=30, accuracy=100, pp=30, typing=Typing.FIGHTING),
     Move(name='Double Slap', category=MoveCategory.PHYSICAL, power=15, accuracy=85, pp=10, typing=Typing.NORMAL),
     Move(name='Double Team', category=MoveCategory.NON_DAMAGING, power=0, accuracy=0, pp=15, typing=Typing.NORMAL),
@@ -38,13 +50,13 @@ attacks: list[Move] = [
     Move(name='Drill Peck', category=MoveCategory.PHYSICAL, power=80, accuracy=100, pp=20, typing=Typing.FLYING),
     Move(name='Earthquake', category=MoveCategory.PHYSICAL, power=100, accuracy=100, pp=10, typing=Typing.GROUND),
     Move(name='Egg Bomb', category=MoveCategory.PHYSICAL, power=100, accuracy=75, pp=10, typing=Typing.NORMAL),
-    Move(name='Ember', category=MoveCategory.SPECIAL, power=40, accuracy=100, pp=25, typing=Typing.FIRE),
+    Move(name='Ember', category=MoveCategory.SPECIAL, power=40, accuracy=100, pp=25, typing=Typing.FIRE, secondary_effect=BURN10),
     Move(name='Explosion', category=MoveCategory.PHYSICAL, power=170, accuracy=100, pp=5, typing=Typing.NORMAL),
-    Move(name='Fire Blast', category=MoveCategory.SPECIAL, power=120, accuracy=85, pp=5, typing=Typing.FIRE),
-    Move(name='Fire Punch', category=MoveCategory.SPECIAL, power=75, accuracy=100, pp=15, typing=Typing.FIRE),
+    Move(name='Fire Blast', category=MoveCategory.SPECIAL, power=120, accuracy=85, pp=5, typing=Typing.FIRE, secondary_effect=BURN30),
+    Move(name='Fire Punch', category=MoveCategory.SPECIAL, power=75, accuracy=100, pp=15, typing=Typing.FIRE, secondary_effect=BURN10),
     Move(name='Fire Spin', category=MoveCategory.SPECIAL, power=15, accuracy=70, pp=15, typing=Typing.FIRE),
     Move(name='Fissure', category=MoveCategory.PHYSICAL, power=0, accuracy=30, pp=5, typing=Typing.GROUND),
-    Move(name='Flamethrower', category=MoveCategory.SPECIAL, power=95, accuracy=100, pp=15, typing=Typing.FIRE),
+    Move(name='Flamethrower', category=MoveCategory.SPECIAL, power=95, accuracy=100, pp=15, typing=Typing.FIRE, secondary_effect=BURN10),
     Move(name='Flash', category=MoveCategory.NON_DAMAGING, power=0, accuracy=70, pp=20, typing=Typing.NORMAL),
     Move(name='Fly', category=MoveCategory.PHYSICAL, power=70, accuracy=95, pp=15, typing=Typing.FLYING),
     Move(name='Fury Attack', category=MoveCategory.PHYSICAL, power=15, accuracy=85, pp=20, typing=Typing.NORMAL),
@@ -64,15 +76,15 @@ attacks: list[Move] = [
     Move(name='Hyper Beam', category=MoveCategory.PHYSICAL, power=150, accuracy=90, pp=5, typing=Typing.NORMAL),
     Move(name='Hyper Fang', category=MoveCategory.PHYSICAL, power=80, accuracy=90, pp=15, typing=Typing.NORMAL),
     Move(name='Hypnosis', category=MoveCategory.NON_DAMAGING, power=0, accuracy=60, pp=20, typing=Typing.PSYCHIC),
-    Move(name='Ice Beam', category=MoveCategory.SPECIAL, power=95, accuracy=100, pp=10, typing=Typing.ICE),
-    Move(name='Ice Punch', category=MoveCategory.SPECIAL, power=75, accuracy=100, pp=15, typing=Typing.ICE),
+    Move(name='Ice Beam', category=MoveCategory.SPECIAL, power=95, accuracy=100, pp=10, typing=Typing.ICE, secondary_effect=FREEZE10),
+    Move(name='Ice Punch', category=MoveCategory.SPECIAL, power=75, accuracy=100, pp=15, typing=Typing.ICE, secondary_effect=FREEZE10),
     Move(name='Jump Kick', category=MoveCategory.PHYSICAL, power=70, accuracy=95, pp=25, typing=Typing.FIGHTING),
     Move(name='Karate Chop', category=MoveCategory.PHYSICAL, power=50, accuracy=100, pp=25, typing=Typing.NORMAL),
     Move(name='Kinesis', category=MoveCategory.NON_DAMAGING, power=0, accuracy=80, pp=15, typing=Typing.PSYCHIC),
     Move(name='Leech Life', category=MoveCategory.PHYSICAL, power=20, accuracy=100, pp=15, typing=Typing.BUG),
     Move(name='Leech Seed', category=MoveCategory.NON_DAMAGING, power=0, accuracy=90, pp=10, typing=Typing.GRASS),
     Move(name='Leer', category=MoveCategory.NON_DAMAGING, power=0, accuracy=100, pp=30, typing=Typing.NORMAL),
-    Move(name='Lick', category=MoveCategory.PHYSICAL, power=20, accuracy=100, pp=30, typing=Typing.GHOST),
+    Move(name='Lick', category=MoveCategory.PHYSICAL, power=20, accuracy=100, pp=30, typing=Typing.GHOST, secondary_effect=PARA30),
     Move(name='Light Screen', category=MoveCategory.NON_DAMAGING, power=0, accuracy=0, pp=30, typing=Typing.PSYCHIC),
     Move(name='Lovely Kiss', category=MoveCategory.NON_DAMAGING, power=0, accuracy=75, pp=10, typing=Typing.NORMAL),
     Move(name='Low Kick', category=MoveCategory.PHYSICAL, power=50, accuracy=90, pp=20, typing=Typing.FIGHTING),
@@ -92,9 +104,9 @@ attacks: list[Move] = [
     Move(name='Pin Missile', category=MoveCategory.PHYSICAL, power=14, accuracy=85, pp=20, typing=Typing.BUG),
     Move(name='Poison Gas', category=MoveCategory.NON_DAMAGING, power=0, accuracy=55, pp=40, typing=Typing.POISON),
     Move(name='Poison Powder', category=MoveCategory.NON_DAMAGING, power=0, accuracy=75, pp=35, typing=Typing.POISON),
-    Move(name='Poison Sting', category=MoveCategory.PHYSICAL, power=15, accuracy=100, pp=35, typing=Typing.POISON),
+    Move(name='Poison Sting', category=MoveCategory.PHYSICAL, power=15, accuracy=100, pp=35, typing=Typing.POISON, secondary_effect=POISON20),
     Move(name='Pound', category=MoveCategory.PHYSICAL, power=40, accuracy=100, pp=35, typing=Typing.NORMAL),
-    Move(name='Psybeam', category=MoveCategory.SPECIAL, power=65, accuracy=100, pp=20, typing=Typing.PSYCHIC),
+    Move(name='Psybeam', category=MoveCategory.SPECIAL, power=65, accuracy=100, pp=20, typing=Typing.PSYCHIC, secondary_effect=CONFUSE10),
     Move(name='Psychic', category=MoveCategory.SPECIAL, power=90, accuracy=100, pp=10, typing=Typing.PSYCHIC),
     Move(name='Psywave', category=MoveCategory.SPECIAL, power=0, accuracy=80, pp=15, typing=Typing.PSYCHIC),
     Move(name='Quick Attack', category=MoveCategory.PHYSICAL, power=40, accuracy=100, pp=30, typing=Typing.NORMAL),
@@ -120,8 +132,8 @@ attacks: list[Move] = [
     Move(name='Slam', category=MoveCategory.PHYSICAL, power=80, accuracy=75, pp=20, typing=Typing.NORMAL),
     Move(name='Slash', category=MoveCategory.PHYSICAL, power=70, accuracy=100, pp=20, typing=Typing.NORMAL),
     Move(name='Sleep Powder', category=MoveCategory.NON_DAMAGING, power=0, accuracy=75, pp=15, typing=Typing.GRASS),
-    Move(name='Sludge', category=MoveCategory.PHYSICAL, power=65, accuracy=100, pp=20, typing=Typing.POISON),
-    Move(name='Smog', category=MoveCategory.PHYSICAL, power=20, accuracy=70, pp=20, typing=Typing.POISON),
+    Move(name='Sludge', category=MoveCategory.PHYSICAL, power=65, accuracy=100, pp=20, typing=Typing.POISON, secondary_effect=POISON30),
+    Move(name='Smog', category=MoveCategory.PHYSICAL, power=20, accuracy=70, pp=20, typing=Typing.POISON, secondary_effect=POISON40),
     Move(name='Smokescreen', category=MoveCategory.NON_DAMAGING, power=0, accuracy=100, pp=20, typing=Typing.NORMAL),
     Move(name='Soft-Boiled', category=MoveCategory.NON_DAMAGING, power=0, accuracy=0, pp=10, typing=Typing.NORMAL),
     Move(name='Solar Beam', category=MoveCategory.SPECIAL, power=120, accuracy=100, pp=10, typing=Typing.GRASS),
@@ -146,15 +158,15 @@ attacks: list[Move] = [
     Move(name='Take Down', category=MoveCategory.PHYSICAL, power=90, accuracy=85, pp=20, typing=Typing.NORMAL),
     Move(name='Teleport', category=MoveCategory.NON_DAMAGING, power=0, accuracy=0, pp=20, typing=Typing.PSYCHIC),
     Move(name='Thrash', category=MoveCategory.PHYSICAL, power=90, accuracy=100, pp=20, typing=Typing.NORMAL),
-    Move(name='Thunder', category=MoveCategory.SPECIAL, power=120, accuracy=70, pp=10, typing=Typing.ELECTRIC),
-    Move(name='Thunder Punch', category=MoveCategory.SPECIAL, power=75, accuracy=100, pp=15, typing=Typing.ELECTRIC),
-    Move(name='Thunder Shock', category=MoveCategory.SPECIAL, power=40, accuracy=100, pp=30, typing=Typing.ELECTRIC),
+    Move(name='Thunder', category=MoveCategory.SPECIAL, power=120, accuracy=70, pp=10, typing=Typing.ELECTRIC, secondary_effect=PARA10),
+    Move(name='Thunder Punch', category=MoveCategory.SPECIAL, power=75, accuracy=100, pp=15, typing=Typing.ELECTRIC, secondary_effect=PARA10),
+    Move(name='Thunder Shock', category=MoveCategory.SPECIAL, power=40, accuracy=100, pp=30, typing=Typing.ELECTRIC, secondary_effect=PARA10),
     Move(name='Thunder Wave', category=MoveCategory.NON_DAMAGING, power=0, accuracy=100, pp=20, typing=Typing.ELECTRIC),
-    Move(name='Thunderbolt', category=MoveCategory.SPECIAL, power=95, accuracy=100, pp=15, typing=Typing.ELECTRIC),
+    Move(name='Thunderbolt', category=MoveCategory.SPECIAL, power=95, accuracy=100, pp=15, typing=Typing.ELECTRIC, secondary_effect=PARA10),
     Move(name='Toxic', category=MoveCategory.NON_DAMAGING, power=0, accuracy=85, pp=10, typing=Typing.POISON),
     Move(name='Transform', category=MoveCategory.NON_DAMAGING, power=0, accuracy=0, pp=10, typing=Typing.NORMAL),
     Move(name='Tri Attack', category=MoveCategory.PHYSICAL, power=80, accuracy=100, pp=10, typing=Typing.NORMAL),
-    Move(name='Twineedle', category=MoveCategory.PHYSICAL, power=25, accuracy=100, pp=20, typing=Typing.BUG),
+    Move(name='Twineedle', category=MoveCategory.PHYSICAL, power=25, accuracy=100, pp=20, typing=Typing.BUG, secondary_effect=POISON20),
     Move(name='Vice Grip', category=MoveCategory.PHYSICAL, power=55, accuracy=100, pp=30, typing=Typing.NORMAL),
     Move(name='Vine Whip', category=MoveCategory.SPECIAL, power=35, accuracy=100, pp=10, typing=Typing.GRASS),
     Move(name='Water Gun', category=MoveCategory.SPECIAL, power=40, accuracy=100, pp=25, typing=Typing.WATER),
