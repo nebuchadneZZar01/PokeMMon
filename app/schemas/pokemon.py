@@ -109,7 +109,7 @@ class BattlePokemon(BaseModel):
                 chosen.append(move)
 
         for index, move in enumerate(chosen):
-            self.moves[index] = move
+            self.moves[index] = move.model_copy(deep=True)
 
     @classmethod
     def from_template(cls, template: Pokemon, level: int = 100):
