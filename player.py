@@ -1,5 +1,7 @@
 from pokedex import *
-from pokemon import *
+from pokemon import BattlePokemon
+from app.core.combat import calculate_damage, try_atk_status, struggle_no_pp, reset_stats_mult, reset_battle_stats, inc_dec_stat_mult, update_battle_stat
+import pkmn_types
 from pkmn_types import get_effectiveness
 import random
 
@@ -10,7 +12,7 @@ class Action:
     def __init__(self, action, user, target = None):
         self.action = action
         self.user = user
-        self.target = target                # Pokemon() if action is switch, Move() if action is Attack
+        self.target = target                # BattlePokemon() if action is switch, Move() if action is Attack
 
 # general Trainer superclass
 # (for player and agent)
@@ -23,8 +25,8 @@ class Trainer:
         self.is_ai = False
 
         for i in range(len(self.team)):
-            tmp = random.choice(list(pokedex_list.items()))[1]
-            self.team[i] = Pokemon(tmp.num, tmp.species, tmp.elements, 100, tmp.base_stats)
+            tmp = random.choice(pokedex)
+            self.team[i] = BattlePokemon.from_template(tmp)
 
         self.in_battle = self.team[0]
         self.team[0].on_field = True
@@ -39,7 +41,7 @@ class Trainer:
             print('Player Team:')
         else: print('AI Team:')
         for pkmn in self.team:
-            print('- {mon} \t{types}'.format(mon = pkmn.name, types = pkmn.typing))
+            print('- {mon} \t{types}'.format(mon = pkmn.name, types = [t.value for t in pkmn.typing]))
 
     def get_possible_choices(self):
         possible_choices = [ ]
@@ -60,8 +62,8 @@ class Trainer:
                 \tkind: {move_kind}'.format(index = i+1,\
                 move_name = choices[i].target.name,\
                 move_power = choices[i].target.power,\
-                move_type = choices[i].target.typing,\
-                move_kind = choices[i].target.physical))
+                move_type = choices[i].target.typing.value,\
+                move_kind = choices[i].target.category.value))
             
     def game_over_lose(self):
         faint_cnt = 0
@@ -119,7 +121,7 @@ class RandomAI(TrainerAI):
             
             print(move.name)
             self.choices.append(move.name)
-            self.in_battle.try_atk_status(move, target)
+            try_atk_status(self.in_battle, move, target)
 
 
 # base MiniMax: ai tries to maximize the value function,
@@ -185,7 +187,7 @@ class MinimaxAI(TrainerAI):
         fainted_diff = t_fainted - s_fainted
         move = action.target
         user = action.user
-        move_damage = self.in_battle.calculate_damage(move, self.rival.in_battle)
+        move_damage = calculate_damage(self.in_battle, move, self.rival.in_battle)
 
         print('hp_diff:', hp_diff)
         print('status_diff:', status_diff)
@@ -248,10 +250,10 @@ class MinimaxAI(TrainerAI):
                     move = choosen_action.target    
                     print('Choosen move:', move.name)
                     self.choices.append(move.name)
-                    self.in_battle.try_atk_status(move, target)
+                    try_atk_status(self.in_battle, move, target)
             else:
                 # simply trigger struggle
-                self.in_battle.struggle_no_pp(target)
+                struggle_no_pp(self.in_battle, target)
 
     def minimax(self, depth, action, is_maximizing):
         print('\n--- NODE DEPTH: {depth} ---'.format(depth = depth))

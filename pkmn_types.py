@@ -383,6 +383,9 @@ types_chart = {
 }
 
 def get_effectiveness(attacking_type, defending_type):
+    if hasattr(attacking_type, 'value'):
+        attacking_type = attacking_type.value.upper()
+    if hasattr(defending_type, 'value'):
+        defending_type = defending_type.value.upper()
     eff = types_chart[attacking_type.upper()][defending_type.upper()]
-
     return eff

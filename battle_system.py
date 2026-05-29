@@ -1,4 +1,5 @@
 import math
+from app.core.combat import hit, handle_burn_poison, handle_toxicity, handle_leech_seed
 
 class TurnBattleSystem:
     def __init__(self, player, ai):
@@ -69,69 +70,13 @@ class TurnBattleSystem:
         self.player_mon = self.player.in_battle
         self.enemy_mon = self.ai.in_battle
 
-        if self.player_mon.status == 'BRN' or self.player_mon.status == 'PSN':
-            player_mon_max_hp = self.player_mon.max_hp
-            self.player_mon.hit(math.floor((1/16)*player_mon_max_hp), None, status = True)
-            if self.player_mon.status == 'BRN':
-                self.player_mon.msg += '\n{pkmn} is hurt by its burn!'.format(pkmn = self.player_mon.name)
-            else:
-                self.player_mon.msg += '\n{pkmn} is hurt by poison!'.format(pkmn = self.player_mon.name)
-        if self.enemy_mon.status == 'BRN' or self.enemy_mon.status == 'PSN':
-            enemy_mon_max_hp = self.enemy_mon.max_hp
-            self.enemy_mon.hit(math.floor((1/16)*enemy_mon_max_hp), None, status = True)
-            if self.player_mon.status == 'BRN':
-                self.enemy_mon.msg += '\n{pkmn} is hurt by its burn!'.format(pkmn = self.enemy_mon.name)
-            else:
-                self.enemy_mon.msg += '\n{pkmn} is hurt by poison!'.format(pkmn = self.enemy_mon.name)
+        handle_burn_poison(self.player_mon, self.enemy_mon)
 
-    # like PSN, but it encreases the damage every turn
     def handle_toxicity(self):
-        # prevents non updating in battle pokemons
-        self.player_mon = self.player.in_battle
-        self.enemy_mon = self.ai.in_battle
+        handle_toxicity(self.player_mon, self.enemy_mon)
 
-        if self.player_mon.status == 'TOX':
-            self.player_mon.toxic_turns += 1
-            player_mon_max_hp = self.player_mon.max_hp
-            damage = math.floor(1/16 * player_mon_max_hp) * self.player_mon.toxic_turns
-            if damage >= 15 * math.floor(1/16 * player_mon_max_hp):
-                damage = math.floor(1/16 * player_mon_max_hp)
-            self.player_mon.hit(damage, None, status = True)
-            self.player_mon.msg += '\n{pkmn} is hurt by toxine!'.format(pkmn = self.player_mon.name)
-        if self.enemy_mon.status == 'TOX':
-            self.enemy_mon.toxic_turns += 1
-            enemy_mon_max_hp = self.enemy_mon.max_hp
-            damage = math.floor(1/16 * enemy_mon_max_hp) * self.enemy_mon.toxic_turns
-            if damage >= 15 * math.floor(1/16 * enemy_mon_max_hp):
-                damage = math.floor(1/16 * enemy_mon_max_hp)
-            self.enemy_mon.hit(damage, None, status = True)
-            self.enemy_mon.msg += '\n{pkmn} is hurt by toxine!'.format(pkmn = self.enemy_mon.name)
-
-    # damage mon and heals enemy_mon every turn if mon is seeded (and viceversa)
     def handle_leech_seed(self):
-        # prevents non updating in battle pokemons
-        self.player_mon = self.player.in_battle
-        self.enemy_mon = self.ai.in_battle
-
-        if self.player_mon.seeded:
-            player_mon_max_hp = self.player_mon.max_hp
-            damage = math.floor((1/16)*player_mon_max_hp)
-            self.player_mon.hit(damage, None, status = True)
-            if (self.enemy_mon.hp + damage) > self.enemy_mon.max_hp:
-                self.enemy_mon.hp = self.enemy_mon.max_hp
-            else:
-                self.enemy_mon.hp += damage
-            self.player_mon.msg += '\nLeech Seed saps {pkmn}!'.format(pkmn = self.player_mon.name)
-
-        if self.enemy_mon.seeded:
-            enemy_mon_max_hp = self.enemy_mon.max_hp
-            damage = math.floor(math.floor((1/16)*enemy_mon_max_hp))
-            self.enemy_mon.hit(damage, None, status = True)
-            if (self.player_mon.hp + damage) > self.player_mon.max_hp:
-                self.player_mon.hp = self.player_mon.max_hp
-            else:
-                self.player_mon.hp += damage
-            self.enemy_mon.msg += '\nLeech Seeds saps {pkmn}!'.format(pkmn = self.enemy_mon.name)
+        handle_leech_seed(self.player_mon, self.enemy_mon)
 
     def handle_status_by_turn(self):
         self.handle_burn_poison()

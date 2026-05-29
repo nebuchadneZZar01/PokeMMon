@@ -1,6 +1,7 @@
 import pygame, os
 from battle_system import TurnBattleSystem
 from player import *
+from app.core.combat import try_atk_status, struggle_no_pp, reset_stats_mult, reset_battle_stats
 import time
 
 width = 700
@@ -74,9 +75,9 @@ class MoveButton:
         self.rendered_name = self.font.render(self.name, True, black)
 
         if self.move is not None:
-            self.type_img = pygame.image.load(os.path.join('assets/sprites/move_types/{type}.png'.format(type = self.move.typing.lower())))
+            self.type_img = pygame.image.load(os.path.join('assets/sprites/move_types/{type}.png'.format(type = self.move.typing.value.lower())))
             self.type_img = pygame.transform.scale(self.type_img, (self.type_img.get_width()/1.5, self.type_img.get_height()/1.5))
-            self.kind_img = pygame.image.load(os.path.join('assets/sprites/moves/{kind}.png'.format(kind = self.move.physical.lower())))
+            self.kind_img = pygame.image.load(os.path.join('assets/sprites/moves/{kind}.png'.format(kind = self.move.category.value.lower())))
             self.kind_img = pygame.transform.scale(self.kind_img, (self.kind_img.get_width()/2, self.kind_img.get_height()/2))
 
         self.bs = bs
@@ -118,7 +119,7 @@ class MoveButton:
                         if self.move.pp > 0:
                             self.enemy_mon = self.enemy.in_battle                           # prevents non updating target when after the previous one is fainted 
                             if not self.player_mon.fainted:
-                                self.player_mon.try_atk_status(self.move, self.enemy_mon)
+                                try_atk_status(self.player_mon, self.move, self.enemy_mon)
                                 self.bs.switch_turn()
                             else:
                                 self.player_mon.msg = 'You can\'t attack with a fainted Pokémon! You have to switch in another one!'
@@ -133,7 +134,7 @@ class MoveButton:
 
                             # if no move has pp left
                             if cnt_no_pp == cnt_moves:
-                                self.player_mon.struggle_no_pp(self.enemy_mon)
+                                struggle_no_pp(self.player_mon, self.enemy_mon)
                             else:
                                 self.player_mon.msg = 'This move has any pp left!'
                     else:
@@ -206,10 +207,10 @@ class TeamButton:
         self.pkmn_img = pygame.image.load(os.path.join('assets/sprites/front/{id}.png'.format(id = self.pkmn.id)))
         self.pkmn_img = pygame.transform.scale(self.pkmn_img, (self.pkmn_img.get_width()/1.25, self.pkmn_img.get_height()/1.25))
 
-        self.pkmn_type1_img = pygame.image.load(os.path.join('assets/sprites/types/{type1}.png'.format(type1 = self.pkmn.typing[0].lower())))
+        self.pkmn_type1_img = pygame.image.load(os.path.join('assets/sprites/types/{type1}.png'.format(type1 = self.pkmn.typing[0].value.lower())))
         self.pkmn_type1_img = pygame.transform.scale(self.pkmn_type1_img, (mon_type_size, mon_type_size))
         if len(self.pkmn.typing) == 2:
-            self.pkmn_type2_img = pygame.image.load(os.path.join('assets/sprites/types/{type2}.png'.format(type2 = self.pkmn.typing[1].lower())))
+            self.pkmn_type2_img = pygame.image.load(os.path.join('assets/sprites/types/{type2}.png'.format(type2 = self.pkmn.typing[1].value.lower())))
             self.pkmn_type2_img = pygame.transform.scale(self.pkmn_type2_img, (mon_type_size, mon_type_size))
 
     def draw(self):
@@ -258,8 +259,8 @@ class TeamButton:
                         # remove substitute
                         self.player.in_battle.substitute = False
                         # reset all in-battle pkmn's temporary conditions and stats changements
-                        self.player.in_battle.reset_stats_mult()
-                        self.player.in_battle.reset_battle_stats()
+                        reset_stats_mult(self.player.in_battle)
+                        reset_battle_stats(self.player.in_battle)
                         self.player.in_battle.temp_status = None
                         self.player.in_battle.on_field = False
                         # then replace the pokemon with the selected one
@@ -334,10 +335,10 @@ class GameWindow:
         self.lv_player_text = self.font.render(str(self.player_mon.level), True, black)
         self.status_player_text = self.font.render(self.player_mon.status, True, black)
         self.temp_status_player_text = self.font.render(self.player_mon.temp_status, True, black)
-        self.player_mon_type1_img = pygame.image.load(os.path.join('assets/sprites/types/{type1}.png'.format(type1 = self.player_mon.typing[0].lower())))
+        self.player_mon_type1_img = pygame.image.load(os.path.join('assets/sprites/types/{type1}.png'.format(type1 = self.player_mon.typing[0].value.lower())))
         self.player_mon_type1_img = pygame.transform.scale(self.player_mon_type1_img, (mon_type_size, mon_type_size))
         if len(self.player_mon.typing) == 2:
-            self.player_mon_type2_img = pygame.image.load(os.path.join('assets/sprites/types/{type2}.png'.format(type2 = self.player_mon.typing[1].lower())))
+            self.player_mon_type2_img = pygame.image.load(os.path.join('assets/sprites/types/{type2}.png'.format(type2 = self.player_mon.typing[1].value.lower())))
             self.player_mon_type2_img = pygame.transform.scale(self.player_mon_type2_img, (mon_type_size, mon_type_size))
 
         self.enemy = self.bs.get_ai()
@@ -350,10 +351,10 @@ class GameWindow:
         self.lv_enemy_text = self.font.render(str(self.enemy_mon.level), True, black)
         self.status_enemy_text = self.font.render(self.enemy_mon.status, True, black)
         self.temp_status_enemy_text = self.font.render(self.enemy_mon.temp_status, True, black)
-        self.enemy_mon_type1_img = pygame.image.load(os.path.join('assets/sprites/types/{type1}.png'.format(type1 = self.enemy_mon.typing[0].lower())))
+        self.enemy_mon_type1_img = pygame.image.load(os.path.join('assets/sprites/types/{type1}.png'.format(type1 = self.enemy_mon.typing[0].value.lower())))
         self.enemy_mon_type1_img = pygame.transform.scale(self.enemy_mon_type1_img, (mon_type_size, mon_type_size))
         if len(self.enemy_mon.typing) == 2:
-            self.enemy_mon_type2_img = pygame.image.load(os.path.join('assets/sprites/types/{type2}.png'.format(type2 = self.enemy_mon.typing[1].lower())))
+            self.enemy_mon_type2_img = pygame.image.load(os.path.join('assets/sprites/types/{type2}.png'.format(type2 = self.enemy_mon.typing[1].value.lower())))
             self.enemy_mon_type2_img = pygame.transform.scale(self.enemy_mon_type2_img, (mon_type_size, mon_type_size))
 
         self.textbox = TextBox(0, 380, '', self.screen)
@@ -390,10 +391,10 @@ class GameWindow:
         self.hp_player = [self.player_mon.hp, self.player_mon.max_hp]
         self.hp_player_text = self.font.render(str(self.hp_player[0]) + '/' + str(self.hp_player[1]), True, black)
         self.lv_player_text = self.font.render(str(self.player_mon.level), True, black)
-        self.player_mon_type1_img = pygame.image.load(os.path.join('assets/sprites/types/{type1}.png'.format(type1 = self.player_mon.typing[0].lower())))
+        self.player_mon_type1_img = pygame.image.load(os.path.join('assets/sprites/types/{type1}.png'.format(type1 = self.player_mon.typing[0].value.lower())))
         self.player_mon_type1_img = pygame.transform.scale(self.player_mon_type1_img, (mon_type_size, mon_type_size))
         if len(self.player_mon.typing) == 2:
-            self.player_mon_type2_img = pygame.image.load(os.path.join('assets/sprites/types/{type2}.png'.format(type2 = self.player_mon.typing[1].lower())))
+            self.player_mon_type2_img = pygame.image.load(os.path.join('assets/sprites/types/{type2}.png'.format(type2 = self.player_mon.typing[1].value.lower())))
             self.player_mon_type2_img = pygame.transform.scale(self.player_mon_type2_img, (mon_type_size, mon_type_size))
         self.move_selector.update_player_mon(self.player_mon)
 
@@ -405,10 +406,10 @@ class GameWindow:
         self.hp_enemy = [self.enemy_mon.hp, self.enemy_mon.max_hp]
         self.hp_enemy_text = self.font.render(str(self.hp_enemy[0]) + '/' + str(self.hp_enemy[1]), True, black)
         self.lv_enemy_text = self.font.render(str(self.enemy_mon.level), True, black)
-        self.enemy_mon_type1_img = pygame.image.load(os.path.join('assets/sprites/types/{type1}.png'.format(type1 = self.enemy_mon.typing[0].lower())))
+        self.enemy_mon_type1_img = pygame.image.load(os.path.join('assets/sprites/types/{type1}.png'.format(type1 = self.enemy_mon.typing[0].value.lower())))
         self.enemy_mon_type1_img = pygame.transform.scale(self.enemy_mon_type1_img, (mon_type_size, mon_type_size))
         if len(self.enemy_mon.typing) == 2:
-            self.enemy_mon_type2_img = pygame.image.load(os.path.join('assets/sprites/types/{type2}.png'.format(type2 = self.enemy_mon.typing[1].lower())))
+            self.enemy_mon_type2_img = pygame.image.load(os.path.join('assets/sprites/types/{type2}.png'.format(type2 = self.enemy_mon.typing[1].value.lower())))
             self.enemy_mon_type2_img = pygame.transform.scale(self.enemy_mon_type2_img, (mon_type_size, mon_type_size))
 
     def update_textbox(self, text):

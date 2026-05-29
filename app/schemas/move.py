@@ -17,7 +17,6 @@ class SecondaryEffect(BaseModel):
     effect: EffectStatus
 
 class MoveCategory(str, Enum):
-    """Category of a move, which determines how damage is calculated."""
     SPECIAL = 'Special'
     PHYSICAL = 'Physical'
     NON_DAMAGING = 'Non-Damaging'
@@ -42,4 +41,17 @@ class Move(BaseModel):
     power: int
     accuracy: int
     pp: int
+    max_pp: int = 0
     secondary_effect: Optional[SecondaryEffect] = None
+
+    def model_post_init(self, __context):
+        if self.max_pp == 0:
+            self.max_pp = self.pp
+
+    def get_info(self):
+        print(self.name)
+        print('Typing:', self.typing.value)
+        print('Power:', self.power)
+        print('PP:', self.pp)
+        print('Category:', self.category.value)
+        print('Accuracy:', self.accuracy)

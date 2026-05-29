@@ -1,21 +1,13 @@
-from pydantic import BaseModel
+import math
+import random
+from typing import Optional
+from pydantic import BaseModel, Field
 
+import moves
 from app.schemas.typing import Typing
-from app.schemas.move import Move
+from app.schemas.move import Move, MoveCategory
 
 class Stats(BaseModel):
-    """
-    Represents the base stats of a Pokemon.
-
-    Attributes:
-        hp (int): The base HP stat of the Pokemon.
-        attack (int): The base Attack stat of the Pokemon.
-        defense (int): The base Defense stat of the Pokemon.
-        sp_attack (int): The base Special Attack stat of the Pokemon.
-        sp_defense (int): The base Special Defense stat of the Pokemon.
-        speed (int): The base Speed stat of the Pokemon.
-    """
-
     hp: int
     attack: int
     defense: int
@@ -24,27 +16,165 @@ class Stats(BaseModel):
     speed: int
 
 class Pokemon(BaseModel):
-    """
-    Represents a Pokemon with its basic information and stats.
-
-    Attributes:
-        id (int): The unique identifier of the Pokemon.
-        name (str): The name of the Pokemon.
-        types (list[Typing]): The elemental types of the Pokemon.
-        base_stats (Stats): The base stats of the Pokemon.
-    """
-
     id: int
     name: str
-    types: list[Typing]
+    typing: list[Typing]
     base_stats: Stats
 
-class InBattlePokemon(Pokemon):
-    """
-    Represents a Pokemon in battle.
 
-    Attributes:
-        moves (list[Move]): The list of moves that the Pokemon can use in battle.
-    """
+def calculate_max_stat(base_stat, level):
+    return math.floor((base_stat * 2 * level) / 100) + 5
 
-    moves: list[Move]
+
+class BattlePokemon(BaseModel):
+    id: int
+    name: str
+    typing: list[Typing] = []
+    level: int = 100
+    moves: list[Optional[Move]] = Field(default_factory=lambda: [None] * 4)
+
+    status: Optional[str] = None
+    temp_status: Optional[str] = None
+    on_field: bool = False
+    fainted: bool = False
+
+    base_hp: int = 0
+    base_attack: int = 0
+    base_defense: int = 0
+    base_sp_atk: int = 0
+    base_sp_def: int = 0
+    base_speed: int = 0
+
+    max_hp: float = 0
+    max_attack: float = 0
+    max_defense: float = 0
+    max_sp_atk: float = 0
+    max_sp_def: float = 0
+    max_speed: float = 0
+
+    hp: float = 0
+    attack: float = 0
+    defense: float = 0
+    sp_atk: float = 0
+    sp_def: float = 0
+    speed: float = 0
+    accuracy: float = 1.0
+    evasion: float = 1.0
+
+    atk_mult: int = 0
+    def_mult: int = 0
+    sp_atk_mult: int = 0
+    sp_def_mult: int = 0
+    speed_mult: int = 0
+    acc_mult: int = 0
+    ev_mult: int = 0
+
+    substitute: bool = False
+    sub_damage: int = 0
+    transformed: bool = False
+    seeded: bool = False
+    sleeping_turns: int = 0
+    confused_turns: int = 0
+    toxic_turns: int = 0
+    reflect: bool = False
+    light_screen: bool = False
+    mist: bool = False
+
+    msg: str = 'You are challenged by AI Trainer!'
+
+    def model_post_init(self, __context):
+        if all(m is None for m in self.moves):
+            self._select_random_moves()
+
+    @staticmethod
+    def _normalize_level(level):
+        if level < 1:
+            return 1
+        if level > 100:
+            return 100
+        return level
+
+    def _select_random_moves(self):
+        available = [m for m in moves.attacks if moves.check_compatibility(m['name'], self.name)]
+        random.shuffle(available)
+
+        chosen = []
+        for move in available:
+            if len(chosen) >= 4:
+                break
+            if move['name'] not in [m.name for m in chosen]:
+                chosen.append(Move(
+                    name=move['name'],
+                    typing=Typing(move['type']),
+                    power=move['power'],
+                    pp=move['pp'],
+                    category=MoveCategory(move['category']),
+                    accuracy=move['accuracy'],
+                ))
+
+        for index, move in enumerate(chosen):
+            self.moves[index] = move
+
+    @classmethod
+    def from_template(cls, template: Pokemon, level: int = 100):
+        level = cls._normalize_level(level)
+        typing = template.typing[:]
+        bs = template.base_stats
+
+        max_hp = math.floor((bs.hp * 2 * level) / 100) + level + 10
+        max_attack = calculate_max_stat(bs.attack, level)
+        max_defense = calculate_max_stat(bs.defense, level)
+        max_sp_atk = calculate_max_stat(bs.sp_attack, level)
+        max_sp_def = calculate_max_stat(bs.sp_defense, level)
+        max_speed = calculate_max_stat(bs.speed, level)
+
+        return cls(
+            id=template.id,
+            name=template.name,
+            typing=typing,
+            level=level,
+            base_hp=bs.hp,
+            base_attack=bs.attack,
+            base_defense=bs.defense,
+            base_sp_atk=bs.sp_attack,
+            base_sp_def=bs.sp_defense,
+            base_speed=bs.speed,
+            max_hp=max_hp,
+            max_attack=max_attack,
+            max_defense=max_defense,
+            max_sp_atk=max_sp_atk,
+            max_sp_def=max_sp_def,
+            max_speed=max_speed,
+            hp=max_hp,
+            attack=max_attack,
+            defense=max_defense,
+            sp_atk=max_sp_atk,
+            sp_def=max_sp_def,
+            speed=max_speed,
+        )
+
+    def get_stats(self):
+        print('Name:', self.name, '\tType:', [t.value for t in self.typing], '\tLevel:', self.level)
+        print('Hp:', self.hp)
+        print('Atk:', self.attack)
+        print('Def:', self.defense)
+        print('Sp Atk:', self.sp_atk)
+        print('Sp Def:', self.sp_def)
+        print('Spe:', self.speed, '\n')
+
+    def get_stats_mult(self):
+        print('Atk:', self.atk_mult)
+        print('Def:', self.def_mult)
+        print('Sp Atk:', self.sp_atk_mult)
+        print('Sp Def:', self.sp_def_mult)
+        print('Spe:', self.speed_mult)
+        print('Ev:', self.ev_mult)
+        print('Acc:', self.acc_mult, '\n')
+
+    def get_moves(self):
+        for move in self.moves:
+            if move is not None:
+                move.get_info()
+                print('\n')
+            else:
+                print('None\n')
