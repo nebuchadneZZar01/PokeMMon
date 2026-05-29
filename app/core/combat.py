@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import random
+from collections.abc import Callable
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
@@ -242,225 +243,329 @@ def handle_special_physical_move(
         hit(defender, damage, attacker)
 
 
-def handle_status_move(attacker: BattlePokemon, move: Move, defender: BattlePokemon) -> None:
-    if move.name == 'Acid Armor':
-        inc_dec_stat_mult(attacker, attacker, 'def_mult', increase=True, highly=True)
-        attacker.defense = update_battle_stat(attacker.defense, attacker.def_mult)
-    elif move.name == 'Agility':
-        inc_dec_stat_mult(attacker, attacker, 'speed_mult', increase=True, highly=True)
-        attacker.speed = update_battle_stat(attacker.speed, attacker.speed_mult)
-    elif move.name == 'Amnesia':
-        inc_dec_stat_mult(attacker, attacker, 'sp_atk_mult', increase=True, highly=True)
-        attacker.sp_atk = update_battle_stat(attacker.sp_atk, attacker.sp_atk_mult)
-        inc_dec_stat_mult(attacker, attacker, 'sp_def_mult', increase=True, highly=True)
-        attacker.sp_def = update_battle_stat(attacker.sp_def, attacker.sp_def_mult)
-    elif move.name == 'Barrier':
-        inc_dec_stat_mult(attacker, attacker, 'def_mult', increase=True, highly=True)
-        attacker.defense = update_battle_stat(attacker.defense, attacker.def_mult)
-    elif move.name in ('Confuse Ray', 'Supersonic'):
-        defender.temp_status = EffectStatus.CONFUSION
-        attacker.msg += f'\n{defender.name} is now confused!'
-    elif move.name == 'Conversion':
-        attacker.typing = defender.typing
-        attacker.msg += f'\n{attacker.name} assumes {defender.name} types!'
-    elif move.name in ('Defense Curl', 'Harden', 'Withdraw'):
-        inc_dec_stat_mult(attacker, attacker, 'def_mult', increase=True)
-        attacker.defense = update_battle_stat(attacker.defense, attacker.def_mult)
-    elif move.name == 'Double Team':
-        inc_dec_stat_mult(attacker, attacker, 'ev_mult', increase=True)
-        attacker.evasion = update_battle_stat(attacker.evasion, attacker.ev_mult)
-    elif move.name in ('Flash', 'Kinesis', 'Sand Attack'):
-        if not defender.mist:
-            inc_dec_stat_mult(attacker, defender, 'acc_mult', increase=False)
-            defender.accuracy = update_battle_stat(defender.accuracy, defender.acc_mult)
-        else:
-            attacker.msg += '\nBut {enemy_mon}\'s Mist prevents its stats decrease...'
-    elif move.name in ('Glare', 'Stun Spore', 'Thunder Wave'):
-        if not defender.substitute:
-            if defender.status is None:
-                defender.status = EffectStatus.PARALYZE
-                defender.speed -= 0.75 * defender.speed
-                attacker.msg += f'\n{defender.name} is paralyzed! Maybe it can\'t attack!'
-            else:
-                attacker.msg += '\nBut nothing happened...'
-        else:
-            attacker.msg += f'\n{defender.name}\'s Substitute prevents its status change!'
-    elif move.name == 'Growl':
-        if not defender.mist:
-            inc_dec_stat_mult(attacker, defender, 'atk_mult', increase=False)
-            defender.attack = update_battle_stat(defender.attack, defender.atk_mult)
-        else:
-            attacker.msg += '\nBut {enemy_mon}\'s Mist prevents its stats decrease...'
-    elif move.name == 'Growth':
-        inc_dec_stat_mult(attacker, attacker, 'sp_atk_mult', increase=True)
-        attacker.sp_atk = update_battle_stat(attacker.sp_atk, attacker.sp_atk_mult)
-        inc_dec_stat_mult(attacker, attacker, 'sp_def_mult', increase=True)
-        attacker.sp_def = update_battle_stat(attacker.sp_def, attacker.sp_def_mult)
-    elif move.name == 'Haze':
-        reset_stats_mult(attacker)
-        reset_battle_stats(attacker)
-        reset_stats_mult(defender)
-        reset_battle_stats(defender)
-        attacker.msg += '\nAll stats changes have been reset!'
-    elif move.name in ('Hypnosis', 'Lovely Kiss', 'Sing', 'Spore', 'Sleep Powder'):
-        if not defender.substitute:
-            if defender.status is None:
-                defender.status = EffectStatus.SLEEP
-                attacker.msg += f'\n{defender.name} is now sleeping!'
-            else:
-                attacker.msg += '\nBut nothing happened...'
-        else:
-            attacker.msg += f'\n{defender.name}\'s Substitute prevents its status change!'
-    elif move.name == 'Leech Seed':
-        if not defender.substitute:
-            if not defender.seeded:
-                if not has_type(defender, Typing.GRASS):
-                    defender.seeded = True
-                    attacker.msg += f'\n{defender.name} was seeded!'
-                else:
-                    attacker.msg += f'\nIt has no effect on {defender.name}...'
-            else:
-                attacker.msg += f'\nBut {defender.name}\'s is already seeded...'
-        else:
-            attacker.msg += f'\n{defender.name}\'s Substitute prevents Leech Seed!'
-    elif move.name == 'Light Screen':
-        if not attacker.light_screen:
-            attacker.light_screen = True
-            if attacker.sp_def * 2 > 1024:
-                attacker.sp_def = 1024
-            else:
-                attacker.sp_def *= 2
-            attacker.msg += f'\n{attacker.name} protected against special attacks!'
-        else:
-            attacker.msg += f'\nBut Light Screen is already covering {attacker.name}...'
-    elif move.name in ('Meditate', 'Minimize'):
-        inc_dec_stat_mult(attacker, attacker, 'ev_mult', increase=True)
-        attacker.evasion = update_battle_stat(attacker.evasion, attacker.ev_mult)
-    elif move.name == 'Metronome':
-        atk(attacker, random.choice(moves.attacks), defender)
-    elif move.name == 'Mimic':
-        m = random.choice(defender.moves)
-        if m is not None:
-            if m.name == 'Mimic':
-                attacker.msg += '\nBut it failed...'
-            else:
-                atk(attacker, m, defender)
-                attacker.msg += f'\n{attacker.name} copies one of {defender.name}\'s moves!'
-        else:
-            attacker.msg += '\nBut it failed...'
-    elif move.name == 'Mist':
-        if not attacker.mist:
-            attacker.mist = True
-            attacker.msg += f'\n{attacker.name} is shrouded in Mist!'
-        else:
-            attacker.msg += f'\nBut there is already a Mist covering {attacker.name}...'
-    elif move.name in ('Poison Gas', 'Poison Powder'):
-        if not defender.substitute:
-            if defender.status is None:
-                if not has_type(defender, Typing.POISON):
-                    defender.status = EffectStatus.POISON
-                    attacker.msg += f'\n{defender.name} is poisoned!'
-                else:
-                    attacker.msg += f'\nIt has no effect on {defender.name}...'
-            else:
-                attacker.msg += '\nBut nothing happened...'
-        else:
-            attacker.msg += f'\n{defender.name}\'s Substitute prevents its status change!'
-    elif move.name in ('Recover', 'Soft-Boiled'):
-        if attacker.hp < attacker.max_hp:
-            attacker.hp += 0.5 * attacker.max_hp
-            if attacker.hp > attacker.max_hp:
-                attacker.hp = attacker.max_hp
-            attacker.msg += f'\n{attacker.name} restores half of its hp!'
-        else:
-            attacker.msg += f'\nBut {attacker.name} already has all its hp!'
-    elif move.name == 'Reflect':
-        if not attacker.reflect:
-            attacker.reflect = True
-            if attacker.defense * 2 > 1024:
-                attacker.defense = 1024
-            else:
-                attacker.defense *= 2
-            attacker.msg += f'\n{attacker.name} gained armor!'
-        else:
-            attacker.msg += f'\nBut Reflect is already covering {attacker.name}...'
-    elif move.name == 'Rest':
-        if attacker.hp < attacker.max_hp or attacker.status is not None:
-            if attacker.status is not None:
-                attacker.status = None
-            if attacker.temp_status is not None:
-                attacker.temp_status = None
-            attacker.hp = attacker.max_hp
-            attacker.status = EffectStatus.SLEEP
-            attacker.msg += f'\n{attacker.name} went to sleep and regained health!'
-        else:
-            attacker.msg += f'\nBut {attacker.name} already has all its hp!'
-    elif move.name in ('Roar', 'Splash', 'Teleport', 'Whirlwind'):
-        attacker.msg += '\nBut nothing happened...'
-    elif move.name == 'Screech':
-        if not defender.mist:
-            inc_dec_stat_mult(attacker, defender, 'def_mult', increase=False)
-            defender.defense = update_battle_stat(defender.defense, defender.def_mult)
-        else:
-            attacker.msg += f'\nBut {defender.name}\'s Mist prevents its stats decrease...'
-    elif move.name == 'String Shot':
-        if not defender.mist:
-            inc_dec_stat_mult(attacker, defender, 'speed_mult', increase=False)
-            defender.speed = update_battle_stat(defender.speed, defender.speed_mult)
-        else:
-            attacker.msg += f'\nBut {defender.name}\'s Mist prevents its stats decrease...'
-    elif move.name == 'Substitute':
-        if not attacker.substitute:
-            if attacker.hp >= 0.3 * attacker.max_hp:
-                attacker.hp -= math.floor(0.25 * attacker.max_hp)
-                attacker.substitute = True
-                attacker.msg += f'\n{attacker.name} is replaced by a substitute doll!'
-        else:
-            attacker.msg += f'\nBut {attacker.name} is already protected by a substitute doll...'
-    elif move.name == 'Sharpen':
-        inc_dec_stat_mult(attacker, attacker, 'atk_mult', increase=True)
-        attacker.attack = update_battle_stat(attacker.attack, attacker.atk_mult)
-    elif move.name == 'Swords Dance':
-        inc_dec_stat_mult(attacker, attacker, 'atk_mult', increase=True, highly=True)
-        attacker.attack = update_battle_stat(attacker.attack, attacker.atk_mult)
-    elif move.name in ('Tail Whip', 'Leer'):
-        if not defender.mist:
-            inc_dec_stat_mult(attacker, defender, 'def_mult', increase=False)
-            defender.defense = update_battle_stat(defender.defense, defender.def_mult)
-        else:
-            attacker.msg += '\nBut {enemy_mon}\'s Mist prevents its stats decrease...'
-    elif move.name == 'Toxic':
-        if not defender.substitute:
-            if defender.status is None:
-                if not has_type(defender, Typing.POISON):
-                    defender.status = EffectStatus.TOXIC
-                    attacker.msg += f'\n{defender.name} is intoxicated!'
-                else:
-                    attacker.msg += f'\nIt has no effect on {defender.name}...'
-            else:
-                attacker.msg += '\nBut nothing happened...'
-        else:
-            attacker.msg += f'\n{defender.name}\'s Substitute prevents its status change!'
-    elif move.name == 'Transform':
-        attacker.msg += f'\n{attacker.name} transforms into {defender.name}!'
-        attacker.transformed = True
-        attacker.id = defender.id
-        attacker.typing = defender.typing
-        attacker.moves = deepcopy(defender.moves)
-        attacker.max_attack = deepcopy(defender.max_attack)
-        attacker.max_defense = deepcopy(defender.max_defense)
-        attacker.max_sp_atk = deepcopy(defender.max_sp_atk)
-        attacker.max_sp_def = deepcopy(defender.max_sp_def)
-        attacker.max_speed = deepcopy(defender.max_speed)
-        attacker.attack = deepcopy(defender.attack)
-        attacker.defense = deepcopy(defender.defense)
-        attacker.sp_atk = deepcopy(defender.sp_atk)
-        attacker.sp_def = deepcopy(defender.sp_def)
-        attacker.speed = deepcopy(defender.speed)
-        for m in attacker.moves:
-            if m is not None:
-                m.pp = int(m.max_pp / 2)
+def _boost_def_high(attacker: BattlePokemon, defender: BattlePokemon) -> None:
+    inc_dec_stat_mult(attacker, attacker, 'def_mult', increase=True, highly=True)
+    attacker.defense = update_battle_stat(attacker.defense, attacker.def_mult)
 
+
+def _boost_speed_high(attacker: BattlePokemon, defender: BattlePokemon) -> None:
+    inc_dec_stat_mult(attacker, attacker, 'speed_mult', increase=True, highly=True)
+    attacker.speed = update_battle_stat(attacker.speed, attacker.speed_mult)
+
+
+def _boost_spatk_spdef_high(attacker: BattlePokemon, defender: BattlePokemon) -> None:
+    inc_dec_stat_mult(attacker, attacker, 'sp_atk_mult', increase=True, highly=True)
+    attacker.sp_atk = update_battle_stat(attacker.sp_atk, attacker.sp_atk_mult)
+    inc_dec_stat_mult(attacker, attacker, 'sp_def_mult', increase=True, highly=True)
+    attacker.sp_def = update_battle_stat(attacker.sp_def, attacker.sp_def_mult)
+
+
+def _boost_def(attacker: BattlePokemon, defender: BattlePokemon) -> None:
+    inc_dec_stat_mult(attacker, attacker, 'def_mult', increase=True)
+    attacker.defense = update_battle_stat(attacker.defense, attacker.def_mult)
+
+
+def _boost_ev(attacker: BattlePokemon, defender: BattlePokemon) -> None:
+    inc_dec_stat_mult(attacker, attacker, 'ev_mult', increase=True)
+    attacker.evasion = update_battle_stat(attacker.evasion, attacker.ev_mult)
+
+
+def _boost_atk(attacker: BattlePokemon, defender: BattlePokemon) -> None:
+    inc_dec_stat_mult(attacker, attacker, 'atk_mult', increase=True)
+    attacker.attack = update_battle_stat(attacker.attack, attacker.atk_mult)
+
+
+def _boost_atk_high(attacker: BattlePokemon, defender: BattlePokemon) -> None:
+    inc_dec_stat_mult(attacker, attacker, 'atk_mult', increase=True, highly=True)
+    attacker.attack = update_battle_stat(attacker.attack, attacker.atk_mult)
+
+
+def _boost_spatk_spdef(attacker: BattlePokemon, defender: BattlePokemon) -> None:
+    inc_dec_stat_mult(attacker, attacker, 'sp_atk_mult', increase=True)
+    attacker.sp_atk = update_battle_stat(attacker.sp_atk, attacker.sp_atk_mult)
+    inc_dec_stat_mult(attacker, attacker, 'sp_def_mult', increase=True)
+    attacker.sp_def = update_battle_stat(attacker.sp_def, attacker.sp_def_mult)
+
+
+def _reduce_acc(attacker: BattlePokemon, defender: BattlePokemon) -> None:
+    if not defender.mist:
+        inc_dec_stat_mult(attacker, defender, 'acc_mult', increase=False)
+        defender.accuracy = update_battle_stat(defender.accuracy, defender.acc_mult)
+    else:
+        attacker.msg += f'\nBut {defender.name}\'s Mist prevents its stats decrease...'
+
+
+def _reduce_atk(attacker: BattlePokemon, defender: BattlePokemon) -> None:
+    if not defender.mist:
+        inc_dec_stat_mult(attacker, defender, 'atk_mult', increase=False)
+        defender.attack = update_battle_stat(defender.attack, defender.atk_mult)
+    else:
+        attacker.msg += f'\nBut {defender.name}\'s Mist prevents its stats decrease...'
+
+
+def _reduce_def(attacker: BattlePokemon, defender: BattlePokemon) -> None:
+    if not defender.mist:
+        inc_dec_stat_mult(attacker, defender, 'def_mult', increase=False)
+        defender.defense = update_battle_stat(defender.defense, defender.def_mult)
+    else:
+        attacker.msg += f'\nBut {defender.name}\'s Mist prevents its stats decrease...'
+
+
+def _reduce_speed(attacker: BattlePokemon, defender: BattlePokemon) -> None:
+    if not defender.mist:
+        inc_dec_stat_mult(attacker, defender, 'speed_mult', increase=False)
+        defender.speed = update_battle_stat(defender.speed, defender.speed_mult)
+    else:
+        attacker.msg += f'\nBut {defender.name}\'s Mist prevents its stats decrease...'
+
+
+def _paralyze(attacker: BattlePokemon, defender: BattlePokemon) -> None:
+    if not defender.substitute:
+        if defender.status is None:
+            defender.status = EffectStatus.PARALYZE
+            defender.speed -= 0.75 * defender.speed
+            attacker.msg += f'\n{defender.name} is paralyzed! Maybe it can\'t attack!'
+        else:
+            attacker.msg += '\nBut nothing happened...'
+    else:
+        attacker.msg += f'\n{defender.name}\'s Substitute prevents its status change!'
+
+
+def _confuse(attacker: BattlePokemon, defender: BattlePokemon) -> None:
+    defender.temp_status = EffectStatus.CONFUSION
+    attacker.msg += f'\n{defender.name} is now confused!'
+
+
+def _sleep(attacker: BattlePokemon, defender: BattlePokemon) -> None:
+    if not defender.substitute:
+        if defender.status is None:
+            defender.status = EffectStatus.SLEEP
+            attacker.msg += f'\n{defender.name} is now sleeping!'
+        else:
+            attacker.msg += '\nBut nothing happened...'
+    else:
+        attacker.msg += f'\n{defender.name}\'s Substitute prevents its status change!'
+
+
+def _poison(attacker: BattlePokemon, defender: BattlePokemon) -> None:
+    if not defender.substitute:
+        if defender.status is None:
+            if not has_type(defender, Typing.POISON):
+                defender.status = EffectStatus.POISON
+                attacker.msg += f'\n{defender.name} is poisoned!'
+            else:
+                attacker.msg += f'\nIt has no effect on {defender.name}...'
+        else:
+            attacker.msg += '\nBut nothing happened...'
+    else:
+        attacker.msg += f'\n{defender.name}\'s Substitute prevents its status change!'
+
+
+def _toxic(attacker: BattlePokemon, defender: BattlePokemon) -> None:
+    if not defender.substitute:
+        if defender.status is None:
+            if not has_type(defender, Typing.POISON):
+                defender.status = EffectStatus.TOXIC
+                attacker.msg += f'\n{defender.name} is intoxicated!'
+            else:
+                attacker.msg += f'\nIt has no effect on {defender.name}...'
+        else:
+            attacker.msg += '\nBut nothing happened...'
+    else:
+        attacker.msg += f'\n{defender.name}\'s Substitute prevents its status change!'
+
+
+def _conversion(attacker: BattlePokemon, defender: BattlePokemon) -> None:
+    attacker.typing = defender.typing
+    attacker.msg += f'\n{attacker.name} assumes {defender.name} types!'
+
+
+def _haze(attacker: BattlePokemon, defender: BattlePokemon) -> None:
+    reset_stats_mult(attacker)
+    reset_battle_stats(attacker)
+    reset_stats_mult(defender)
+    reset_battle_stats(defender)
+    attacker.msg += '\nAll stats changes have been reset!'
+
+
+def _leech_seed(attacker: BattlePokemon, defender: BattlePokemon) -> None:
+    if not defender.substitute:
+        if not defender.seeded:
+            if not has_type(defender, Typing.GRASS):
+                defender.seeded = True
+                attacker.msg += f'\n{defender.name} was seeded!'
+            else:
+                attacker.msg += f'\nIt has no effect on {defender.name}...'
+        else:
+            attacker.msg += f'\nBut {defender.name}\'s is already seeded...'
+    else:
+        attacker.msg += f'\n{defender.name}\'s Substitute prevents Leech Seed!'
+
+
+def _light_screen(attacker: BattlePokemon, defender: BattlePokemon) -> None:
+    if not attacker.light_screen:
+        attacker.light_screen = True
+        if attacker.sp_def * 2 > 1024:
+            attacker.sp_def = 1024
+        else:
+            attacker.sp_def *= 2
+        attacker.msg += f'\n{attacker.name} protected against special attacks!'
+    else:
+        attacker.msg += f'\nBut Light Screen is already covering {attacker.name}...'
+
+
+def _reflect(attacker: BattlePokemon, defender: BattlePokemon) -> None:
+    if not attacker.reflect:
+        attacker.reflect = True
+        if attacker.defense * 2 > 1024:
+            attacker.defense = 1024
+        else:
+            attacker.defense *= 2
+        attacker.msg += f'\n{attacker.name} gained armor!'
+    else:
+        attacker.msg += f'\nBut Reflect is already covering {attacker.name}...'
+
+
+def _mist(attacker: BattlePokemon, defender: BattlePokemon) -> None:
+    if not attacker.mist:
+        attacker.mist = True
+        attacker.msg += f'\n{attacker.name} is shrouded in Mist!'
+    else:
+        attacker.msg += f'\nBut there is already a Mist covering {attacker.name}...'
+
+
+def _metronome(attacker: BattlePokemon, defender: BattlePokemon) -> None:
+    atk(attacker, random.choice(moves.attacks), defender)
+
+
+def _mimic(attacker: BattlePokemon, defender: BattlePokemon) -> None:
+    m = random.choice(defender.moves)
+    if m is not None:
+        if m.name == 'Mimic':
+            attacker.msg += '\nBut it failed...'
+        else:
+            atk(attacker, m, defender)
+            attacker.msg += f'\n{attacker.name} copies one of {defender.name}\'s moves!'
+    else:
+        attacker.msg += '\nBut it failed...'
+
+
+def _recover(attacker: BattlePokemon, defender: BattlePokemon) -> None:
+    if attacker.hp < attacker.max_hp:
+        attacker.hp += 0.5 * attacker.max_hp
+        if attacker.hp > attacker.max_hp:
+            attacker.hp = attacker.max_hp
+        attacker.msg += f'\n{attacker.name} restores half of its hp!'
+    else:
+        attacker.msg += f'\nBut {attacker.name} already has all its hp!'
+
+
+def _rest(attacker: BattlePokemon, defender: BattlePokemon) -> None:
+    if attacker.hp < attacker.max_hp or attacker.status is not None:
+        if attacker.status is not None:
+            attacker.status = None
+        if attacker.temp_status is not None:
+            attacker.temp_status = None
+        attacker.hp = attacker.max_hp
+        attacker.status = EffectStatus.SLEEP
+        attacker.msg += f'\n{attacker.name} went to sleep and regained health!'
+    else:
+        attacker.msg += f'\nBut {attacker.name} already has all its hp!'
+
+
+def _noop(attacker: BattlePokemon, defender: BattlePokemon) -> None:
+    attacker.msg += '\nBut nothing happened...'
+
+
+def _substitute(attacker: BattlePokemon, defender: BattlePokemon) -> None:
+    if attacker.substitute:
+        attacker.msg += f'\nBut {attacker.name} is already protected by a substitute doll...'
+    elif attacker.hp >= 0.3 * attacker.max_hp:
+        attacker.hp -= math.floor(0.25 * attacker.max_hp)
+        attacker.substitute = True
+        attacker.msg += f'\n{attacker.name} is replaced by a substitute doll!'
+
+
+def _transform(attacker: BattlePokemon, defender: BattlePokemon) -> None:
+    attacker.msg += f'\n{attacker.name} transforms into {defender.name}!'
+    attacker.transformed = True
+    attacker.id = defender.id
+    attacker.typing = defender.typing
+    attacker.moves = deepcopy(defender.moves)
+    attacker.max_attack = deepcopy(defender.max_attack)
+    attacker.max_defense = deepcopy(defender.max_defense)
+    attacker.max_sp_atk = deepcopy(defender.max_sp_atk)
+    attacker.max_sp_def = deepcopy(defender.max_sp_def)
+    attacker.max_speed = deepcopy(defender.max_speed)
+    attacker.attack = deepcopy(defender.attack)
+    attacker.defense = deepcopy(defender.defense)
+    attacker.sp_atk = deepcopy(defender.sp_atk)
+    attacker.sp_def = deepcopy(defender.sp_def)
+    attacker.speed = deepcopy(defender.speed)
+    for m in attacker.moves:
+        if m is not None:
+            m.pp = int(m.max_pp / 2)
+
+
+MOVE_HANDLERS: dict[str, Callable[[BattlePokemon, BattlePokemon], None]] = {
+    'Acid Armor': _boost_def_high,
+    'Agility': _boost_speed_high,
+    'Amnesia': _boost_spatk_spdef_high,
+    'Barrier': _boost_def_high,
+    'Confuse Ray': _confuse,
+    'Conversion': _conversion,
+    'Defense Curl': _boost_def,
+    'Double Team': _boost_ev,
+    'Flash': _reduce_acc,
+    'Glare': _paralyze,
+    'Growl': _reduce_atk,
+    'Growth': _boost_spatk_spdef,
+    'Harden': _boost_def,
+    'Haze': _haze,
+    'Hypnosis': _sleep,
+    'Kinesis': _reduce_acc,
+    'Leech Seed': _leech_seed,
+    'Leer': _reduce_def,
+    'Light Screen': _light_screen,
+    'Lovely Kiss': _sleep,
+    'Meditate': _boost_ev,
+    'Metronome': _metronome,
+    'Mimic': _mimic,
+    'Minimize': _boost_ev,
+    'Mist': _mist,
+    'Poison Gas': _poison,
+    'Poison Powder': _poison,
+    'Recover': _recover,
+    'Reflect': _reflect,
+    'Rest': _rest,
+    'Roar': _noop,
+    'Sand Attack': _reduce_acc,
+    'Screech': _reduce_def,
+    'Sharpen': _boost_atk,
+    'Sing': _sleep,
+    'Sleep Powder': _sleep,
+    'Soft-Boiled': _recover,
+    'Splash': _noop,
+    'Spore': _sleep,
+    'String Shot': _reduce_speed,
+    'Stun Spore': _paralyze,
+    'Substitute': _substitute,
+    'Supersonic': _confuse,
+    'Swords Dance': _boost_atk_high,
+    'Tail Whip': _reduce_def,
+    'Teleport': _noop,
+    'Thunder Wave': _paralyze,
+    'Toxic': _toxic,
+    'Transform': _transform,
+    'Whirlwind': _noop,
+    'Withdraw': _boost_def,
+}
+
+
+def handle_status_move(attacker: BattlePokemon, move: Move, defender: BattlePokemon) -> None:
+    handler = MOVE_HANDLERS.get(move.name)
+    if handler:
+        handler(attacker, defender)
 
 def atk(attacker: BattlePokemon, move: Move, defender: BattlePokemon) -> None:
     t_ = move.accuracy * attacker.accuracy * defender.evasion
