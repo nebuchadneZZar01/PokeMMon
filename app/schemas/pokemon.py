@@ -5,6 +5,7 @@ import random
 from pydantic import BaseModel, Field
 
 from app.data import moves
+from app.schemas.effect_status import EffectStatus
 from app.schemas.move import Move
 from app.schemas.typing import Typing
 
@@ -36,8 +37,8 @@ class BattlePokemon(BaseModel):
     level: int = 100
     moves: list[Move | None] = Field(default_factory=lambda: [None] * 4)
 
-    status: str | None = None
-    temp_status: str | None = None
+    status: EffectStatus | None = None
+    temp_status: EffectStatus | None = None
     on_field: bool = False
     fainted: bool = False
 
@@ -150,7 +151,10 @@ class BattlePokemon(BaseModel):
         )
 
     def get_stats(self):
-        logger.debug('Name: %s Type: %s Level: %s', self.name, [t.value for t in self.typing], self.level)
+        logger.debug(
+            'Name: %s Type: %s Level: %s',
+            self.name, [t.value for t in self.typing], self.level,
+        )
         logger.debug('Hp: %s', self.hp)
         logger.debug('Atk: %s', self.attack)
         logger.debug('Def: %s', self.defense)

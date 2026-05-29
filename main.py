@@ -9,6 +9,7 @@ from rich.prompt import Prompt
 from app.core import battle_system
 from app.core.combat import reset_battle_stats, reset_stats_mult, struggle_no_pp, try_atk_status
 from app.core.player import *
+from app.schemas.effect_status import EffectStatus
 
 console = Console()
 
@@ -22,8 +23,13 @@ TYPE_COLORS = {
 }
 
 STATUS_COLORS = {
-    'PSN': 'magenta', 'TOX': 'purple', 'BRN': 'red', 'PAR': 'yellow',
-    'SLP': 'cyan', 'FRZ': 'blue',
+    EffectStatus.POISON: 'magenta',
+    EffectStatus.TOXIC: 'purple',
+    EffectStatus.BURN: 'red',
+    EffectStatus.PARALYZE: 'yellow',
+    EffectStatus.SLEEP: 'cyan',
+    EffectStatus.FREEZE: 'blue',
+    EffectStatus.CONFUSION: 'orange',
 }
 
 
@@ -41,7 +47,7 @@ def status_tag(pkmn) -> str:
     if pkmn.status is None:
         return '[green]OK[/]'
     c = STATUS_COLORS.get(pkmn.status, 'white')
-    return f'[{c}]{pkmn.status}[/]'
+    return f'[{c}]{pkmn.status.value}[/]'
 
 
 def team_dots(team) -> str:
