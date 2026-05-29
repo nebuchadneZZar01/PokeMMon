@@ -1,10 +1,13 @@
+import logging
+import random
 from app.data.pokedex import pokedex
 from app.schemas.pokemon import BattlePokemon
 from app.schemas.action import Action, ActionKind
 from app.core.combat import calculate_damage, try_atk_status, struggle_no_pp, reset_stats_mult, reset_battle_stats, inc_dec_stat_mult, update_battle_stat
 import app.data.pkmn_types as pkmn_types
 from app.data.pkmn_types import get_effectiveness
-import random
+
+logger = logging.getLogger(__name__)
 
 class Trainer:
     """
@@ -38,10 +41,10 @@ class Trainer:
 
     def get_team(self):
         if not self.is_ai:
-            print('Player Team:')
-        else: print('AI Team:')
+            logger.info('Player Team:')
+        else: logger.info('AI Team:')
         for pkmn in self.team:
-            print('- {mon} \t{types}'.format(mon = pkmn.name, types = [t.value for t in pkmn.typing]))
+            logger.info('- %s \t%s', pkmn.name, [t.value for t in pkmn.typing])
 
     def get_possible_choices(self):
         possible_choices = [ ]
@@ -54,16 +57,11 @@ class Trainer:
         return possible_choices
 
     def print_choices(self, choices):
-        print('\n{pkmn}\'s possible choices:'.format(pkmn = self.in_battle.name))
-        for i in range(len(choices)):
-            print('- {index}) name: {move_name},\
-                \tpower: {move_power},\
-                \ttype: {move_type},\
-                \tkind: {move_kind}'.format(index = i+1,\
-                move_name = choices[i].target.name,\
-                move_power = choices[i].target.power,\
-                move_type = choices[i].target.typing.value,\
-                move_kind = choices[i].target.category.value))
+        logger.debug('\n%s\'s possible choices:', self.in_battle.name)
+        for i, c in enumerate(choices):
+            logger.debug('- %d) name: %s, power: %s, type: %s, kind: %s',
+                         i + 1, c.target.name, c.target.power,
+                         c.target.typing.value, c.target.category.value)
             
     def game_over_lose(self):
         faint_cnt = 0
@@ -131,7 +129,7 @@ class RandomAI(TrainerAI):
             while move == None: 
                 move = random.choice(self.in_battle.moves)
             
-            print(move.name)
+            logger.info(move.name)
             self.choices.append(move.name)
             try_atk_status(self.in_battle, move, target)
 
@@ -205,27 +203,25 @@ class MinimaxAI(TrainerAI):
         user = action.user
         move_damage = calculate_damage(self.in_battle, move, self.rival.in_battle)
 
-        print('hp_diff:', hp_diff)
-        print('status_diff:', status_diff)
-        print('stats_diff:', stats_diff)
-        print('fainted_diff:', fainted_diff)
-        print('user:', user)
-        print('possible move:', move.name)
-        print('possible damage:', move_damage)
+        logger.debug('hp_diff: %s', hp_diff)
+        logger.debug('status_diff: %s', status_diff)
+        logger.debug('stats_diff: %s', stats_diff)
+        logger.debug('fainted_diff: %s', fainted_diff)
+        logger.debug('user: %s', user)
+        logger.debug('possible move: %s', move.name)
+        logger.debug('possible damage: %s', move_damage)
 
         value = hp_diff * .35 + move_damage * .35 + status_diff * 100 * .25 + stats_diff * 100 * .05 + fainted_diff * 100
 
-        # malus if move was used last turn
         if move == self.last_move:
             value -= 100
 
-        type1 = pkmn_types.get_effectiveness(move.typing, self.rival.in_battle.typing[0])                  # effectiveness vs enemy's type1
+        type1 = pkmn_types.get_effectiveness(move.typing, self.rival.in_battle.typing[0])
         type2 = 1
 
         if len(self.rival.in_battle.typing) == 2:
-            type2 = pkmn_types.get_effectiveness(move.typing, self.rival.in_battle.typing[1])                  # effectiveness vs enemy's type1
+            type2 = pkmn_types.get_effectiveness(move.typing, self.rival.in_battle.typing[1])
 
-        # effectiveness bonus/malus
         if type1 * type2 == 4:
             value += 100
         elif type1 * type2 == 2:
@@ -235,7 +231,7 @@ class MinimaxAI(TrainerAI):
         elif type1 * type2 == 0:
             value -= 100
 
-        print('value: {value}\n'.format(value = value))
+        logger.debug('value: %s\n', value)
 
         return value
 
@@ -264,7 +260,7 @@ class MinimaxAI(TrainerAI):
             if choosen_action != 'no_pp':
                 if choosen_action.kind == ActionKind.ATTACK:        
                     move = choosen_action.target    
-                    print('Choosen move:', move.name)
+                    logger.info('Choosen move: %s', move.name)
                     self.choices.append(move.name)
                     try_atk_status(self.in_battle, move, target)
             else:
@@ -272,7 +268,7 @@ class MinimaxAI(TrainerAI):
                 struggle_no_pp(self.in_battle, target)
 
     def minimax(self, depth, action, is_maximizing):
-        print('\n--- NODE DEPTH: {depth} ---'.format(depth = depth))
+        logger.debug('\n--- NODE DEPTH: %s ---', depth)
         if self.game_over_lose() or self.rival.game_over_lose():
             if self.game_over_lose():
                 return -self.win_val
@@ -312,7 +308,7 @@ class MMAlphaBetaAI(MinimaxAI):
         self.beta = -self.alpha
 
     def minimax(self, depth, action, is_maximizing):
-        print('\n--- NODE DEPTH: {depth} ---'.format(depth = depth))
+        logger.debug('\n--- NODE DEPTH: %s ---', depth)
         if self.game_over_lose() or self.rival.game_over_lose():
             if self.game_over_lose():
                 return -self.win_val
@@ -355,7 +351,7 @@ class ExpectiMaxAI(MinimaxAI):
         super(ExpectiMaxAI, self).__init__(rival)
 
     def minimax(self, depth, action, is_maximizing):
-        print('\n--- NODE DEPTH: {depth} ---'.format(depth = depth))
+        logger.debug('\n--- NODE DEPTH: %s ---', depth)
         if self.game_over_lose() or self.rival.game_over_lose():
             if self.game_over_lose():
                 return -self.win_val

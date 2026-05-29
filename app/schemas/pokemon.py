@@ -1,11 +1,14 @@
 import math
 import random
+import logging
 from typing import Optional
 from pydantic import BaseModel, Field
 
 from app.data import moves
 from app.schemas.typing import Typing
 from app.schemas.move import Move, MoveCategory
+
+logger = logging.getLogger(__name__)
 
 class Stats(BaseModel):
     hp: int
@@ -147,27 +150,27 @@ class BattlePokemon(BaseModel):
         )
 
     def get_stats(self):
-        print('Name:', self.name, '\tType:', [t.value for t in self.typing], '\tLevel:', self.level)
-        print('Hp:', self.hp)
-        print('Atk:', self.attack)
-        print('Def:', self.defense)
-        print('Sp Atk:', self.sp_atk)
-        print('Sp Def:', self.sp_def)
-        print('Spe:', self.speed, '\n')
+        logger.debug('Name: %s Type: %s Level: %s', self.name, [t.value for t in self.typing], self.level)
+        logger.debug('Hp: %s', self.hp)
+        logger.debug('Atk: %s', self.attack)
+        logger.debug('Def: %s', self.defense)
+        logger.debug('Sp Atk: %s', self.sp_atk)
+        logger.debug('Sp Def: %s', self.sp_def)
+        logger.debug('Spe: %s\n', self.speed)
 
     def get_stats_mult(self):
-        print('Atk:', self.atk_mult)
-        print('Def:', self.def_mult)
-        print('Sp Atk:', self.sp_atk_mult)
-        print('Sp Def:', self.sp_def_mult)
-        print('Spe:', self.speed_mult)
-        print('Ev:', self.ev_mult)
-        print('Acc:', self.acc_mult, '\n')
+        logger.debug('Atk: %s', self.atk_mult)
+        logger.debug('Def: %s', self.def_mult)
+        logger.debug('Sp Atk: %s', self.sp_atk_mult)
+        logger.debug('Sp Def: %s', self.sp_def_mult)
+        logger.debug('Spe: %s', self.speed_mult)
+        logger.debug('Ev: %s', self.ev_mult)
+        logger.debug('Acc: %s\n', self.acc_mult)
 
     def get_moves(self):
         for move in self.moves:
             if move is not None:
                 move.get_info()
-                print('\n')
+                logger.debug('\n')
             else:
-                print('None\n')
+                logger.debug('None\n')

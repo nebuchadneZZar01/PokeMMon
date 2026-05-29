@@ -1,5 +1,8 @@
 import math
+import logging
 from app.core.combat import hit, handle_burn_poison, handle_toxicity, handle_leech_seed
+
+logger = logging.getLogger(__name__)
 
 class TurnBattleSystem:
     """
@@ -29,16 +32,16 @@ class TurnBattleSystem:
         if self.player.token == True:
             self.player.token = False
             self.ai.token = True
-            print("----- END PLAYER TURN -----\n")
-            print("\n----- START AI TURN -----")
+            logger.info("----- END PLAYER TURN -----")
+            logger.info("----- START AI TURN -----")
         elif self.ai.token == True:
             self.ai.token = False
             self.player.token = True
-            print("----- END AI TURN -----\n")
-            print("\n----- START PLAYER TURN -----")
+            logger.info("----- END AI TURN -----")
+            logger.info("----- START PLAYER TURN -----")
         
         self.turn_count += 1
-        print('Turn n: {turn}'.format(turn = self.turn_count))
+        logger.info('Turn n: {turn}'.format(turn = self.turn_count))
 
     def get_turn(self):
         if self.player.token == True:

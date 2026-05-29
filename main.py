@@ -1,4 +1,5 @@
 import argparse
+import logging
 from typing import Optional
 from rich.console import Console
 from rich.panel import Panel
@@ -179,7 +180,24 @@ def main():
                         help='AI algorithm (default: minimax)')
     parser.add_argument('--depth', type=int, default=7,
                         help='max search depth for AI tree (default: 7)')
+    parser.add_argument('--log', nargs='?', const='info', default=None,
+                        choices=['info', 'debug'],
+                        help='''Show AI battle logs.
+Without value defaults to 'info'.
+
+Log levels:
+  info   : AI turn markers, team listing, chosen move name
+  debug  : everything from 'info' plus minimax tree search
+           details (evaluate, node depth, possible choices)''')
     args = parser.parse_args()
+
+    if args.log is None:
+        level = logging.CRITICAL + 1
+    elif args.log == 'info':
+        level = logging.INFO
+    else:
+        level = logging.DEBUG
+    logging.basicConfig(level=level, format='%(message)s')
 
     player = Trainer()
 
