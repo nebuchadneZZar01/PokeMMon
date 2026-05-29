@@ -6,12 +6,12 @@ from rich.prompt import Prompt
 
 from app.core import battle_system
 from app.core.combat import reset_battle_stats, reset_stats_mult, struggle_no_pp, try_atk_status
-from app.core.player import (
-    ExpectiMaxAI,
-    MMAlphaBetaAI,
-    MinimaxAI,
-    RandomAI,
-    Trainer,
+from app.core.player import Trainer
+from app.core.strategy import (
+    AlphaBetaStrategy,
+    ExpectiMaxStrategy,
+    MinimaxStrategy,
+    RandomStrategy,
 )
 from app.ui.renderer import Panel, console, render_core, render_team
 
@@ -103,13 +103,13 @@ Log levels:
     player = Trainer()
 
     if args.ai == 'random':
-        ai = RandomAI()
+        ai = Trainer(RandomStrategy())
     elif args.ai == 'alphabeta':
-        ai = MMAlphaBetaAI(player, args.depth)
+        ai = Trainer(AlphaBetaStrategy(args.depth))
     elif args.ai == 'expectimax':
-        ai = ExpectiMaxAI(player, args.depth)
+        ai = Trainer(ExpectiMaxStrategy(args.depth))
     else:
-        ai = MinimaxAI(player, args.depth)
+        ai = Trainer(MinimaxStrategy(args.depth))
 
     ai.get_team()
     bs = battle_system.TurnBattleSystem(player, ai)

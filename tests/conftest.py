@@ -1,11 +1,6 @@
 from __future__ import annotations
 
-import math
-
-import pytest
-
 from app.schemas.battle_pokemon import BattlePokemon
-from app.schemas.effect_status import EffectStatus
 from app.schemas.move import Move, MoveCategory
 from app.schemas.typing import Typing
 

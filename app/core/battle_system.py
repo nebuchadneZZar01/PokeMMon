@@ -11,7 +11,7 @@ class TurnBattleSystem:
 
     Attributes:
         player (Trainer): The human or player-controlled trainer.
-        ai (TrainerAI): The AI-controlled trainer.
+        ai (Trainer): The AI-controlled trainer.
         player_mon (BattlePokemon): The player's currently active Pokémon.
         enemy_mon (BattlePokemon): The AI's currently active Pokémon.
         turn_count (int): Counter for the number of turns elapsed since battle start.
@@ -74,7 +74,7 @@ class TurnBattleSystem:
             if self.player.is_turn():
                 pass
             else:
-                ai_msg = self.ai.get_choice(self.player_mon)
+                ai_msg = self.ai.get_choice(self.player)
                 if ai_msg:
                     self.enemy_msg = ai_msg
                 self.handle_status_by_turn()

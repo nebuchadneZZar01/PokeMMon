@@ -220,14 +220,12 @@ class TestHandleToxicity:
         e = make_pkmn(name='B')
         p.toxic_turns = 0
         handle_toxicity(p, e)
-        loss_t1 = 500 - p.hp
         assert p.toxic_turns == 1
+        assert p.hp < 500
 
         handle_toxicity(p, e)
-        loss_t2 = p.hp - (make_pkmn(hp=500, status=EffectStatus.TOXIC).hp if False else p.hp)
-        # We need to track HP manually since we can't reconstruct
-        # Just check that toxic_turns increments and damage is proportional
         assert p.toxic_turns == 2
+        assert p.hp < 500
 
     def test_toxic_damage_scales_with_turns(self):
         p = make_pkmn(name='A', hp=500, max_hp=500, status=EffectStatus.TOXIC)
@@ -239,8 +237,6 @@ class TestHandleToxicity:
         assert loss_t1 == base
 
         handle_toxicity(p, e)
-        loss_t2 = p.hp - (500 - loss_t1 - math.floor(1 / 16 * 500) * 2)
-        # After second call: HP = 500 - base*1 - base*2
         expected_hp = 500 - base * 3
         assert p.hp == expected_hp
 
