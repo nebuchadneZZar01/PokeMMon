@@ -35,7 +35,8 @@ class Trainer:
     def get_team(self):
         if not self.is_ai:
             logger.info('Player Team:')
-        else: logger.info('AI Team:')
+        else:
+            logger.info('AI Team:')
         for pkmn in self.team:
             logger.info('- %s \t%s', pkmn.name, [t.value for t in pkmn.typing])
 
@@ -43,8 +44,7 @@ class Trainer:
         possible_choices = []
 
         for move in self.in_battle.moves:
-            if move is not None:
-                if move.pp > 0:
+            if move is not None and move.pp > 0:
                     possible_choices.append(Action(kind=ActionKind.ATTACK, user=self.in_battle.name, target=move))
 
         return possible_choices
@@ -78,8 +78,7 @@ class TrainerAI(Trainer):
         self.is_ai = True
 
     def verify_fainted_switch(self):
-        if not self.game_over_lose():
-            if self.in_battle.fainted:
+        if not self.game_over_lose() and self.in_battle.fainted:
                 self.in_battle.on_field = False
                 i = 0
                 while True:

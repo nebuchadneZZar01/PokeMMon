@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel
 
@@ -6,7 +6,7 @@ from app.schemas.move import Move
 from app.schemas.pokemon import Pokemon
 
 
-class ActionKind(str, Enum):
+class ActionKind(StrEnum):
     ATTACK = "Attack"
     SWITCH = "Switch"
 

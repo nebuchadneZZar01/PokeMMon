@@ -6,7 +6,13 @@ from rich.prompt import Prompt
 
 from app.core import battle_system
 from app.core.combat import reset_battle_stats, reset_stats_mult, struggle_no_pp, try_atk_status
-from app.core.player import *
+from app.core.player import (
+    ExpectiMaxAI,
+    MMAlphaBetaAI,
+    MinimaxAI,
+    RandomAI,
+    Trainer,
+)
 from app.ui.renderer import Panel, console, render_core, render_team
 
 

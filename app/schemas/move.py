@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel
 
@@ -18,7 +18,7 @@ class SecondaryEffect(BaseModel):
     chance: int
     effect: EffectStatus
 
-class MoveCategory(str, Enum):
+class MoveCategory(StrEnum):
     SPECIAL = 'Special'
     PHYSICAL = 'Physical'
     NON_DAMAGING = 'Non-Damaging'

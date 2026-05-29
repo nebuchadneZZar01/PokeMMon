@@ -32,12 +32,12 @@ class TurnBattleSystem:
         self.enemy_msg = ''
     
     def switch_turn(self):
-        if self.player.token == True:
+        if self.player.token:
             self.player.token = False
             self.ai.token = True
             logger.info("----- END PLAYER TURN -----")
             logger.info("----- START AI TURN -----")
-        elif self.ai.token == True:
+        elif self.ai.token:
             self.ai.token = False
             self.player.token = True
             logger.info("----- END AI TURN -----")
@@ -47,11 +47,9 @@ class TurnBattleSystem:
         logger.info(f'Turn n: {self.turn_count}')
 
     def get_turn(self):
-        if self.player.token == True:
-            # player turn
+        if self.player.token:
             return 'PL'
         else:
-            # AI turn
             return 'AI'
 
     def get_player(self):
