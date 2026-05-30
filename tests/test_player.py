@@ -117,6 +117,27 @@ class TestGetPossibleChoices:
         choices = t.get_possible_choices()
         assert len(choices) == 2
 
+    def test_skips_disabled_move_slot(self):
+        t = Trainer()
+        m1 = make_move(name='Tackle', pp=35)
+        m2 = make_move(name='Growl', pp=40)
+        m3 = make_move(name='Scratch', pp=35)
+        m4 = make_move(name='Leer', pp=30)
+        t.in_battle.moves = [m1, m2, m3, m4]
+        t.in_battle.disabled_move = 0
+        choices = t.get_possible_choices()
+        assert len(choices) == 3
+        assert m1 not in [c.target for c in choices]
+
+    def test_disabled_move_negative_one_shows_all(self):
+        t = Trainer()
+        m1 = make_move(name='Tackle', pp=35)
+        m2 = make_move(name='Growl', pp=40)
+        t.in_battle.moves = [m1, m2, None, None]
+        t.in_battle.disabled_move = -1
+        choices = t.get_possible_choices()
+        assert len(choices) == 2
+
 
 class TestVerifyFaintedSwitch:
     def test_switches_to_first_alive(self):
