@@ -1,6 +1,6 @@
 import logging
 
-from app.core.combat import handle_burn_poison, handle_leech_seed, handle_toxicity
+from app.core.combat import handle_burn_poison, handle_leech_seed, handle_toxicity, handle_trapped
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +85,7 @@ class TurnBattleSystem:
         self.enemy_mon = self.ai.in_battle
 
         msgs = []
-        for fn in (handle_burn_poison, handle_toxicity, handle_leech_seed):
+        for fn in (handle_burn_poison, handle_toxicity, handle_leech_seed, handle_trapped):
             msg = fn(self.player_mon, self.enemy_mon)
             if msg:
                 msgs.append(msg)

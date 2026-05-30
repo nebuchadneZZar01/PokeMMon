@@ -36,6 +36,13 @@ def exec_switch(bs, idx: int):
     reset_battle_stats(old)
     old.temp_status = None
     old.on_field = False
+    old.biding = False
+    old.bide_damage = 0
+    old.bide_turns = 0
+    old.trapped = False
+    old.trapped_turns = 0
+    old.last_damage_taken = 0
+    old.last_move_was_physical = False
     player.in_battle = target
     target.on_field = True
     bs.switch_turn()
@@ -156,6 +163,25 @@ def main():
                 exec_switch(bs, idx)
                 break
             console.clear()
+            render_core(bs)
+            time.sleep(1.2)
+            continue
+
+        if p.recharging:
+            p.recharging = False
+            bs.player_msg = f'{p.name} must recharge!'
+            bs.switch_turn()
+            render_core(bs)
+            time.sleep(1.2)
+            continue
+
+        if p.biding:
+            bide_idx = next(
+                (i for i, m in enumerate(p.moves)
+                 if m is not None and m.name == 'Bide'), None
+            )
+            if bide_idx is not None:
+                exec_move(bs, bide_idx)
             render_core(bs)
             time.sleep(1.2)
             continue

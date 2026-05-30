@@ -14,6 +14,8 @@ from app.schemas.typing import Typing
 if TYPE_CHECKING:
     from app.schemas.battle_pokemon import BattlePokemon
 
+CONST_THAW = 0.20
+
 
 def has_type(pkmn: BattlePokemon, t: Typing) -> bool:
     return any(ty == t for ty in pkmn.typing)
@@ -107,8 +109,10 @@ def reset_battle_stats(pokemon: BattlePokemon) -> None:
     pokemon.evasion = 1
 
 
-def calculate_crit_multiplier(attacker: BattlePokemon) -> tuple[int, str]:
+def calculate_crit_multiplier(attacker: BattlePokemon, high_crit: bool = False) -> tuple[int, str]:
     treshold = math.floor(attacker.base_speed / 2)
+    if high_crit:
+        treshold = math.floor(attacker.base_speed / 2) * 8
     if attacker.focus_energy:
         treshold *= 4
     if treshold > 255:
@@ -132,7 +136,8 @@ def calculate_damage(
     for t in defender.typing:
         effectiveness *= pkmn_types.get_effectiveness(move.typing, t)
 
-    crit, crit_msg = calculate_crit_multiplier(attacker)
+    high_crit = move.name in {'Slash', 'Razor Leaf', 'Crabhammer', 'Karate Chop'}
+    crit, crit_msg = calculate_crit_multiplier(attacker, high_crit)
 
     rand = random.randint(217, 255) / 255
 
@@ -150,6 +155,10 @@ def hit(
         if defender.hp <= 0:
             defender.hp = 0
             defender.fainted = True
+        if attacker is not None and not status:
+            defender.last_damage_taken = damage
+            if defender.biding:
+                defender.bide_damage += damage
         return ''
     else:
         if not status:
@@ -165,6 +174,10 @@ def hit(
             if defender.hp <= 0:
                 defender.hp = 0
                 defender.fainted = True
+            if attacker is not None:
+                defender.last_damage_taken = damage
+                if defender.biding:
+                    defender.bide_damage += damage
             return ''
 
 
@@ -173,7 +186,7 @@ def struggle_no_pp(attacker: BattlePokemon, defender: BattlePokemon) -> str:
     b = attacker.attack
     c = defender.defense
     damage = int((((2 * a / 5 + 2) * b * 40) / c) / 50) + 2
-    recoil = handle_recoil(defender, damage, 50)
+    recoil = max(1, attacker.max_hp // 4)
     hit(defender, damage, attacker)
     hit(attacker, recoil, attacker)
     return (
@@ -216,7 +229,22 @@ def handle_special_physical_move(
 ) -> str:
     msg = ''
 
+    if move.name == 'Counter':
+        if attacker.last_damage_taken > 0 and attacker.last_move_was_physical:
+            damage = 2 * attacker.last_damage_taken
+            attacker.last_damage_taken = 0
+            attacker.last_move_was_physical = False
+            hit(defender, damage, attacker)
+            if defender.fainted:
+                n = defender.name
+                return f'\n{attacker.name} countered {n}\'s attack!\n{n} fainted!'
+            return f'\n{attacker.name} countered {defender.name}\'s attack!'
+        return '\nBut it failed...'
     if move.name in ('Explosion', 'Self-Destruct'):
+        old_def = defender.defense
+        defender.defense //= 2
+        damage, _ = calculate_damage(attacker, move, defender)
+        defender.defense = old_def
         hit(defender, damage, attacker)
         hit(attacker, attacker.max_hp)
         return msg
@@ -224,7 +252,7 @@ def handle_special_physical_move(
         hit(defender, defender.max_hp, attacker)
         return msg
     if move.name in (
-        'Fury Swipes', 'Fury Attack', 'Double Slap', 'Wrap',
+        'Fury Swipes', 'Fury Attack', 'Double Slap',
         'Comet Punch', 'Barrage', 'Pin Missile', 'Spike Cannon',
     ):
         cnt = 1
@@ -502,7 +530,7 @@ def _noop(attacker: BattlePokemon, defender: BattlePokemon) -> str:
 def _substitute(attacker: BattlePokemon, defender: BattlePokemon) -> str:
     if attacker.substitute:
         return f'\nBut {attacker.name} is already protected by a substitute doll...'
-    elif attacker.hp >= 0.3 * attacker.max_hp:
+    elif attacker.hp >= attacker.max_hp // 4:
         attacker.hp -= math.floor(0.25 * attacker.max_hp)
         attacker.substitute = True
         return f'\n{attacker.name} is replaced by a substitute doll!'
@@ -625,6 +653,13 @@ def handle_status_move(attacker: BattlePokemon, move: Move, defender: BattlePoke
     return ''
 
 def atk(attacker: BattlePokemon, move: Move, defender: BattlePokemon) -> str:
+    if move.name == 'Bide' and not attacker.biding:
+        attacker.biding = True
+        attacker.bide_turns = 0
+        attacker.bide_damage = 0
+        move.pp -= 1
+        return f'{attacker.name} used Bide!'
+
     t_ = move.accuracy * attacker.accuracy * defender.evasion
     rand_t = random.randint(0, 255)
     msg = f'{attacker.name} used {move.name}!'
@@ -659,6 +694,8 @@ def atk(attacker: BattlePokemon, move: Move, defender: BattlePokemon) -> str:
                 damage = attacker.level
             elif move.name == 'Super Fang':
                 damage = defender.hp // 2
+            elif move.name == 'Psywave':
+                damage = random.randint(1, int(1.5 * attacker.level))
 
             if move.name in ('Absorb', 'Mega Drain', 'Leech Life'):
                 regain = handle_recoil(defender, damage, 50)
@@ -682,11 +719,22 @@ def atk(attacker: BattlePokemon, move: Move, defender: BattlePokemon) -> str:
 
             if attacker.temp_status != EffectStatus.CONFUSION:
                 if defender != attacker:
+                    defender.last_move_was_physical = move.category == MoveCategory.PHYSICAL
                     msg += handle_special_physical_move(attacker, move, defender, damage)
                     if move.name in ('Double-Edge', 'Take Down', 'Submission'):
-                        recoil = damage // 4
+                        recoil = damage // 3 if move.name == 'Double-Edge' else damage // 4
                         msg += f'\n{attacker.name} is hit with recoil!'
                         hit(attacker, recoil)
+                    if move.name == 'Hyper Beam':
+                        attacker.recharging = True
+                    if (
+                        move.name in ('Wrap', 'Bind', 'Clamp', 'Fire Spin')
+                        and not defender.fainted
+                        and not defender.trapped
+                    ):
+                        defender.trapped = True
+                        defender.trapped_turns = random.randint(2, 5)
+                        msg += f'\n{defender.name} was trapped!'
                     if defender.fainted:
                         msg += f'\n{defender.name} fainted!'
             else:
@@ -710,6 +758,27 @@ def atk(attacker: BattlePokemon, move: Move, defender: BattlePokemon) -> str:
 
 
 def try_atk_status(attacker: BattlePokemon, move: Move, defender: BattlePokemon) -> str:
+    if attacker.recharging:
+        attacker.recharging = False
+        return f'{attacker.name} must recharge!'
+
+    if attacker.biding:
+        attacker.bide_turns += 1
+        if attacker.bide_turns >= 2:
+            damage = attacker.bide_damage * 2
+            hit(defender, damage, attacker)
+            attacker.biding = False
+            attacker.bide_damage = 0
+            attacker.bide_turns = 0
+            msg = f'{attacker.name} unleashed energy!'
+            if defender.fainted:
+                msg += f'\n{defender.name} fainted!'
+            return msg
+        return f'{attacker.name} is storing energy!'
+
+    if attacker.trapped and random.random() < 0.5:
+        return f'{attacker.name} is trapped and can\'t move!'
+
     if attacker.status is not None:
         if attacker.status == EffectStatus.PARALYZE:
             p = random.random()
@@ -730,9 +799,15 @@ def try_atk_status(attacker: BattlePokemon, move: Move, defender: BattlePokemon)
                 attacker.status = None
                 msg = atk(attacker, move, defender)
                 return f'{attacker.name} woke up!\n' + msg
+        elif attacker.status == EffectStatus.FREEZE:
+            if random.random() <= CONST_THAW:
+                attacker.status = None
+                msg = atk(attacker, move, defender)
+                return msg + f'\n{attacker.name} thawed out!'
+            return f'{attacker.name} is frozen solid!'
         elif attacker.status in (
             EffectStatus.BURN, EffectStatus.POISON,
-            EffectStatus.TOXIC, EffectStatus.FREEZE,
+            EffectStatus.TOXIC,
         ):
             return atk(attacker, move, defender)
     elif attacker.temp_status is not None:
@@ -794,6 +869,19 @@ def handle_toxicity(player_mon: BattlePokemon, enemy_mon: BattlePokemon) -> str:
             damage = math.floor(1 / 16 * enemy_mon_max_hp)
         hit(enemy_mon, damage, None, status=True)
         msg += f'\n{enemy_mon.name} is hurt by toxine!'
+    return msg
+
+
+def handle_trapped(player_mon: BattlePokemon, enemy_mon: BattlePokemon) -> str:
+    msg = ''
+    for mon in (player_mon, enemy_mon):
+        if mon.trapped and mon.trapped_turns > 0:
+            damage = max(1, mon.max_hp // 16)
+            hit(mon, damage, None, status=True)
+            mon.trapped_turns -= 1
+            if mon.trapped_turns <= 0:
+                mon.trapped = False
+            msg += f'\n{mon.name} is hurt by the trap!'
     return msg
 
 
