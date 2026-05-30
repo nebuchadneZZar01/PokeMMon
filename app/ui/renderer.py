@@ -70,6 +70,7 @@ def render_core(bs: TurnBattleSystem) -> None:
     hp_e = make_hp_bar(e.hp, e.max_hp)
     e_content = (
         f'  [bold]{e.name}[/bold]    Lv{e.level}\n'
+        f'  {" ".join(f"[{TYPE_COLORS.get(t.value.upper(), 'white')}]{t.value.upper()}[/]" for t in e.typing)}\n'
         f'  HP {hp_e}  [bold]{int(e.hp)}/{int(e.max_hp)}[/]\n'
         f'  {status_tag(e)}               Team {team_dots(bs.ai.team)}'
     )
@@ -78,6 +79,7 @@ def render_core(bs: TurnBattleSystem) -> None:
     hp_p = make_hp_bar(p.hp, p.max_hp)
     p_content = (
         f'  [bold]{p.name}[/bold]    Lv{p.level}\n'
+        f'  {" ".join(f"[{TYPE_COLORS.get(t.value.upper(), 'white')}]{t.value.upper()}[/]" for t in p.typing)}\n'
         f'  HP {hp_p}  [bold]{int(p.hp)}/{int(p.max_hp)}[/]\n'
         f'  {status_tag(p)}               Team {team_dots(bs.player.team)}'
     )
