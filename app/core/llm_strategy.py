@@ -4,6 +4,7 @@ import logging
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Annotated, Literal, TypedDict
 
+from langchain.agents import create_agent
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_core.tools import tool
@@ -11,7 +12,6 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 from langgraph.graph.message import add_messages
-from langgraph.prebuilt import create_react_agent
 from pydantic import BaseModel, Field
 
 import app.data.pkmn_types as pkmn_types
@@ -112,7 +112,7 @@ def verify_llm_connection(
             """Return 'pong' to verify tool calling."""
             return "pong"
 
-        agent = create_react_agent(llm, [_ping])
+        agent = create_agent(llm, [_ping])
         result = agent.invoke({
             "messages": [
                 HumanMessage(content="Call the ping tool and tell me the result."),
@@ -291,7 +291,7 @@ class LLMAgentStrategy:
         ]
 
         tools = _make_tools(trainer, rival)
-        agent = create_react_agent(self._llm, tools)
+        agent = create_agent(self._llm, tools)
         result = agent.invoke({'messages': messages})
         final = result['messages'][-1]
 
