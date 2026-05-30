@@ -364,7 +364,7 @@ class LLMAgentStrategy:
             f'Turn {self._turn_count}: Switched {old.name} -> {target.name}',
         )
 
-        return f'AI Trainer sent out {target.name}! Go, {target.name}!'
+        return f'{trainer.name} sent out {target.name}! Go, {target.name}!'
 
     def _fallback_attack(self, trainer: Trainer, rival: Trainer) -> str:
         choices = trainer.get_possible_choices()

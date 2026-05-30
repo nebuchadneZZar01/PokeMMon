@@ -63,7 +63,7 @@ def team_dots(team) -> str:
 def battle_messages(player_msg: str, enemy_msg: str) -> str:
     parts = []
     for msg in (enemy_msg, player_msg):
-        if msg and msg != 'You are challenged by AI Trainer!':
+        if msg and not msg.startswith('You are challenged by'):
             parts.append(msg)
     if parts:
         return '\n'.join(parts)
@@ -81,7 +81,7 @@ def render_core(bs: TurnBattleSystem) -> None:
         f'  HP {hp_e}  [bold]{int(e.hp)}/{int(e.max_hp)}[/]\n'
         f'  {status_tag(e)}               Team {team_dots(bs.ai.team)}'
     )
-    console.print(Panel(e_content, title=' AI ', border_style='bold'))
+    console.print(Panel(e_content, title=f' {bs.ai.name} ', border_style='bold'))
 
     hp_p = make_hp_bar(p.hp, p.max_hp)
     p_content = (

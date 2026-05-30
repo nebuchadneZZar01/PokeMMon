@@ -103,20 +103,25 @@ def main():
 
     match config.ai_type:
         case AIType.RANDOM:
-            ai = Trainer(RandomStrategy())
+            ai = Trainer(RandomStrategy(), name='AI Random Trainer')
         case AIType.ALPHABETA:
-            ai = Trainer(AlphaBetaStrategy(config.depth))
+            ai = Trainer(AlphaBetaStrategy(config.depth), name='AI Alpha-Beta Trainer')
         case AIType.EXPECTIMAX:
-            ai = Trainer(ExpectiMaxStrategy(config.depth))
+            ai = Trainer(ExpectiMaxStrategy(config.depth), name='AI ExpectiMax Trainer')
         case AIType.LLM:
             from app.core.llm_strategy import LLMAgentStrategy
+            _provider_names = {
+                'openai': 'OpenAI', 'anthropic': 'Anthropic',
+                'gemini': 'Gemini', 'ollama': 'Ollama',
+            }
+            pn = _provider_names.get(config.llm_provider.value, config.llm_provider.value)
             ai = Trainer(LLMAgentStrategy(
                 provider=config.llm_provider.value if config.llm_provider else 'openai',
                 model=config.llm_model,
                 api_key=config.llm_api_key,
-            ))
+            ), name=f'AI {pn} Trainer')
         case _:
-            ai = Trainer(MinimaxStrategy(config.depth))
+            ai = Trainer(MinimaxStrategy(config.depth), name='AI Minimax Trainer')
 
     ai.get_team()
     bs = battle_system.TurnBattleSystem(player, ai)

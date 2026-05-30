@@ -89,14 +89,14 @@ class TestHandleTurns:
         bs.player.in_battle = bs.player.team[0]
         bs.handle_turns()
         assert 'won' in bs.player_msg
-        assert 'AI' in bs.player_msg
+        assert 'Player' in bs.player_msg
 
     def test_ai_game_over_sets_win_msg(self, bs):
         bs.ai.team = [make_pkmn(fainted=True) for _ in range(6)]
         bs.ai.in_battle = bs.ai.team[0]
         bs.handle_turns()
         assert 'lost' in bs.player_msg
-        assert 'AI' in bs.player_msg
+        assert 'Player' in bs.player_msg
 
     def test_ai_turn_calls_get_choice(self, bs):
         mock_strategy = MagicMock()

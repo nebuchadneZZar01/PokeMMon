@@ -28,7 +28,7 @@ class TurnBattleSystem:
         self.player.token = True
         self.ai.token = False
 
-        self.player_msg = 'You are challenged by AI Trainer!'
+        self.player_msg = f'You are challenged by {self.ai.name}!'
         self.enemy_msg = ''
     
     def switch_turn(self):
@@ -60,8 +60,8 @@ class TurnBattleSystem:
 
     def handle_turns(self):
         self.player_mon = self.player.in_battle         # prevents non updating target
-        ai_win_msg = f'AI Trainer won the battle...\nThe battle lasted {self.turn_count} turns.'
-        ai_lose_msg = f'AI Trainer lost the battle!\nThe battle lasted {self.turn_count} turns.'
+        ai_win_msg = f'{self.ai.name} won the battle...\nThe battle lasted {self.turn_count} turns.'
+        ai_lose_msg = f'{self.ai.name} lost the battle!\nThe battle lasted {self.turn_count} turns.'
 
         if self.player.game_over_lose() or self.ai.game_over_lose():
             if self.player.game_over_lose():

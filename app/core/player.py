@@ -15,11 +15,12 @@ logger = logging.getLogger(__name__)
 
 
 class Trainer:
-    def __init__(self, strategy: AIStrategy | None = None):
+    def __init__(self, strategy: AIStrategy | None = None, name: str | None = None):
         self.team = [None] * 6
         self.token = None
         self.is_ai = strategy is not None
         self._strategy = strategy
+        self._name = name
 
         for i in range(len(self.team)):
             tmp = random.choice(pokedex)
@@ -27,6 +28,14 @@ class Trainer:
 
         self.in_battle = self.team[0]
         self.team[0].on_field = True
+
+    @property
+    def name(self) -> str:
+        if self._name:
+            return self._name
+        if not self._strategy:
+            return 'Player'
+        return type(self._strategy).__name__.removesuffix('Strategy')
 
     def get_team_with_stats(self):
         for pkmn in self.team:
