@@ -14,6 +14,8 @@ from app.schemas.typing import Typing
 if TYPE_CHECKING:
     from app.schemas.battle_pokemon import BattlePokemon
 
+CONST_THAW = 0.20
+
 
 def has_type(pkmn: BattlePokemon, t: Typing) -> bool:
     return any(ty == t for ty in pkmn.typing)
@@ -173,7 +175,7 @@ def struggle_no_pp(attacker: BattlePokemon, defender: BattlePokemon) -> str:
     b = attacker.attack
     c = defender.defense
     damage = int((((2 * a / 5 + 2) * b * 40) / c) / 50) + 2
-    recoil = handle_recoil(defender, damage, 50)
+    recoil = max(1, attacker.max_hp // 4)
     hit(defender, damage, attacker)
     hit(attacker, recoil, attacker)
     return (
@@ -502,7 +504,7 @@ def _noop(attacker: BattlePokemon, defender: BattlePokemon) -> str:
 def _substitute(attacker: BattlePokemon, defender: BattlePokemon) -> str:
     if attacker.substitute:
         return f'\nBut {attacker.name} is already protected by a substitute doll...'
-    elif attacker.hp >= 0.3 * attacker.max_hp:
+    elif attacker.hp >= attacker.max_hp // 4:
         attacker.hp -= math.floor(0.25 * attacker.max_hp)
         attacker.substitute = True
         return f'\n{attacker.name} is replaced by a substitute doll!'
@@ -659,6 +661,8 @@ def atk(attacker: BattlePokemon, move: Move, defender: BattlePokemon) -> str:
                 damage = attacker.level
             elif move.name == 'Super Fang':
                 damage = defender.hp // 2
+            elif move.name == 'Psywave':
+                damage = random.randint(1, int(1.5 * attacker.level))
 
             if move.name in ('Absorb', 'Mega Drain', 'Leech Life'):
                 regain = handle_recoil(defender, damage, 50)
@@ -684,7 +688,7 @@ def atk(attacker: BattlePokemon, move: Move, defender: BattlePokemon) -> str:
                 if defender != attacker:
                     msg += handle_special_physical_move(attacker, move, defender, damage)
                     if move.name in ('Double-Edge', 'Take Down', 'Submission'):
-                        recoil = damage // 4
+                        recoil = damage // 3 if move.name == 'Double-Edge' else damage // 4
                         msg += f'\n{attacker.name} is hit with recoil!'
                         hit(attacker, recoil)
                     if defender.fainted:
@@ -730,9 +734,15 @@ def try_atk_status(attacker: BattlePokemon, move: Move, defender: BattlePokemon)
                 attacker.status = None
                 msg = atk(attacker, move, defender)
                 return f'{attacker.name} woke up!\n' + msg
+        elif attacker.status == EffectStatus.FREEZE:
+            if random.random() <= CONST_THAW:
+                attacker.status = None
+                msg = atk(attacker, move, defender)
+                return msg + f'\n{attacker.name} thawed out!'
+            return f'{attacker.name} is frozen solid!'
         elif attacker.status in (
             EffectStatus.BURN, EffectStatus.POISON,
-            EffectStatus.TOXIC, EffectStatus.FREEZE,
+            EffectStatus.TOXIC,
         ):
             return atk(attacker, move, defender)
     elif attacker.temp_status is not None:

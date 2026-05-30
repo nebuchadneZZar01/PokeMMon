@@ -5,6 +5,7 @@ import random
 from unittest.mock import patch
 
 from app.core.combat import (
+    CONST_THAW,
     MOVE_HANDLERS,
     atk,
     calculate_crit_multiplier,
@@ -16,6 +17,7 @@ from app.core.combat import (
     handle_toxicity,
     has_type,
     struggle_no_pp,
+    try_atk_status,
 )
 from app.data import pkmn_types
 from app.schemas.effect_status import EffectStatus
@@ -617,7 +619,7 @@ class TestAtkFixedDamage:
 
 
 class TestAtkRecoil:
-    def test_double_edge_recoil_quarter_damage(self, monkeypatch):
+    def test_double_edge_recoil_third_damage(self, monkeypatch):
         monkeypatch.setattr(random, 'randint', lambda a, b: 255)
         atk_pkmn = make_pkmn(name='Attacker', hp=200, attack=50)
         df_pkmn = make_pkmn(name='Defender', hp=200, defense=50)
@@ -625,7 +627,7 @@ class TestAtkRecoil:
         expected_dmg = damage_no_var(100, 100, 50, 50, stab=2)
         atk(atk_pkmn, move, df_pkmn)
         assert df_pkmn.hp == 200 - expected_dmg
-        assert atk_pkmn.hp == 200 - expected_dmg // 4
+        assert atk_pkmn.hp == 200 - expected_dmg // 3
 
     def test_take_down_recoil_quarter_damage(self, monkeypatch):
         monkeypatch.setattr(random, 'randint', lambda a, b: 255)
@@ -878,3 +880,45 @@ class TestCriticalHitFocusEnergy:
         mult, msg = calculate_crit_multiplier(atk_pkmn)
         assert mult == 2
         assert msg == '\nCritical hit!'
+
+
+class TestFreezeThaw:
+    def test_freeze_thaws_at_20_percent(self, monkeypatch):
+        monkeypatch.setattr(random, 'randint', lambda a, b: 255)
+        monkeypatch.setattr(random, 'random', lambda: CONST_THAW - 0.01)
+        atk_pkmn = make_pkmn(name='Atk', hp=200, status=EffectStatus.FREEZE)
+        df_pkmn = make_pkmn(name='Df', hp=200, defense=50)
+        move = make_move(power=40)
+        msg = try_atk_status(atk_pkmn, move, df_pkmn)
+        assert atk_pkmn.status is None
+        assert 'thawed out' in msg
+        assert df_pkmn.hp < 200
+
+    def test_freeze_stays_frozen(self, monkeypatch):
+        monkeypatch.setattr(random, 'randint', lambda a, b: 255)
+        monkeypatch.setattr(random, 'random', lambda: CONST_THAW + 0.01)
+        atk_pkmn = make_pkmn(name='Atk', status=EffectStatus.FREEZE)
+        df_pkmn = make_pkmn(name='Df', hp=200)
+        move = make_move(power=40)
+        msg = try_atk_status(atk_pkmn, move, df_pkmn)
+        assert atk_pkmn.status == EffectStatus.FREEZE
+        assert 'frozen solid' in msg
+        assert df_pkmn.hp == 200
+
+
+class TestPsywave:
+    def test_psywave_damage_formula(self, monkeypatch):
+        monkeypatch.setattr(random, 'randint', lambda a, b: 255)
+        atk_pkmn = make_pkmn(name='Atk', level=100)
+        df_pkmn = make_pkmn(name='Df', hp=200)
+        move = make_move(name='Psywave', power=0, accuracy=80, typing=Typing.PSYCHIC)
+        atk(atk_pkmn, move, df_pkmn)
+        assert df_pkmn.hp < 200
+
+    def test_psywave_damage_at_level_100(self, monkeypatch):
+        atk_pkmn = make_pkmn(name='Atk', level=100)
+        df_pkmn = make_pkmn(name='Df', hp=200)
+        move = make_move(name='Psywave', power=0, accuracy=80, typing=Typing.PSYCHIC)
+        with patch('app.core.combat.random.randint', side_effect=[255, 0, 255, 100]):
+            atk(atk_pkmn, move, df_pkmn)
+        assert df_pkmn.hp == 200 - 100
