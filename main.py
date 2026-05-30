@@ -15,6 +15,11 @@ from app.core.strategy import (
 from app.ui.menu import AIType, LogLevel, run_setup_menu
 from app.ui.renderer import Panel, console, render_core, render_team
 
+AI_THINKING_PANEL = Panel(
+    '[bold yellow]AI is thinking...[/]',
+    border_style='yellow',
+)
+
 
 def switch_valid(bs, idx: int) -> str | None:
     target = bs.player.team[idx]
@@ -142,7 +147,9 @@ def main():
             return
 
         if not bs.player.is_turn():
+            console.print(AI_THINKING_PANEL)
             do_ai_turn(bs)
+            console.clear()
             render_core(bs)
             time.sleep(1.2)
             continue
