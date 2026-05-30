@@ -24,6 +24,8 @@ def switch_valid(bs, idx: int) -> str | None:
         return f'{target.name} is fainted!'
     if target is bs.player.in_battle:
         return f'{target.name} is already on the field!'
+    if bs.player.in_battle.trapped:
+        return f'{bs.player.in_battle.name} is trapped and can\'t switch!'
     return None
 
 

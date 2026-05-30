@@ -150,6 +150,8 @@ def hit(
     defender: BattlePokemon, damage: int,
     attacker: BattlePokemon | None = None, status: bool = False,
 ) -> str:
+    if defender.fainted:
+        return ''
     if not defender.substitute:
         defender.hp -= damage
         if defender.hp <= 0:
