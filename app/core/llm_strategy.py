@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 import logging
+import uuid
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Annotated, Literal, TypedDict
 
 from langchain.agents import create_agent
 from langchain_anthropic import ChatAnthropic
-from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
+from langchain_core.messages import BaseMessage, HumanMessage
 from langchain_core.tools import tool
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel, Field
 
@@ -50,7 +52,7 @@ STAB: 1.5x damage if move type matches attacker type.
 Type chart: Normal→Ghost=0x, Electric→Ground=0x, Fighting→Ghost=0x, etc.
 Critical hit: base_speed/2 threshold vs random 0-255 roll.
 Burn: physical moves do 50% damage. 1/16 max HP per turn.
-Paralyze: speed -75%, 25% chance can\'t move.
+Paralyze: speed -75%, 25% chance can't move.
 Sleep: 33% wake chance each turn.
 Freeze: 20% thaw chance each turn.
 Poison: 1/16 max HP per turn.
@@ -59,12 +61,6 @@ Confusion: 50% chance to self-hit (40 base power typeless).
 Reflect: halves physical damage for 5 turns.
 Light Screen: halves special damage for 5 turns.
 No abilities, no hold items. SpDef = SpAtk.
-
-=== BATTLE HISTORY (most recent first) ===
-{history}
-
-=== CURRENT STATE ===
-{state}
 
 === INSTRUCTIONS ===
 Analyze the situation. Use the tools to simulate damage or check type matchups.
@@ -267,9 +263,58 @@ def _build_state_str(trainer: Trainer, rival: Trainer) -> str:
 class LLMAgentStrategy:
     def __init__(self, provider: str, model: str | None = None, api_key: str | None = None):
         self.choices: list[str] = []
-        self._battle_log: list[str] = []
         self._turn_count: int = 0
         self._llm = _create_model(provider, model, api_key)
+        self._trainer: Trainer | None = None
+        self._rival: Trainer | None = None
+        self._checkpointer = MemorySaver()
+        self._thread_id = str(uuid.uuid4())
+        self._agent = create_agent(
+            self._llm,
+            self._make_tools(),
+            system_prompt=SYSTEM_PROMPT,
+            checkpointer=self._checkpointer,
+        )
+
+    def _make_tools(self) -> list:
+        @tool
+        def simulate_damage(move_name: str) -> int:
+            '''Calculate expected damage for a named move against the current opponent.'''
+            t = self._trainer
+            r = self._rival
+            if t is None or r is None:
+                return 0
+            move = next(
+                (m for m in t.in_battle.moves if m is not None and m.name == move_name),
+                None,
+            )
+            if move is None:
+                return 0
+            dmg, _ = calculate_damage(t.in_battle, move, r.in_battle)
+            return dmg
+
+        @tool
+        def get_type_effectiveness(move_type: str) -> str:
+            '''Check type matchup of a move type against opponent\'s types.'''
+            r = self._rival
+            if r is None:
+                return 'No opponent'
+            t = _TYPE_MAP.get(move_type)
+            if t is None:
+                return f'Unknown type: {move_type}'
+            types_str = ', '.join(t.value for t in r.in_battle.typing)
+            eff = pkmn_types.get_effectiveness(t, r.in_battle.typing[0])
+            if len(r.in_battle.typing) == 2:
+                eff *= pkmn_types.get_effectiveness(t, r.in_battle.typing[1])
+            if eff == 0:
+                return f'no effect (0x) against {types_str}'
+            if eff < 1:
+                return f'not very effective ({eff}x) against {types_str}'
+            if eff == 1:
+                return f'neutral (1x) against {types_str}'
+            return f'super effective ({eff}x) against {types_str}'
+
+        return [simulate_damage, get_type_effectiveness]
 
     def get_choice(self, trainer: Trainer, rival: Trainer) -> str | None:
         trainer.verify_fainted_switch()
@@ -280,22 +325,22 @@ class LLMAgentStrategy:
         if not choices:
             return struggle_no_pp(trainer.in_battle, rival.in_battle)
 
-        prompt = SYSTEM_PROMPT.format(
-            history=self._format_history(),
-            state=_build_state_str(trainer, rival),
+        self._trainer = trainer
+        self._rival = rival
+        self._turn_count += 1
+
+        state_str = _build_state_str(trainer, rival)
+        user_msg = (
+            f'=== CURRENT BATTLE STATE (Turn {self._turn_count}) ===\n'
+            f'{state_str}\n'
+            'Choose the best action for this turn.'
         )
 
-        messages: list[BaseMessage] = [
-            SystemMessage(content=prompt),
-            HumanMessage(content='Choose the best action for this turn.'),
-        ]
-
-        tools = _make_tools(trainer, rival)
-        agent = create_agent(self._llm, tools)
-        result = agent.invoke({'messages': messages})
+        result = self._agent.invoke(
+            {'messages': [HumanMessage(content=user_msg)]},
+            {'configurable': {'thread_id': self._thread_id}},
+        )
         final = result['messages'][-1]
-
-        self._turn_count += 1
 
         try:
             decision = self._parse_decision(final.content)
@@ -335,10 +380,6 @@ class LLMAgentStrategy:
         self.choices.append(move.name)
         result = try_atk_status(trainer.in_battle, move, rival.in_battle)
 
-        self._battle_log.append(
-            f'Turn {self._turn_count}: {trainer.in_battle.name} used {move.name}',
-        )
-
         return result
 
     def _execute_switch(
@@ -360,9 +401,6 @@ class LLMAgentStrategy:
         target.on_field = True
 
         self.choices.append(f'switch:{target.name}')
-        self._battle_log.append(
-            f'Turn {self._turn_count}: Switched {old.name} -> {target.name}',
-        )
 
         return f'{trainer.name} sent out {target.name}! Go, {target.name}!'
 
@@ -372,16 +410,8 @@ class LLMAgentStrategy:
             move = choices[0].target
             self.choices.append(move.name)
             result = try_atk_status(trainer.in_battle, move, rival.in_battle)
-            self._battle_log.append(
-                f'Turn {self._turn_count}: {trainer.in_battle.name} used {move.name}',
-            )
             return result
         return struggle_no_pp(trainer.in_battle, rival.in_battle)
-
-    def _format_history(self) -> str:
-        if not self._battle_log:
-            return '(no previous turns)'
-        return '\n'.join(reversed(self._battle_log))
 
     @staticmethod
     def _parse_decision(content: str) -> BattleDecision:
