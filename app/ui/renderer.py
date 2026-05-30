@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 
 from rich.console import Console
@@ -56,6 +57,12 @@ def status_tag(pkmn) -> str:
     return f'[{c}]{pkmn.status.value}[/]'
 
 
+def _status_pad(pkmn, width: int = 18) -> str:
+    tag = status_tag(pkmn)
+    visible = len(re.sub(r'\[/?\w+\]', '', tag))
+    return tag + ' ' * max(0, width - visible)
+
+
 def team_dots(team) -> str:
     return ''.join('○' if (p is None or p.fainted) else '●' for p in team)
 
@@ -79,7 +86,7 @@ def render_core(bs: TurnBattleSystem) -> None:
         f'  [bold]{e.name}[/bold]    Lv{e.level}\n'
         f'  {_fmt_type(e.typing)}\n'
         f'  HP {hp_e}  [bold]{int(e.hp)}/{int(e.max_hp)}[/]\n'
-        f'  {status_tag(e)}               Team {team_dots(bs.ai.team)}'
+        f'  {_status_pad(e)} Team {team_dots(bs.ai.team)}'
     )
     console.print(Panel(e_content, title=f' {bs.ai.name} ', border_style='bold'))
 
@@ -88,7 +95,7 @@ def render_core(bs: TurnBattleSystem) -> None:
         f'  [bold]{p.name}[/bold]    Lv{p.level}\n'
         f'  {_fmt_type(p.typing)}\n'
         f'  HP {hp_p}  [bold]{int(p.hp)}/{int(p.max_hp)}[/]\n'
-        f'  {status_tag(p)}               Team {team_dots(bs.player.team)}'
+        f'  {_status_pad(p)} Team {team_dots(bs.player.team)}'
     )
     console.print(Panel(p_content, title=' Player ', border_style='bold'))
 
