@@ -35,10 +35,20 @@ _TYPE_MAP = {t.value: t for t in Typing}
 
 
 class BattleDecision(BaseModel):
-    action: Literal['attack', 'switch']
-    move: str | None = None
-    slot: int | None = Field(default=None, ge=0, le=5)
-    reasoning: str
+    action: Literal['attack', 'switch'] = Field(
+        description='Choose attack to use a move, switch to change active Pokémon',
+    )
+    move: str | None = Field(
+        default=None,
+        description='Exact move name (required if action is attack)',
+    )
+    slot: int | None = Field(
+        default=None, ge=0, le=5,
+        description='Team slot to switch to, 0=active (required if action is switch)',
+    )
+    reasoning: str = Field(
+        description='Brief strategic reasoning for this decision',
+    )
 
 
 class AgentState(TypedDict):
@@ -64,15 +74,7 @@ No abilities, no hold items. SpDef = SpAtk.
 
 === INSTRUCTIONS ===
 Analyze the situation. Use the tools to simulate damage or check type matchups.
-Choose the best action.
-
-Respond with a raw JSON object. No markdown, no code fences, no extra text.
-
-For attack:
-{{"action": "attack", "move": "ExactMoveName", "reasoning": "Brief strategic reasoning"}}
-
-For switch (slot 0 = active Pokémon, bench slots are 1-5):
-{{"action": "switch", "slot": N, "reasoning": "Brief strategic reasoning"}}
+Choose the best action. Output your decision using the provided structured response schema.
 '''
 
 
@@ -273,6 +275,7 @@ class LLMAgentStrategy:
             self._llm,
             self._make_tools(),
             system_prompt=SYSTEM_PROMPT,
+            response_format=BattleDecision,
             checkpointer=self._checkpointer,
         )
 
@@ -340,12 +343,9 @@ class LLMAgentStrategy:
             {'messages': [HumanMessage(content=user_msg)]},
             {'configurable': {'thread_id': self._thread_id}},
         )
-        final = result['messages'][-1]
-
-        try:
-            decision = self._parse_decision(final.content)
-        except Exception:
-            logger.warning('Failed to parse LLM output, falling back to first valid move')
+        decision = result.get('structured_response')
+        if not isinstance(decision, BattleDecision):
+            logger.warning('No structured response, falling back to first valid move')
             first = choices[0]
             decision = BattleDecision(
                 action='attack', move=first.target.name, reasoning='fallback',
@@ -412,13 +412,3 @@ class LLMAgentStrategy:
             result = try_atk_status(trainer.in_battle, move, rival.in_battle)
             return result
         return struggle_no_pp(trainer.in_battle, rival.in_battle)
-
-    @staticmethod
-    def _parse_decision(content: str) -> BattleDecision:
-        raw = content.strip()
-        if raw.startswith('```'):
-            raw = raw.split('```')[1]
-            if raw.startswith('json'):
-                raw = raw[4:]
-            raw = raw.strip()
-        return BattleDecision.model_validate_json(raw)
