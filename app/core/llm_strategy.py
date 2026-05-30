@@ -80,6 +80,59 @@ For switch (slot 0 = active Pokémon, bench slots are 1-5):
 '''
 
 
+def verify_llm_connection(
+    provider: str,
+    model: str | None = None,
+    api_key: str | None = None,
+    timeout: int = 30,
+) -> tuple[bool, str]:
+    """Test LLM connectivity and tool-calling capability.
+
+    Checks:
+    1. Model creation and basic text response.
+    2. Tool calling via a minimal ReAct agent with a dummy tool.
+
+    Returns (success, message). On failure message contains the raw error.
+    """
+    try:
+        llm = _create_model(provider, model, api_key)
+
+        response = llm.invoke(
+            [HumanMessage(content="Reply with only the word: PONG")],
+        )
+        content = (response.content or "").strip()
+        if "PONG" not in content.upper():
+            return False, (
+                f"Unexpected response: {content[:80]!r}. "
+                "Expected 'PONG'."
+            )
+
+        @tool
+        def _ping() -> str:
+            """Return 'pong' to verify tool calling."""
+            return "pong"
+
+        agent = create_react_agent(llm, [_ping])
+        result = agent.invoke({
+            "messages": [
+                HumanMessage(content="Call the ping tool and tell me the result."),
+            ],
+        })
+        final = result["messages"][-1].content
+        if "pong" not in str(final).lower():
+            return False, (
+                f"Tool calling failed — unexpected agent output: "
+                f"{str(final)[:80]!r}"
+            )
+
+        return True, (
+            f"LLM ready ({model or 'default'}) — responds + tool calling OK"
+        )
+
+    except Exception as exc:
+        return False, f"{type(exc).__name__}: {exc}"
+
+
 def _create_model(provider: str, model: str | None = None, api_key: str | None = None):
     kwargs = {}
     if api_key:
