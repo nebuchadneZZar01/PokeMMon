@@ -155,6 +155,10 @@ def hit(
         if defender.hp <= 0:
             defender.hp = 0
             defender.fainted = True
+        if attacker is not None and not status:
+            defender.last_damage_taken = damage
+            if defender.biding:
+                defender.bide_damage += damage
         return ''
     else:
         if not status:
@@ -170,6 +174,10 @@ def hit(
             if defender.hp <= 0:
                 defender.hp = 0
                 defender.fainted = True
+            if attacker is not None:
+                defender.last_damage_taken = damage
+                if defender.biding:
+                    defender.bide_damage += damage
             return ''
 
 
@@ -221,6 +229,17 @@ def handle_special_physical_move(
 ) -> str:
     msg = ''
 
+    if move.name == 'Counter':
+        if attacker.last_damage_taken > 0 and attacker.last_move_was_physical:
+            damage = 2 * attacker.last_damage_taken
+            attacker.last_damage_taken = 0
+            attacker.last_move_was_physical = False
+            hit(defender, damage, attacker)
+            if defender.fainted:
+                n = defender.name
+                return f'\n{attacker.name} countered {n}\'s attack!\n{n} fainted!'
+            return f'\n{attacker.name} countered {defender.name}\'s attack!'
+        return '\nBut it failed...'
     if move.name in ('Explosion', 'Self-Destruct'):
         old_def = defender.defense
         defender.defense //= 2
@@ -233,7 +252,7 @@ def handle_special_physical_move(
         hit(defender, defender.max_hp, attacker)
         return msg
     if move.name in (
-        'Fury Swipes', 'Fury Attack', 'Double Slap', 'Wrap',
+        'Fury Swipes', 'Fury Attack', 'Double Slap',
         'Comet Punch', 'Barrage', 'Pin Missile', 'Spike Cannon',
     ):
         cnt = 1
@@ -634,6 +653,13 @@ def handle_status_move(attacker: BattlePokemon, move: Move, defender: BattlePoke
     return ''
 
 def atk(attacker: BattlePokemon, move: Move, defender: BattlePokemon) -> str:
+    if move.name == 'Bide' and not attacker.biding:
+        attacker.biding = True
+        attacker.bide_turns = 0
+        attacker.bide_damage = 0
+        move.pp -= 1
+        return f'{attacker.name} used Bide!'
+
     t_ = move.accuracy * attacker.accuracy * defender.evasion
     rand_t = random.randint(0, 255)
     msg = f'{attacker.name} used {move.name}!'
@@ -693,6 +719,7 @@ def atk(attacker: BattlePokemon, move: Move, defender: BattlePokemon) -> str:
 
             if attacker.temp_status != EffectStatus.CONFUSION:
                 if defender != attacker:
+                    defender.last_move_was_physical = move.category == MoveCategory.PHYSICAL
                     msg += handle_special_physical_move(attacker, move, defender, damage)
                     if move.name in ('Double-Edge', 'Take Down', 'Submission'):
                         recoil = damage // 3 if move.name == 'Double-Edge' else damage // 4
@@ -700,6 +727,14 @@ def atk(attacker: BattlePokemon, move: Move, defender: BattlePokemon) -> str:
                         hit(attacker, recoil)
                     if move.name == 'Hyper Beam':
                         attacker.recharging = True
+                    if (
+                        move.name in ('Wrap', 'Bind', 'Clamp', 'Fire Spin')
+                        and not defender.fainted
+                        and not defender.trapped
+                    ):
+                        defender.trapped = True
+                        defender.trapped_turns = random.randint(2, 5)
+                        msg += f'\n{defender.name} was trapped!'
                     if defender.fainted:
                         msg += f'\n{defender.name} fainted!'
             else:
@@ -726,6 +761,24 @@ def try_atk_status(attacker: BattlePokemon, move: Move, defender: BattlePokemon)
     if attacker.recharging:
         attacker.recharging = False
         return f'{attacker.name} must recharge!'
+
+    if attacker.biding:
+        attacker.bide_turns += 1
+        if attacker.bide_turns >= 2:
+            damage = attacker.bide_damage * 2
+            hit(defender, damage, attacker)
+            attacker.biding = False
+            attacker.bide_damage = 0
+            attacker.bide_turns = 0
+            msg = f'{attacker.name} unleashed energy!'
+            if defender.fainted:
+                msg += f'\n{defender.name} fainted!'
+            return msg
+        return f'{attacker.name} is storing energy!'
+
+    if attacker.trapped and random.random() < 0.5:
+        return f'{attacker.name} is trapped and can\'t move!'
+
     if attacker.status is not None:
         if attacker.status == EffectStatus.PARALYZE:
             p = random.random()
@@ -816,6 +869,19 @@ def handle_toxicity(player_mon: BattlePokemon, enemy_mon: BattlePokemon) -> str:
             damage = math.floor(1 / 16 * enemy_mon_max_hp)
         hit(enemy_mon, damage, None, status=True)
         msg += f'\n{enemy_mon.name} is hurt by toxine!'
+    return msg
+
+
+def handle_trapped(player_mon: BattlePokemon, enemy_mon: BattlePokemon) -> str:
+    msg = ''
+    for mon in (player_mon, enemy_mon):
+        if mon.trapped and mon.trapped_turns > 0:
+            damage = max(1, mon.max_hp // 16)
+            hit(mon, damage, None, status=True)
+            mon.trapped_turns -= 1
+            if mon.trapped_turns <= 0:
+                mon.trapped = False
+            msg += f'\n{mon.name} is hurt by the trap!'
     return msg
 
 

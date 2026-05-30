@@ -73,6 +73,16 @@ class BattlePokemon(BaseModel):
     focus_energy: bool = False
     recharging: bool = False
 
+    biding: bool = False
+    bide_damage: int = 0
+    bide_turns: int = 0
+
+    last_damage_taken: int = 0
+    last_move_was_physical: bool = False
+
+    trapped: bool = False
+    trapped_turns: int = 0
+
     def model_post_init(self, __context):
         if all(m is None for m in self.moves):
             self._select_random_moves()

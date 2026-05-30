@@ -44,6 +44,16 @@ class Trainer:
     def get_possible_choices(self):
         possible_choices = []
 
+        if self.in_battle.biding:
+            bide_move = next(
+                (m for m in self.in_battle.moves if m is not None and m.name == 'Bide'), None
+            )
+            if bide_move:
+                return [Action(
+                    kind=ActionKind.ATTACK, user=self.in_battle.name, target=bide_move,
+                )]
+            return []
+
         for i, move in enumerate(self.in_battle.moves):
             if move is not None and move.pp > 0 and i != self.in_battle.disabled_move:
                 possible_choices.append(Action(

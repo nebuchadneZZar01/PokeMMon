@@ -15,7 +15,9 @@ from app.core.combat import (
     handle_special_physical_move,
     handle_status_move,
     handle_toxicity,
+    handle_trapped,
     has_type,
+    hit,
     struggle_no_pp,
     try_atk_status,
 )
@@ -984,3 +986,151 @@ class TestHyperBeam:
         msg = try_atk_status(atk_pkmn, move2, df_pkmn)
         assert 'must recharge' in msg
         assert not atk_pkmn.recharging
+
+
+class TestBide:
+    def test_bide_first_turn_sets_state(self):
+        atk_pkmn = make_pkmn(name='Atk')
+        df_pkmn = make_pkmn(name='Df')
+        move = make_move(name='Bide', power=0, category=MoveCategory.PHYSICAL)
+        msg = atk(atk_pkmn, move, df_pkmn)
+        assert atk_pkmn.biding
+        assert atk_pkmn.bide_turns == 0
+        assert atk_pkmn.bide_damage == 0
+        assert df_pkmn.hp == 200  # no damage on first turn
+        assert 'used Bide' in msg
+
+    def test_bide_accumulates_then_releases_twice(self):
+        atk_pkmn = make_pkmn(name='Atk', hp=200)
+        df_pkmn = make_pkmn(name='Df', hp=200)
+        move = make_move(name='Bide', power=0, category=MoveCategory.PHYSICAL)
+
+        atk(atk_pkmn, move, df_pkmn)
+        assert atk_pkmn.biding
+
+        hit(atk_pkmn, 30, df_pkmn)
+        assert atk_pkmn.bide_damage == 30
+
+        any_move = make_move()
+        msg = try_atk_status(atk_pkmn, any_move, df_pkmn)
+        assert 'storing energy' in msg
+        assert atk_pkmn.biding
+        assert atk_pkmn.bide_turns == 1
+
+        hit(atk_pkmn, 20, df_pkmn)
+        assert atk_pkmn.bide_damage == 50
+
+        msg = try_atk_status(atk_pkmn, any_move, df_pkmn)
+        assert 'unleashed energy' in msg
+        assert not atk_pkmn.biding
+        assert df_pkmn.hp == 200 - 100  # 2 * 50
+
+    def test_bide_faints_defender_on_release(self):
+        atk_pkmn = make_pkmn(name='Atk', hp=200)
+        df_pkmn = make_pkmn(name='Df', hp=10)
+        move = make_move(name='Bide', power=0, category=MoveCategory.PHYSICAL)
+
+        atk(atk_pkmn, move, df_pkmn)
+
+        hit(atk_pkmn, 30, df_pkmn)
+
+        any_move = make_move()
+        try_atk_status(atk_pkmn, any_move, df_pkmn)
+
+        hit(atk_pkmn, 30, df_pkmn)
+
+        msg = try_atk_status(atk_pkmn, any_move, df_pkmn)
+        assert 'unleashed energy' in msg
+        assert 'fainted' in msg
+        assert df_pkmn.fainted
+
+
+class TestCounter:
+    def test_counter_deals_double_physical_damage(self, monkeypatch):
+        monkeypatch.setattr(random, 'randint', lambda a, b: 255)
+        atk_pkmn = make_pkmn(
+            name='Atk', hp=200, last_damage_taken=40, last_move_was_physical=True,
+        )
+        df_pkmn = make_pkmn(name='Df', hp=200)
+        move = make_move(
+            name='Counter', power=0, accuracy=100,
+            typing=Typing.FIGHTING, category=MoveCategory.PHYSICAL,
+        )
+        msg = atk(atk_pkmn, move, df_pkmn)
+        assert df_pkmn.hp == 200 - 80
+        assert atk_pkmn.last_damage_taken == 0
+        assert 'countered' in msg
+
+    def test_counter_fails_no_physical_hit(self, monkeypatch):
+        monkeypatch.setattr(random, 'randint', lambda a, b: 255)
+        atk_pkmn = make_pkmn(name='Atk', hp=200)
+        df_pkmn = make_pkmn(name='Df', hp=200)
+        move = make_move(
+            name='Counter', power=0, accuracy=100,
+            typing=Typing.FIGHTING, category=MoveCategory.PHYSICAL,
+        )
+        msg = atk(atk_pkmn, move, df_pkmn)
+        assert 'failed' in msg
+        assert df_pkmn.hp == 200
+
+
+class TestTrapping:
+    def test_wrap_traps_target(self):
+        atk_pkmn = make_pkmn(name='Atk', attack=50)
+        df_pkmn = make_pkmn(name='Df', hp=200, defense=50)
+        move = make_move(name='Wrap', power=15)
+        # randint calls: accuracy(0,255), crit(0,255), damage(217,255), trap(2,5)
+        with patch('app.core.combat.random.randint', side_effect=[255, 0, 255, 3]):
+            atk(atk_pkmn, move, df_pkmn)
+        assert df_pkmn.trapped
+        assert df_pkmn.trapped_turns == 3
+        assert df_pkmn.hp < 200
+
+    def test_trapped_blocks_move_half_the_time(self, monkeypatch):
+        monkeypatch.setattr(random, 'randint', lambda a, b: 255)
+        atk_pkmn = make_pkmn(name='Atk', hp=200, trapped=True, trapped_turns=3)
+        df_pkmn = make_pkmn(name='Df')
+        move = make_move(name='Tackle')
+
+        with patch('app.core.combat.random.random', return_value=0.25):
+            msg = try_atk_status(atk_pkmn, move, df_pkmn)
+            assert "can't move" in msg
+            assert df_pkmn.hp == 200
+
+    def test_trapped_move_goes_through_half_the_time(self, monkeypatch):
+        monkeypatch.setattr(random, 'randint', lambda a, b: 255)
+        atk_pkmn = make_pkmn(name='Atk', hp=200, trapped=True, trapped_turns=3)
+        df_pkmn = make_pkmn(name='Df')
+        move = make_move(name='Tackle')
+
+        with patch('app.core.combat.random.random', return_value=0.75):
+            try_atk_status(atk_pkmn, move, df_pkmn)
+            assert df_pkmn.hp < 200
+
+    def test_trapped_tick_damage(self):
+        p = make_pkmn(name='A', hp=160, max_hp=160, trapped=True, trapped_turns=3)
+        e = make_pkmn(name='B')
+        msg = handle_trapped(p, e)
+        expected = max(1, 160 // 16)
+        assert p.hp == 160 - expected
+        assert p.trapped_turns == 2
+        assert 'hurt by the trap' in msg
+        assert 'B' not in msg
+
+    def test_trapped_expires_after_last_tick(self):
+        p = make_pkmn(name='A', hp=160, max_hp=160, trapped=True, trapped_turns=1)
+        e = make_pkmn(name='B')
+        handle_trapped(p, e)
+        assert p.trapped_turns == 0
+        assert not p.trapped
+
+    def test_bind_clamp_fire_spin_also_trap(self):
+        for name in ('Bind', 'Clamp', 'Fire Spin'):
+            atk_pkmn = make_pkmn(name='Atk', attack=50)
+            df_pkmn = make_pkmn(name=f'Df_{name}', hp=200, defense=50)
+            move = make_move(name=name, power=15)
+            # randint calls: accuracy(0,255), crit(0,255), damage(217,255), trap(2,5)
+            with patch('app.core.combat.random.randint', side_effect=[255, 0, 255, 3]):
+                atk(atk_pkmn, move, df_pkmn)
+            assert df_pkmn.trapped, f'{name} should trap'
+            assert df_pkmn.hp < 200
