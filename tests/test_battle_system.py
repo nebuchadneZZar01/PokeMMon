@@ -158,3 +158,13 @@ class TestHandleStatusByTurn:
         bs.enemy_mon = make_pkmn(hp=200)
         bs.handle_status_by_turn()
         assert 'hurt' in bs.player_msg.lower()
+
+    def test_appends_to_existing_msg(self, bs):
+        pkmn = make_pkmn(hp=200, status=EffectStatus.BURN)
+        bs.player.team[0] = pkmn
+        bs.player.in_battle = pkmn
+        bs.enemy_mon = make_pkmn(hp=200)
+        bs.player_msg = 'Go, Pikachu!'
+        bs.handle_status_by_turn()
+        assert 'Go, Pikachu!' in bs.player_msg
+        assert 'hurt' in bs.player_msg.lower()

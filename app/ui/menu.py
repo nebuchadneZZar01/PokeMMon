@@ -10,6 +10,8 @@ from rich.text import Text
 
 from app.ui.renderer import console
 
+_LLM_VERIFY_TIMEOUT = 30
+
 
 class AIType(StrEnum):
     RANDOM = 'random'
@@ -143,6 +145,55 @@ def _step_api_key(provider: LLMProvider) -> str | None:
     return raw or env_val or None
 
 
+def _step_llm_verify(
+    provider_str: str, model: str | None, api_key: str | None,
+) -> bool | None:
+    """Test LLM connection. Returns True=ok, False=skip, None=reconfigure."""
+    from app.core.llm_strategy import verify_llm_connection
+
+    provider = LLMProvider(provider_str)
+    label = f"{_LLM_NAMES[provider]} ({model})"
+
+    with console.status(f"[yellow]Testing {label}...[/]"):
+        success, msg = verify_llm_connection(
+            provider=provider_str,
+            model=model,
+            api_key=api_key,
+            timeout=_LLM_VERIFY_TIMEOUT,
+        )
+
+    if success:
+        console.print(Panel(
+            f"✓ {msg}",
+            title=" Connection Test ", border_style="green",
+        ))
+        return True
+
+    note = ""
+    if "tool calling" in msg.lower():
+        note = (
+            "\n\nNote: some local models lack tool-calling support.\n"
+            "LLM strategy requires tool-capable models."
+        )
+
+    console.print(Panel(
+        f"✗ {msg}{note}\n\n"
+        "1) Retry\n"
+        "2) Reconfigure model\n"
+        "3) Skip",
+        title=" Connection Test ", border_style="red",
+    ))
+
+    while True:
+        raw = Prompt.ask("Choice", default="1")
+        if raw == "1":
+            return _step_llm_verify(provider_str, model, api_key)
+        if raw == "2":
+            return None
+        if raw == "3":
+            return False
+
+
 def _step_log_level() -> LogLevel:
     _show_title()
     lines = ['Select log level:\n']
@@ -201,6 +252,17 @@ def run_setup_menu() -> BattleConfig | None:
                 llm_model = _step_llm_model(llm_provider)
                 if llm_provider != LLMProvider.OLLAMA:
                     llm_api_key = _step_api_key(llm_provider)
+
+                while True:
+                    result = _step_llm_verify(
+                        llm_provider.value, llm_model, llm_api_key,
+                    )
+                    if result is None:
+                        llm_model = _step_llm_model(llm_provider)
+                        if llm_provider != LLMProvider.OLLAMA:
+                            llm_api_key = _step_api_key(llm_provider)
+                        continue
+                    break
 
             log_level = _step_log_level()
 

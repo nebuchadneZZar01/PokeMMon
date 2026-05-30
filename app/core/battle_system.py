@@ -90,4 +90,5 @@ class TurnBattleSystem:
             if msg:
                 msgs.append(msg)
         if msgs:
-            self.player_msg = '\n'.join(msgs)
+            sep = '\n' if self.player_msg else ''
+            self.player_msg += sep + '\n'.join(msgs)

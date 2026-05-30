@@ -1134,3 +1134,67 @@ class TestTrapping:
                 atk(atk_pkmn, move, df_pkmn)
             assert df_pkmn.trapped, f'{name} should trap'
             assert df_pkmn.hp < 200
+
+
+class TestHitOnFainted:
+    def test_skips_damage_if_already_fainted(self):
+        atk_pkmn = make_pkmn(name='Atk')
+        df_pkmn = make_pkmn(name='Df', hp=200, fainted=True)
+        hit(df_pkmn, 50, atk_pkmn)
+        assert df_pkmn.hp == 200
+        assert df_pkmn.fainted
+
+    def test_skips_status_damage_if_already_fainted(self):
+        df_pkmn = make_pkmn(name='Df', hp=200, fainted=True)
+        hit(df_pkmn, 50, status=True)
+        assert df_pkmn.hp == 200
+
+    def test_skips_substitute_status_damage_if_fainted(self):
+        df_pkmn = make_pkmn(name='Df', hp=200, fainted=True, substitute=True)
+        hit(df_pkmn, 50, status=True)
+        assert df_pkmn.hp == 200
+
+
+class TestSwitchValid:
+    def test_blocks_switch_when_trapped(self):
+        from unittest.mock import MagicMock
+
+        from main import switch_valid
+
+        target = MagicMock()
+        target.name = 'Target'
+        target.fainted = False
+
+        current = MagicMock()
+        current.name = 'Current'
+        current.fainted = False
+        current.trapped = True
+
+        bs = MagicMock()
+        bs.player.team = [target, current, None, None, None, None]
+        bs.player.in_battle = current
+
+        result = switch_valid(bs, 0)
+        assert result is not None
+        assert 'trapped' in result.lower()
+        assert "can't switch" in result.lower()
+
+    def test_does_not_block_if_not_trapped(self):
+        from unittest.mock import MagicMock
+
+        from main import switch_valid
+
+        target = MagicMock()
+        target.name = 'Target'
+        target.fainted = False
+
+        current = MagicMock()
+        current.name = 'Current'
+        current.fainted = False
+        current.trapped = False
+
+        bs = MagicMock()
+        bs.player.team = [target, current, None, None, None, None]
+        bs.player.in_battle = current
+
+        assert switch_valid(bs, 0) is None

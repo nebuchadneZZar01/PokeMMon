@@ -15,6 +15,11 @@ from app.core.strategy import (
 from app.ui.menu import AIType, LogLevel, run_setup_menu
 from app.ui.renderer import Panel, console, render_core, render_team
 
+AI_THINKING_PANEL = Panel(
+    '[bold yellow]AI is thinking...[/]',
+    border_style='yellow',
+)
+
 
 def switch_valid(bs, idx: int) -> str | None:
     target = bs.player.team[idx]
@@ -24,6 +29,8 @@ def switch_valid(bs, idx: int) -> str | None:
         return f'{target.name} is fainted!'
     if target is bs.player.in_battle:
         return f'{target.name} is already on the field!'
+    if bs.player.in_battle.trapped:
+        return f'{bs.player.in_battle.name} is trapped and can\'t switch!'
     return None
 
 
@@ -140,7 +147,9 @@ def main():
             return
 
         if not bs.player.is_turn():
+            console.print(AI_THINKING_PANEL)
             do_ai_turn(bs)
+            console.clear()
             render_core(bs)
             time.sleep(1.2)
             continue
