@@ -127,111 +127,127 @@ def main():
     bs = battle_system.TurnBattleSystem(player, ai)
 
     while True:
-        console.clear()
-        p = bs.player.in_battle
-        e = bs.ai.in_battle
-        bs.player_mon = p
-        bs.enemy_mon = e
-
-        if bs.player.game_over_lose():
-            console.print(Panel(
-                '[bold red]DEFEAT![/]\n\nYour last Pokémon fainted!',
-                title=' Game Over ', border_style='red',
-            ))
-            console.print('\nPress Enter to quit...')
-            input()
-            return
-
-        if bs.ai.game_over_lose():
-            console.print(Panel(
-                '[bold green]VICTORY![/]\n\nAI\'s last Pokémon fainted!',
-                title=' Game Over ', border_style='green',
-            ))
-            console.print('\nPress Enter to quit...')
-            input()
-            return
-
-        if not bs.player.is_turn():
-            console.print(AI_THINKING_PANEL)
-            do_ai_turn(bs)
+        try:
             console.clear()
-            render_core(bs)
-            time.sleep(1.2)
-            continue
+            p = bs.player.in_battle
+            e = bs.ai.in_battle
+            bs.player_mon = p
+            bs.enemy_mon = e
 
-        if p.fainted:
-            console.clear()
-            render_core(bs)
-            console.print()
-            render_team(bs)
-            console.print('[red]Your Pokémon fainted! Choose a replacement.[/]')
-            while True:
-                sub = Prompt.ask('Switch to', choices=['0', '1', '2', '3', '4', '5', '6'])
-                if sub == '0':
-                    break
-                idx = int(sub) - 1
-                err = switch_valid(bs, idx)
-                if err:
-                    console.print(f'[red]{err}[/]')
-                    continue
-                exec_switch(bs, idx)
-                break
-            console.clear()
-            render_core(bs)
-            time.sleep(1.2)
-            continue
+            if bs.player.game_over_lose():
+                console.print(Panel(
+                    '[bold red]DEFEAT![/]\n\nYour last Pokémon fainted!',
+                    title=' Game Over ', border_style='red',
+                ))
+                console.print('\nPress Enter to quit...')
+                input()
+                return
 
-        if p.recharging:
-            p.recharging = False
-            bs.player_msg = f'{p.name} must recharge!'
-            bs.switch_turn()
-            render_core(bs)
-            time.sleep(1.2)
-            continue
+            if bs.ai.game_over_lose():
+                console.print(Panel(
+                    '[bold green]VICTORY![/]\n\nAI\'s last Pokémon fainted!',
+                    title=' Game Over ', border_style='green',
+                ))
+                console.print('\nPress Enter to quit...')
+                input()
+                return
 
-        if p.biding:
-            bide_idx = next(
-                (i for i, m in enumerate(p.moves)
-                 if m is not None and m.name == 'Bide'), None
-            )
-            if bide_idx is not None:
-                exec_move(bs, bide_idx)
-            render_core(bs)
-            time.sleep(1.2)
-            continue
-
-        render_core(bs)
-
-        choice = Prompt.ask('Action', choices=['1', '2', '3', '4', '5', '6'])
-        if choice in ('1', '2', '3', '4'):
-            idx = int(choice) - 1
-            if exec_move(bs, idx):
+            if not bs.player.is_turn():
+                console.print(AI_THINKING_PANEL)
+                do_ai_turn(bs)
                 console.clear()
                 render_core(bs)
                 time.sleep(1.2)
-        elif choice == '5':
-            console.clear()
-            render_team(bs)
-            while True:
-                sub = Prompt.ask('Switch to', choices=['0', '1', '2', '3', '4', '5', '6'])
-                if sub == '0':
+                continue
+
+            if p.fainted:
+                console.clear()
+                render_core(bs)
+                console.print()
+                render_team(bs)
+                console.print('[red]Your Pokémon fainted! Choose a replacement.[/]')
+                while True:
+                    sub = Prompt.ask('Switch to', choices=['0', '1', '2', '3', '4', '5', '6'])
+                    if sub == '0':
+                        break
+                    idx = int(sub) - 1
+                    err = switch_valid(bs, idx)
+                    if err:
+                        console.print(f'[red]{err}[/]')
+                        continue
+                    exec_switch(bs, idx)
                     break
-                idx = int(sub) - 1
-                err = switch_valid(bs, idx)
-                if err:
+                console.clear()
+                render_core(bs)
+                time.sleep(1.2)
+                continue
+
+            if p.recharging:
+                p.recharging = False
+                bs.player_msg = f'{p.name} must recharge!'
+                bs.switch_turn()
+                render_core(bs)
+                time.sleep(1.2)
+                continue
+
+            if p.biding:
+                bide_idx = next(
+                    (i for i, m in enumerate(p.moves)
+                     if m is not None and m.name == 'Bide'), None
+                )
+                if bide_idx is not None:
+                    exec_move(bs, bide_idx)
+                render_core(bs)
+                time.sleep(1.2)
+                continue
+
+            render_core(bs)
+
+            choice = Prompt.ask('Action', choices=['1', '2', '3', '4', '5', '6'])
+            if choice in ('1', '2', '3', '4'):
+                idx = int(choice) - 1
+                if exec_move(bs, idx):
                     console.clear()
-                    render_team(bs)
-                    console.print(f'[red]{err}[/]')
-                    continue
-                exec_switch(bs, idx)
+                    render_core(bs)
+                    time.sleep(1.2)
+            elif choice == '5':
                 console.clear()
-                render_core(bs)
-                time.sleep(1.2)
-                break
-        elif choice == '6':
-            confirm = Prompt.ask('Forfeit? (y/n)', choices=['y', 'n'], default='n')
+                render_team(bs)
+                while True:
+                    sub = Prompt.ask('Switch to', choices=['0', '1', '2', '3', '4', '5', '6'])
+                    if sub == '0':
+                        break
+                    idx = int(sub) - 1
+                    err = switch_valid(bs, idx)
+                    if err:
+                        console.clear()
+                        render_team(bs)
+                        console.print(f'[red]{err}[/]')
+                        continue
+                    exec_switch(bs, idx)
+                    console.clear()
+                    render_core(bs)
+                    time.sleep(1.2)
+                    break
+            elif choice == '6':
+                confirm = Prompt.ask('Forfeit? (y/n)', choices=['y', 'n'], default='n')
+                if confirm == 'y':
+                    bs.player.team = [None] * 6
+        except KeyboardInterrupt:
+            console.print()
+            try:
+                confirm = Prompt.ask(
+                    '[yellow]Are you really sure to exit? (y/n)[/]',
+                    choices=['y', 'n'], default='n',
+                )
+            except KeyboardInterrupt:
+                confirm = 'y'
             if confirm == 'y':
-                bs.player.team = [None] * 6
+                console.print('[yellow]Exiting...[/]')
+                return
+            console.clear()
+            render_core(bs)
+            continue
 
 
 if __name__ == '__main__':
