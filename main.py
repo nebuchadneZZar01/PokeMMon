@@ -1,4 +1,3 @@
-import argparse
 import logging
 import time
 
@@ -13,6 +12,7 @@ from app.core.strategy import (
     MinimaxStrategy,
     RandomStrategy,
 )
+from app.ui.menu import AIType, LogLevel, run_setup_menu
 from app.ui.renderer import Panel, console, render_core, render_team
 
 
@@ -72,44 +72,37 @@ def do_ai_turn(bs):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description='Pokémon battle simulator — terminal edition.',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-    parser.add_argument('--ai', type=str, default='minimax',
-                        choices=['random', 'minimax', 'alphabeta', 'expectimax'],
-                        help='AI algorithm (default: minimax)')
-    parser.add_argument('--depth', type=int, default=7,
-                        help='max search depth for AI tree (default: 7)')
-    parser.add_argument('--log', nargs='?', const='info', default=None,
-                        choices=['info', 'debug'],
-                        help='''Show AI battle logs.
-Without value defaults to 'info'.
+    config = run_setup_menu()
+    if config is None:
+        return
 
-Log levels:
-  info   : AI turn markers, team listing, chosen move name
-  debug  : everything from 'info' plus minimax tree search
-           details (evaluate, node depth, possible choices)''')
-    args = parser.parse_args()
-
-    if args.log is None:
-        level = logging.CRITICAL + 1
-    elif args.log == 'info':
-        level = logging.INFO
-    else:
-        level = logging.DEBUG
+    match config.log_level:
+        case LogLevel.SILENT:
+            level = logging.CRITICAL + 1
+        case LogLevel.INFO:
+            level = logging.INFO
+        case LogLevel.DEBUG:
+            level = logging.DEBUG
     logging.basicConfig(level=level, format='%(message)s')
 
     player = Trainer()
 
-    if args.ai == 'random':
-        ai = Trainer(RandomStrategy())
-    elif args.ai == 'alphabeta':
-        ai = Trainer(AlphaBetaStrategy(args.depth))
-    elif args.ai == 'expectimax':
-        ai = Trainer(ExpectiMaxStrategy(args.depth))
-    else:
-        ai = Trainer(MinimaxStrategy(args.depth))
+    match config.ai_type:
+        case AIType.RANDOM:
+            ai = Trainer(RandomStrategy())
+        case AIType.ALPHABETA:
+            ai = Trainer(AlphaBetaStrategy(config.depth))
+        case AIType.EXPECTIMAX:
+            ai = Trainer(ExpectiMaxStrategy(config.depth))
+        case AIType.LLM:
+            from app.core.llm_strategy import LLMAgentStrategy
+            ai = Trainer(LLMAgentStrategy(
+                provider=config.llm_provider.value if config.llm_provider else 'openai',
+                model=config.llm_model,
+                api_key=config.llm_api_key,
+            ))
+        case _:
+            ai = Trainer(MinimaxStrategy(config.depth))
 
     ai.get_team()
     bs = battle_system.TurnBattleSystem(player, ai)

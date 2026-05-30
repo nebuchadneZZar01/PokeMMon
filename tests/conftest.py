@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.schemas.battle_pokemon import BattlePokemon
-from app.schemas.move import Move, MoveCategory
+from app.schemas.move import Move, MoveCategory, SecondaryEffect
 from app.schemas.typing import Typing
 
 
@@ -12,10 +12,11 @@ def make_move(
     accuracy: int = 100,
     pp: int = 35,
     category: MoveCategory = MoveCategory.PHYSICAL,
+    secondary_effect: SecondaryEffect | None = None,
 ) -> Move:
     return Move(
         name=name, typing=typing, power=power, accuracy=accuracy,
-        pp=pp, max_pp=pp, category=category, secondary_effect=None,
+        pp=pp, max_pp=pp, category=category, secondary_effect=secondary_effect,
     )
 
 
@@ -37,6 +38,7 @@ def make_pkmn(
         typing = [Typing.NORMAL]
     move = make_move()
     max_hp = kwargs.pop('max_hp', hp)
+    moves = kwargs.pop('moves', [move.model_copy(deep=True), None, None, None])
     return BattlePokemon(
         id=id, name=name, typing=typing, level=level,
         base_hp=hp, base_attack=attack, base_defense=defense,
@@ -45,7 +47,7 @@ def make_pkmn(
         max_sp_atk=sp_atk, max_sp_def=sp_def, max_speed=speed,
         hp=hp, attack=attack, defense=defense,
         sp_atk=sp_atk, sp_def=sp_def, speed=speed,
-        moves=[move.model_copy(deep=True), None, None, None],
+        moves=moves,
         **kwargs,
     )
 
