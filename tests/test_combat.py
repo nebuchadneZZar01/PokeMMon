@@ -715,7 +715,7 @@ class TestAtkOHKO:
         assert atk_pkmn.fainted
 
     def test_fissure_faints_defender(self, monkeypatch):
-        monkeypatch.setattr(random, 'randint', lambda a, b: 255)
+        monkeypatch.setattr(random, 'randint', lambda a, b: 0)
         atk_pkmn = make_pkmn(name='Attacker', hp=200)
         df_pkmn = make_pkmn(name='Defender', hp=200, defense=1)
         move = make_move(name='Fissure', power=0, accuracy=30, typing=Typing.GROUND)
@@ -736,12 +736,15 @@ class TestAtkBurnAndConfusion:
         assert df_pkmn.hp == hp_before - expected
 
     def test_confusion_self_hit(self, monkeypatch):
-        monkeypatch.setattr(random, 'randint', lambda a, b: 255)
+        monkeypatch.setattr(random, 'randint', lambda a, b: 0)
         monkeypatch.setattr(random, 'random', lambda: 0.25)
-        atk_pkmn = make_pkmn(name='Attacker', hp=200, attack=50, temp_status=EffectStatus.CONFUSION)
+        atk_pkmn = make_pkmn(
+            name='Attacker', hp=200, attack=50, defense=50,
+            temp_status=EffectStatus.CONFUSION,
+        )
         df_pkmn = make_pkmn(name='Defender', hp=200, defense=50)
         move = make_move(power=40)
-        expected_self_dmg = damage_no_var(100, 40, 50, 50, stab=2)
+        expected_self_dmg = 35
         atk(atk_pkmn, move, df_pkmn)
         assert atk_pkmn.hp == 200 - expected_self_dmg
         assert df_pkmn.hp == 200
@@ -910,7 +913,7 @@ class TestFreezeThaw:
 
 class TestPsywave:
     def test_psywave_damage_formula(self, monkeypatch):
-        monkeypatch.setattr(random, 'randint', lambda a, b: 255)
+        monkeypatch.setattr(random, 'randint', lambda a, b: 100)
         atk_pkmn = make_pkmn(name='Atk', level=100)
         df_pkmn = make_pkmn(name='Df', hp=200)
         move = make_move(name='Psywave', power=0, accuracy=80, typing=Typing.PSYCHIC)
@@ -921,7 +924,7 @@ class TestPsywave:
         atk_pkmn = make_pkmn(name='Atk', level=100)
         df_pkmn = make_pkmn(name='Df', hp=200)
         move = make_move(name='Psywave', power=0, accuracy=80, typing=Typing.PSYCHIC)
-        with patch('app.core.combat.random.randint', side_effect=[255, 0, 255, 100]):
+        with patch('app.core.combat.random.randint', side_effect=[0, 0, 217, 100]):
             atk(atk_pkmn, move, df_pkmn)
         assert df_pkmn.hp == 200 - 100
 
@@ -1198,3 +1201,120 @@ class TestSwitchValid:
         bs.player.in_battle = current
 
         assert switch_valid(bs, 0) is None
+
+
+class TestAccuracy:
+    def test_move_can_miss_with_high_rand_t(self):
+        atk_pkmn = make_pkmn(name='Atk')
+        df_pkmn = make_pkmn(name='Df', hp=200)
+        move = make_move(name='Tackle', accuracy=50)
+        with patch('app.core.combat.random.randint', return_value=255):
+            msg = atk(atk_pkmn, move, df_pkmn)
+        assert 'failed' in msg
+        assert df_pkmn.hp == 200
+
+    def test_accuracy_scales_correctly(self):
+        atk_pkmn = make_pkmn(name='Atk')
+        df_pkmn = make_pkmn(name='Df', hp=200, defense=1)
+        move = make_move(name='Tackle', accuracy=100)
+        with patch('app.core.combat.random.randint', side_effect=[0, 0, 217]):
+            msg = atk(atk_pkmn, move, df_pkmn)
+        assert 'failed' not in msg
+        assert df_pkmn.hp < 200
+
+
+class TestConfusionSnapOut:
+    def test_auto_snap_after_5_turns(self):
+        atk_pkmn = make_pkmn(
+            name='Atk', hp=200, attack=50, defense=50,
+            temp_status=EffectStatus.CONFUSION, confused_turns=5,
+        )
+        df_pkmn = make_pkmn(name='Df', hp=200, defense=50)
+        move = make_move(power=40)
+        with patch('app.core.combat.random.randint', side_effect=[0, 0, 217]):
+            msg = atk(atk_pkmn, move, df_pkmn)
+        assert atk_pkmn.temp_status is None
+        assert 'not confused' in msg
+
+    def test_snap_out_after_hit(self):
+        atk_pkmn = make_pkmn(
+            name='Atk', hp=200, attack=50, defense=50,
+            temp_status=EffectStatus.CONFUSION, confused_turns=5,
+        )
+        df_pkmn = make_pkmn(name='Df', hp=200, defense=50)
+        move = make_move(power=40)
+        with patch('app.core.combat.random.randint', side_effect=[0, 0, 217]):
+            msg = atk(atk_pkmn, move, df_pkmn)
+        assert atk_pkmn.temp_status is None
+        assert 'not confused' in msg
+        assert df_pkmn.hp < 200
+
+
+class TestSecondaryEffectExistingStatus:
+    def test_does_not_overwrite_existing_status(self):
+        atk_pkmn = make_pkmn()
+        df_pkmn = make_pkmn(hp=200, status=EffectStatus.PARALYZE)
+        move = make_move(
+            power=40, secondary_effect=SecondaryEffect(chance=100, effect=EffectStatus.BURN),
+        )
+        with patch('app.core.combat.random.randint', return_value=5):
+            msg = handle_special_physical_move(atk_pkmn, move, df_pkmn, 40)
+        assert df_pkmn.status == EffectStatus.PARALYZE
+        assert 'burned' not in msg
+
+    def test_confusion_bypasses_existing_status_guard(self):
+        atk_pkmn = make_pkmn()
+        df_pkmn = make_pkmn(hp=200, status=EffectStatus.BURN, temp_status=None)
+        move = make_move(
+            power=40, secondary_effect=SecondaryEffect(chance=100, effect=EffectStatus.CONFUSION),
+        )
+        with patch('app.core.combat.random.randint', return_value=5):
+            msg = handle_special_physical_move(atk_pkmn, move, df_pkmn, 40)
+        assert df_pkmn.temp_status == EffectStatus.CONFUSION
+        assert 'confused' in msg
+
+
+class TestSecondaryEffectTypeImmunity:
+    def test_fire_immune_to_burn_secondary(self):
+        atk_pkmn = make_pkmn()
+        df_pkmn = make_pkmn(hp=200, typing=[Typing.FIRE], status=None)
+        move = make_move(
+            power=40, secondary_effect=SecondaryEffect(chance=100, effect=EffectStatus.BURN),
+        )
+        with patch('app.core.combat.random.randint', return_value=5):
+            msg = handle_special_physical_move(atk_pkmn, move, df_pkmn, 40)
+        assert df_pkmn.status is None
+        assert 'burned' not in msg
+
+    def test_ice_immune_to_freeze_secondary(self):
+        atk_pkmn = make_pkmn()
+        df_pkmn = make_pkmn(hp=200, typing=[Typing.ICE], status=None)
+        move = make_move(
+            power=40, secondary_effect=SecondaryEffect(chance=100, effect=EffectStatus.FREEZE),
+        )
+        with patch('app.core.combat.random.randint', return_value=5):
+            msg = handle_special_physical_move(atk_pkmn, move, df_pkmn, 40)
+        assert df_pkmn.status is None
+        assert 'frozen' not in msg
+
+
+class TestExplosionSelfDestructMessage:
+    def test_explosion_returns_message(self, monkeypatch):
+        monkeypatch.setattr(random, 'randint', lambda a, b: 217)
+        atk_pkmn = make_pkmn(name='Atk', hp=200, max_hp=200)
+        df_pkmn = make_pkmn(name='Df', hp=200)
+        move = make_move(name='Explosion', power=170)
+        msg = atk(atk_pkmn, move, df_pkmn)
+        assert 'used Explosion' in msg
+        assert atk_pkmn.fainted
+        assert df_pkmn.fainted
+
+    def test_self_destruct_returns_message(self, monkeypatch):
+        monkeypatch.setattr(random, 'randint', lambda a, b: 217)
+        atk_pkmn = make_pkmn(name='Atk', hp=200, max_hp=200)
+        df_pkmn = make_pkmn(name='Df', hp=200)
+        move = make_move(name='Self-Destruct', power=130)
+        msg = atk(atk_pkmn, move, df_pkmn)
+        assert 'used Self-Destruct' in msg
+        assert atk_pkmn.fainted
+        assert df_pkmn.fainted

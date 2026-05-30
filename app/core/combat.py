@@ -203,7 +203,11 @@ def _apply_secondary_effect(
 ) -> str:
     if defender.substitute:
         return ''
+    if defender.status is not None and effect != EffectStatus.CONFUSION:
+        return ''
     if effect == EffectStatus.BURN:
+        if has_type(defender, Typing.FIRE):
+            return ''
         defender.status = EffectStatus.BURN
         return f'\n{defender.name} is burned!'
     if effect == EffectStatus.PARALYZE:
@@ -213,6 +217,8 @@ def _apply_secondary_effect(
         defender.speed -= 0.75 * defender.speed
         return f'\n{defender.name} is paralyzed! Maybe it can\'t attack!'
     if effect == EffectStatus.FREEZE:
+        if has_type(defender, Typing.ICE):
+            return ''
         defender.status = EffectStatus.FREEZE
         return f'\n{defender.name} is frozen solid!'
     if effect == EffectStatus.POISON:
@@ -249,6 +255,11 @@ def handle_special_physical_move(
         defender.defense = old_def
         hit(defender, damage, attacker)
         hit(attacker, attacker.max_hp)
+        msg = f'\n{attacker.name} used {move.name}!'
+        if defender.fainted:
+            msg += f'\n{defender.name} fainted!'
+        if attacker.fainted:
+            msg += f'\n{attacker.name} fainted!'
         return msg
     if move.name in ('Fissure', 'Guillotine', 'Horn Drill'):
         hit(defender, defender.max_hp, attacker)
@@ -662,11 +673,11 @@ def atk(attacker: BattlePokemon, move: Move, defender: BattlePokemon) -> str:
         move.pp -= 1
         return f'{attacker.name} used Bide!'
 
-    t_ = move.accuracy * attacker.accuracy * defender.evasion
+    t_ = int(move.accuracy * attacker.accuracy * defender.evasion * 255 / 100)
     rand_t = random.randint(0, 255)
     msg = f'{attacker.name} used {move.name}!'
 
-    if t_ == 255 or rand_t > t_ or move.accuracy == 100:
+    if rand_t <= t_:
         if move.category in (MoveCategory.PHYSICAL, MoveCategory.SPECIAL):
             tmp = ''
             if move.name != 'Dream Eater' and defender.status != EffectStatus.SLEEP:
@@ -719,33 +730,43 @@ def atk(attacker: BattlePokemon, move: Move, defender: BattlePokemon) -> str:
                     move.pp -= 1
                     return msg
 
-            if attacker.temp_status != EffectStatus.CONFUSION:
-                if defender != attacker:
-                    defender.last_move_was_physical = move.category == MoveCategory.PHYSICAL
-                    msg += handle_special_physical_move(attacker, move, defender, damage)
-                    if move.name in ('Double-Edge', 'Take Down', 'Submission'):
-                        recoil = damage // 3 if move.name == 'Double-Edge' else damage // 4
-                        msg += f'\n{attacker.name} is hit with recoil!'
-                        hit(attacker, recoil)
-                    if move.name == 'Hyper Beam':
-                        attacker.recharging = True
-                    if (
-                        move.name in ('Wrap', 'Bind', 'Clamp', 'Fire Spin')
-                        and not defender.fainted
-                        and not defender.trapped
-                    ):
-                        defender.trapped = True
-                        defender.trapped_turns = random.randint(2, 5)
-                        msg += f'\n{defender.name} was trapped!'
-                    if defender.fainted:
-                        msg += f'\n{defender.name} fainted!'
-            else:
+            if attacker.temp_status == EffectStatus.CONFUSION and attacker.confused_turns >= 5:
+                attacker.temp_status = None
+                msg += f'\n{attacker.name} is not confused anymore!'
+            elif attacker.temp_status == EffectStatus.CONFUSION:
+                attacker.confused_turns += 1
                 prob = random.random()
                 if prob <= 0.5:
+                    power = 40
+                    a = attacker.attack
+                    d = attacker.defense
+                    dmg = int((((2 * attacker.level) / 5 + 2) * power * (a / d)) / 50 + 2)
+                    hit(attacker, dmg)
                     msg = f'{attacker.name} is so confused to hit itself!'
-                    hit(attacker, damage)
                     if attacker.fainted:
                         msg += f'\n{attacker.name} fainted!'
+                    move.pp -= 1
+                    return msg
+
+            if defender != attacker:
+                defender.last_move_was_physical = move.category == MoveCategory.PHYSICAL
+                msg += handle_special_physical_move(attacker, move, defender, damage)
+                if move.name in ('Double-Edge', 'Take Down', 'Submission'):
+                    recoil = damage // 3 if move.name == 'Double-Edge' else damage // 4
+                    msg += f'\n{attacker.name} is hit with recoil!'
+                    hit(attacker, recoil)
+                if move.name == 'Hyper Beam':
+                    attacker.recharging = True
+                if (
+                    move.name in ('Wrap', 'Bind', 'Clamp', 'Fire Spin')
+                    and not defender.fainted
+                    and not defender.trapped
+                ):
+                    defender.trapped = True
+                    defender.trapped_turns = random.randint(2, 5)
+                    msg += f'\n{defender.name} was trapped!'
+                if defender.fainted:
+                    msg += f'\n{defender.name} fainted!'
         else:
             msg += handle_status_move(attacker, move, defender)
     else:
@@ -812,25 +833,6 @@ def try_atk_status(attacker: BattlePokemon, move: Move, defender: BattlePokemon)
             EffectStatus.TOXIC,
         ):
             return atk(attacker, move, defender)
-    elif attacker.temp_status is not None:
-        if attacker.confused_turns < 5:
-            p = random.random()
-            if p <= 0.33:
-                attacker.temp_status = None
-                msg = atk(attacker, move, defender)
-                return msg + f'\n{attacker.name} is not confused anymore!'
-            else:
-                attacker.confused_turns += 1
-                power = 40
-                a = attacker.attack
-                d = attacker.defense
-                damage = int((((2 * attacker.level) / 5 + 2) * power * (a / d)) / 50 + 2)
-                hit(attacker, damage)
-                return f'{attacker.name} is confused...\nIt\'s so confused to hit itself!'
-        else:
-            attacker.temp_status = None
-            msg = atk(attacker, move, defender)
-            return msg + f'\n{attacker.name} is not confused anymore!'
     return atk(attacker, move, defender)
 
 
