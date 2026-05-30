@@ -109,8 +109,10 @@ def reset_battle_stats(pokemon: BattlePokemon) -> None:
     pokemon.evasion = 1
 
 
-def calculate_crit_multiplier(attacker: BattlePokemon) -> tuple[int, str]:
+def calculate_crit_multiplier(attacker: BattlePokemon, high_crit: bool = False) -> tuple[int, str]:
     treshold = math.floor(attacker.base_speed / 2)
+    if high_crit:
+        treshold = math.floor(attacker.base_speed / 2) * 8
     if attacker.focus_energy:
         treshold *= 4
     if treshold > 255:
@@ -134,7 +136,8 @@ def calculate_damage(
     for t in defender.typing:
         effectiveness *= pkmn_types.get_effectiveness(move.typing, t)
 
-    crit, crit_msg = calculate_crit_multiplier(attacker)
+    high_crit = move.name in {'Slash', 'Razor Leaf', 'Crabhammer', 'Karate Chop'}
+    crit, crit_msg = calculate_crit_multiplier(attacker, high_crit)
 
     rand = random.randint(217, 255) / 255
 
@@ -219,6 +222,10 @@ def handle_special_physical_move(
     msg = ''
 
     if move.name in ('Explosion', 'Self-Destruct'):
+        old_def = defender.defense
+        defender.defense //= 2
+        damage, _ = calculate_damage(attacker, move, defender)
+        defender.defense = old_def
         hit(defender, damage, attacker)
         hit(attacker, attacker.max_hp)
         return msg
@@ -691,6 +698,8 @@ def atk(attacker: BattlePokemon, move: Move, defender: BattlePokemon) -> str:
                         recoil = damage // 3 if move.name == 'Double-Edge' else damage // 4
                         msg += f'\n{attacker.name} is hit with recoil!'
                         hit(attacker, recoil)
+                    if move.name == 'Hyper Beam':
+                        attacker.recharging = True
                     if defender.fainted:
                         msg += f'\n{defender.name} fainted!'
             else:
@@ -714,6 +723,9 @@ def atk(attacker: BattlePokemon, move: Move, defender: BattlePokemon) -> str:
 
 
 def try_atk_status(attacker: BattlePokemon, move: Move, defender: BattlePokemon) -> str:
+    if attacker.recharging:
+        attacker.recharging = False
+        return f'{attacker.name} must recharge!'
     if attacker.status is not None:
         if attacker.status == EffectStatus.PARALYZE:
             p = random.random()

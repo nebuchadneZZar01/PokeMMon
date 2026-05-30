@@ -160,6 +160,14 @@ def main():
             time.sleep(1.2)
             continue
 
+        if p.recharging:
+            p.recharging = False
+            bs.player_msg = f'{p.name} must recharge!'
+            bs.switch_turn()
+            render_core(bs)
+            time.sleep(1.2)
+            continue
+
         render_core(bs)
 
         choice = Prompt.ask('Action', choices=['1', '2', '3', '4', '5', '6'])

@@ -922,3 +922,65 @@ class TestPsywave:
         with patch('app.core.combat.random.randint', side_effect=[255, 0, 255, 100]):
             atk(atk_pkmn, move, df_pkmn)
         assert df_pkmn.hp == 200 - 100
+
+
+class TestHighCritRatio:
+    def test_slash_crits_more_often(self, monkeypatch):
+        monkeypatch.setattr(random, 'randint', lambda a, b: 0)
+        atk_pkmn = make_pkmn(base_speed=10)
+        # high_crit threshold = floor(10/2)*8 = 40, rate=0 < 40 → crit
+        mult, msg = calculate_crit_multiplier(atk_pkmn, high_crit=True)
+        assert mult == 2
+        assert msg == '\nCritical hit!'
+
+    def test_normal_move_no_high_crit_at_same_speed(self, monkeypatch):
+        monkeypatch.setattr(random, 'randint', lambda a, b: 0)
+        atk_pkmn = make_pkmn(base_speed=10)
+        # normal threshold = floor(10/2) = 5, rate=0 < 5 → crit
+        mult, msg = calculate_crit_multiplier(atk_pkmn, high_crit=False)
+        assert mult == 2
+        assert msg == '\nCritical hit!'
+
+    def test_high_crit_vs_normal_threshold(self, monkeypatch):
+        monkeypatch.setattr(random, 'randint', lambda a, b: 20)
+        atk_pkmn = make_pkmn(base_speed=10)
+        # high_crit threshold = 40, rate=20 < 40 → crit
+        mult_hc, _ = calculate_crit_multiplier(atk_pkmn, high_crit=True)
+        # normal threshold = 5, rate=20 >= 5 → no crit
+        mult_norm, _ = calculate_crit_multiplier(atk_pkmn, high_crit=False)
+        assert mult_hc == 2
+        assert mult_norm == 1
+
+
+class TestHyperBeam:
+    def test_hyper_beam_damages(self, monkeypatch):
+        monkeypatch.setattr(random, 'randint', lambda a, b: 255)
+        atk_pkmn = make_pkmn(name='Atk', hp=200, attack=50)
+        df_pkmn = make_pkmn(name='Df', hp=200, defense=50)
+        move = make_move(name='Hyper Beam', power=150, category=MoveCategory.PHYSICAL)
+        atk(atk_pkmn, move, df_pkmn)
+        assert df_pkmn.hp < 200
+        assert atk_pkmn.recharging
+
+    def test_hyper_beam_recharge_forced(self, monkeypatch):
+        monkeypatch.setattr(random, 'randint', lambda a, b: 255)
+        atk_pkmn = make_pkmn(name='Atk', hp=200, attack=50, recharging=True)
+        df_pkmn = make_pkmn(name='Df', hp=200, defense=50)
+        move = make_move(name='Tackle', power=40)
+        msg = try_atk_status(atk_pkmn, move, df_pkmn)
+        assert 'must recharge' in msg
+        assert not atk_pkmn.recharging
+        assert df_pkmn.hp == 200  # no damage dealt
+
+    def test_hyper_beam_no_extra_recharge(self, monkeypatch):
+        monkeypatch.setattr(random, 'randint', lambda a, b: 255)
+        atk_pkmn = make_pkmn(name='Atk', hp=200, attack=50)
+        df_pkmn = make_pkmn(name='Df', hp=200, defense=50)
+        move = make_move(name='Hyper Beam', power=150, category=MoveCategory.PHYSICAL)
+        atk(atk_pkmn, move, df_pkmn)
+        assert atk_pkmn.recharging
+        # Second call with a normal move should also recharge
+        move2 = make_move(name='Tackle', power=40)
+        msg = try_atk_status(atk_pkmn, move2, df_pkmn)
+        assert 'must recharge' in msg
+        assert not atk_pkmn.recharging
