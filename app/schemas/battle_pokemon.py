@@ -171,7 +171,7 @@ class BattlePokemon(BaseModel):
 
     def _select_random_moves(self):
         """Fill empty move slots with random compatible moves from the learnset."""
-        available = [m for m in moves.attacks if moves.is_compatible(m.name, self.name)]
+        available = list(moves.COMPAT_MOVES.get(self.name, []))
         random.shuffle(available)
 
         chosen = []
