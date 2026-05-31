@@ -58,7 +58,6 @@ def exec_switch(bs, idx: int):
     old.last_move_was_physical = False
     player.in_battle = target
     target.on_field = True
-    bs.switch_turn()
     bs.player_msg = f'Go, {target.name}!'
 
 
@@ -239,6 +238,7 @@ def main():
                         console.print(f'[red]{err}[/]')
                         continue
                     exec_switch(bs, idx)
+                    bs.switch_turn()
                     console.clear()
                     render_core(bs)
                     time.sleep(1.2)
