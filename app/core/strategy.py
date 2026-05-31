@@ -15,10 +15,17 @@ logger = logging.getLogger(__name__)
 
 
 class RandomStrategy:
+    """Strategy that picks a random move for the AI."""
+
     def __init__(self):
         self.choices: list[str] = []
 
     def get_choice(self, trainer: Trainer, rival: Trainer) -> str | None:
+        """Pick and execute a random move.
+
+        Returns:
+            str | None: Battle message from the executed move.
+        """
         if trainer.is_turn():
             trainer.verify_fainted_switch()
             move = None
@@ -30,13 +37,25 @@ class RandomStrategy:
 
 
 class _BaseMinimaxStrategy:
+    """Base class for minimax-based AI strategies with state evaluation."""
+
     def __init__(self, max_play_depth: int = 7):
+        """Initialize the minimax strategy.
+
+        Args:
+            max_play_depth (int): Maximum search depth (default 7).
+        """
         self.choices: list[str] = []
         self.max_play_depth = max_play_depth
         self.win_val = 1000000
         self.last_move: Move | None = None
 
     def get_choice(self, trainer: Trainer, rival: Trainer) -> str | None:
+        """Pick the best move using minimax search.
+
+        Returns:
+            str | None: Battle message from the chosen move.
+        """
         if not trainer.is_turn():
             return None
         trainer.verify_fainted_switch()
@@ -57,6 +76,14 @@ class _BaseMinimaxStrategy:
         return try_atk_status(trainer.in_battle, best.target, rival.in_battle)
 
     def evaluate(self, action, trainer: Trainer, rival: Trainer) -> float:
+        """Evaluate the board state after a hypothetical action.
+
+        Considers HP difference, damage potential, stat stages, status effects,
+        fainted count, type effectiveness, and move repetition penalty.
+
+        Returns:
+            float: Heuristic value (higher = better for the evaluating player).
+        """
         s_hp = sum(p.hp for p in trainer.team if p is not None)
         s_hp_full = sum(p.max_hp for p in trainer.team if p is not None)
         s_stats = sum(
@@ -119,9 +146,21 @@ class _BaseMinimaxStrategy:
         logger.debug('value: %s\n', value)
         return value
 
+
     def minimax(self, depth: int, action, is_maximizing: bool,
                 trainer: Trainer, rival: Trainer) -> float:
-        logger.debug('\n--- NODE DEPTH: %s ---', depth)
+        """Recursive minimax search for the best action.
+
+        Args:
+            depth (int): Remaining search depth.
+            action: The current action being evaluated.
+            is_maximizing (bool): True if this is a maximizing node.
+            trainer (Trainer): The current player.
+            rival (Trainer): The opponent.
+
+        Returns:
+            float: The evaluated value of this node.
+        """
         if trainer.game_over_lose() or rival.game_over_lose():
             return -self.win_val if trainer.game_over_lose() else self.win_val
         if depth == 0:
@@ -142,15 +181,35 @@ class _BaseMinimaxStrategy:
 
 
 class MinimaxStrategy(_BaseMinimaxStrategy):
+    """Standard minimax strategy — no alpha-beta pruning."""
     pass
 
 
 class AlphaBetaStrategy(_BaseMinimaxStrategy):
+    """Minimax strategy with alpha-beta pruning for efficiency."""
+
     def __init__(self, max_play_depth: int = 7):
+        """Initialize the alpha-beta strategy.
+
+        Args:
+            max_play_depth (int): Maximum search depth (default 7).
+        """
         super().__init__(max_play_depth)
 
     def minimax(self, depth: int, action, is_maximizing: bool,
                 trainer: Trainer, rival: Trainer) -> float:
+        """Recursive minimax with alpha-beta pruning.
+
+        Args:
+            depth (int): Remaining search depth.
+            action: The current action being evaluated.
+            is_maximizing (bool): True if this is a maximizing node.
+            trainer (Trainer): The current player.
+            rival (Trainer): The opponent.
+
+        Returns:
+            float: The evaluated value of this node.
+        """
         logger.debug('\n--- NODE DEPTH: %s ---', depth)
         if trainer.game_over_lose() or rival.game_over_lose():
             return -self.win_val if trainer.game_over_lose() else self.win_val
@@ -181,8 +240,22 @@ class AlphaBetaStrategy(_BaseMinimaxStrategy):
 
 
 class ExpectiMaxStrategy(_BaseMinimaxStrategy):
+    """Expectimax strategy — averages opponent moves instead of minimizing."""
+
     def minimax(self, depth: int, action, is_maximizing: bool,
                 trainer: Trainer, rival: Trainer) -> float:
+        """Recursive expectimax search (averages over stochastic opponent choices).
+
+        Args:
+            depth (int): Remaining search depth.
+            action: The current action being evaluated.
+            is_maximizing (bool): True if this is a maximizing node.
+            trainer (Trainer): The current player.
+            rival (Trainer): The opponent.
+
+        Returns:
+            float: The evaluated value of this node.
+        """
         logger.debug('\n--- NODE DEPTH: %s ---', depth)
         if trainer.game_over_lose() or rival.game_over_lose():
             return -self.win_val if trainer.game_over_lose() else self.win_val

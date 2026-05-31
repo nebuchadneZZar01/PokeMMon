@@ -16,6 +16,71 @@ logger = logging.getLogger(__name__)
 
 
 class BattlePokemon(BaseModel):
+    """Runtime battle state for a single Pokémon instance.
+
+    Tracks current HP, stat stages, status conditions, and battle flags
+    (substitute, reflect, light screen, etc.). Created from a static
+    Pokemon template via from_template().
+
+    Attributes:
+        id (int): National Pokédex number.
+        name (str): The species name.
+        typing (list[Typing]): Current type(s) — may change via Conversion/Transform.
+        level (int): Current level (1-100).
+        moves (list[Move | None]): Up to 4 moves with current PP.
+        status (EffectStatus | None): Primary status condition.
+        temp_status (EffectStatus | None): Temporary status (confusion).
+        on_field (bool): Whether this Pokémon is currently active.
+        fainted (bool): Whether this Pokémon has fainted.
+        base_hp (int): Base HP stat.
+        base_attack (int): Base Attack stat.
+        base_defense (int): Base Defense stat.
+        base_sp_atk (int): Base Special Attack stat.
+        base_sp_def (int): Base Special Defense stat.
+        base_speed (int): Base Speed stat.
+        max_hp (int): Maximum HP after stat calculation.
+        max_attack (int): Maximum Attack after stat calculation.
+        max_defense (int): Maximum Defense after stat calculation.
+        max_sp_atk (int): Maximum Special Attack after stat calculation.
+        max_sp_def (int): Maximum Special Defense after stat calculation.
+        max_speed (int): Maximum Speed after stat calculation.
+        hp (float): Current HP.
+        attack (float): Current Attack (affected by stat stages).
+        defense (float): Current Defense (affected by stat stages).
+        sp_atk (float): Current Special Attack (affected by stat stages).
+        sp_def (float): Current Special Defense (affected by stat stages).
+        speed (float): Current Speed (affected by stat stages).
+        accuracy (float): Current accuracy multiplier.
+        evasion (float): Current evasion multiplier.
+        atk_mult (int): Attack stat stage (-6 to +6).
+        def_mult (int): Defense stat stage (-6 to +6).
+        sp_atk_mult (int): Special Attack stat stage (-6 to +6).
+        sp_def_mult (int): Special Defense stat stage (-6 to +6).
+        speed_mult (int): Speed stat stage (-6 to +6).
+        acc_mult (int): Accuracy stat stage (-6 to +6).
+        ev_mult (int): Evasion stat stage (-6 to +6).
+        substitute (bool): Whether a Substitute doll is active.
+        sub_damage (int): Damage absorbed by Substitute.
+        transformed (bool): Whether this Pokémon has used Transform.
+        seeded (bool): Whether this Pokémon is seeded by Leech Seed.
+        sleeping_turns (int): Turns spent asleep.
+        confused_turns (int): Turns spent confused.
+        toxic_turns (int): Turns of Toxic accumulation.
+        reflect (bool): Whether Reflect is active on this side.
+        light_screen (bool): Whether Light Screen is active on this side.
+        mist (bool): Whether Mist is active on this side.
+        disabled_move (int): Index of disabled move, or -1.
+        disabled_turns (int): Turns remaining for disable.
+        focus_energy (bool): Whether Focus Energy is active.
+        recharging (bool): Whether the Pokémon must recharge (Hyper Beam).
+        biding (bool): Whether the Pokémon is using Bide.
+        bide_damage (int): Accumulated damage during Bide.
+        bide_turns (int): Turns spent charging Bide.
+        last_damage_taken (int): Most recent damage received.
+        last_move_was_physical (bool): Whether the last move used against this was physical.
+        trapped (bool): Whether the Pokémon is trapped (Wrap, Bind, etc.).
+        trapped_turns (int): Turns remaining for trap.
+    """
     id: int
     name: str
     typing: list[Typing] = []
@@ -84,11 +149,20 @@ class BattlePokemon(BaseModel):
     trapped_turns: int = 0
 
     def model_post_init(self, __context):
+        """Select random moves if no moves are set."""
         if all(m is None for m in self.moves):
             self._select_random_moves()
 
     @staticmethod
     def _normalize_level(level):
+        """Clamp level to the valid range 1-100.
+
+        Args:
+            level (int): The level to normalize.
+
+        Returns:
+            int: A level between 1 and 100 inclusive.
+        """
         if level < 1:
             return 1
         if level > 100:
@@ -96,6 +170,7 @@ class BattlePokemon(BaseModel):
         return level
 
     def _select_random_moves(self):
+        """Fill empty move slots with random compatible moves from the learnset."""
         available = [m for m in moves.attacks if moves.is_compatible(m.name, self.name)]
         random.shuffle(available)
 
@@ -111,6 +186,17 @@ class BattlePokemon(BaseModel):
 
     @classmethod
     def from_template(cls, template: Pokemon, level: int = 100):
+        """Create a BattlePokemon from a static Pokemon template.
+
+        Calculates stats at the given level using Gen 1 formulas.
+
+        Args:
+            template (Pokemon): The species template from the Pokédex.
+            level (int): The level for the new instance (1-100).
+
+        Returns:
+            BattlePokemon: A fully initialized battle Pokémon.
+        """
         level = cls._normalize_level(level)
         typing = template.typing[:]
         bs = template.base_stats
@@ -148,6 +234,7 @@ class BattlePokemon(BaseModel):
         )
 
     def get_stats(self):
+        """Log current stats for debugging."""
         logger.debug(
             'Name: %s Type: %s Level: %s',
             self.name, [t.value for t in self.typing], self.level,
@@ -160,6 +247,7 @@ class BattlePokemon(BaseModel):
         logger.debug('Spe: %s\n', self.speed)
 
     def get_stats_mult(self):
+        """Log current stat stage multipliers for debugging."""
         logger.debug('Atk: %s', self.atk_mult)
         logger.debug('Def: %s', self.def_mult)
         logger.debug('Sp Atk: %s', self.sp_atk_mult)
@@ -169,6 +257,7 @@ class BattlePokemon(BaseModel):
         logger.debug('Acc: %s\n', self.acc_mult)
 
     def get_moves(self):
+        """Log current moves and their details for debugging."""
         for move in self.moves:
             if move is not None:
                 move.get_info()

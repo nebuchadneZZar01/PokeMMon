@@ -7,4 +7,6 @@ if TYPE_CHECKING:
 
 
 class AIStrategy(Protocol):
+    """Protocol defining the interface for AI battle strategies."""
+
     def get_choice(self, trainer: Trainer, rival: Trainer) -> str | None: ...

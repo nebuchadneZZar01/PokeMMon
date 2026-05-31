@@ -18,6 +18,12 @@ class TurnBattleSystem:
     """
 
     def __init__(self, player, ai):
+        """Initialize a turn-based battle between a player and an AI trainer.
+
+        Args:
+            player (Trainer): The player-controlled trainer.
+            ai (Trainer): The AI-controlled trainer.
+        """
         self.player = player
         self.ai = ai
         self.player_mon = self.player.in_battle
@@ -32,6 +38,7 @@ class TurnBattleSystem:
         self.enemy_msg = ''
     
     def switch_turn(self):
+        """Swap the turn token between player and AI and increment turn counter."""
         if self.player.token:
             self.player.token = False
             self.ai.token = True
@@ -47,18 +54,34 @@ class TurnBattleSystem:
         logger.info(f'Turn n: {self.turn_count}')
 
     def get_turn(self):
+        """Get the current turn owner.
+
+        Returns:
+            str: 'PL' for player turn, 'AI' for AI turn.
+        """
         if self.player.token:
             return 'PL'
         else:
             return 'AI'
 
     def get_player(self):
+        """Get the player trainer.
+
+        Returns:
+            Trainer: The player trainer instance.
+        """
         return self.player
 
     def get_ai(self):
+        """Get the AI trainer.
+
+        Returns:
+            Trainer: The AI trainer instance.
+        """
         return self.ai
 
     def handle_turns(self):
+        """Process a single turn: check win conditions, execute AI move, apply status effects."""
         self.player_mon = self.player.in_battle         # prevents non updating target
         ai_win_msg = f'{self.ai.name} won the battle...\nThe battle lasted {self.turn_count} turns.'
         ai_lose_msg = f'{self.ai.name} lost the battle!\nThe battle lasted {self.turn_count} turns.'
@@ -81,6 +104,7 @@ class TurnBattleSystem:
                 self.switch_turn()
 
     def handle_status_by_turn(self):
+        """Apply end-of-turn status effects to both sides."""
         self.player_mon = self.player.in_battle
         self.enemy_mon = self.ai.in_battle
 

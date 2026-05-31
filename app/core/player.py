@@ -15,7 +15,24 @@ logger = logging.getLogger(__name__)
 
 
 class Trainer:
+    """Represents a Pokémon trainer (human or AI) with a team of 6 Pokémon.
+
+    Attributes:
+        team (list[BattlePokemon | None]): Up to 6 Pokémon, None for empty slots.
+        token (bool): Turn ownership flag.
+        is_ai (bool): Whether this trainer uses an AI strategy.
+        _strategy (AIStrategy | None): The AI strategy instance (None for human).
+        _name (str | None): Custom display name.
+        in_battle (BattlePokemon): The currently active Pokémon.
+    """
+
     def __init__(self, strategy: AIStrategy | None = None, name: str | None = None):
+        """Initialize a trainer with a random team of 6 Pokémon.
+
+        Args:
+            strategy (AIStrategy | None): AI strategy to use (None for human player).
+            name (str | None): Custom name for the trainer.
+        """
         self.team = [None] * 6
         self.token = None
         self.is_ai = strategy is not None
@@ -31,6 +48,11 @@ class Trainer:
 
     @property
     def name(self) -> str:
+        """Get the trainer's display name.
+
+        Returns:
+            str: The custom name, 'Player' for humans, or the strategy class name for AI.
+        """
         if self._name:
             return self._name
         if not self._strategy:
@@ -38,11 +60,13 @@ class Trainer:
         return type(self._strategy).__name__.removesuffix('Strategy')
 
     def get_team_with_stats(self):
+        """Log stats and moves for all team members."""
         for pkmn in self.team:
             pkmn.get_stats()
             pkmn.get_moves()
 
     def get_team(self):
+        """Log team roster with names and types."""
         if not self.is_ai:
             logger.info('Player Team:')
         else:
@@ -51,6 +75,13 @@ class Trainer:
             logger.info('- %s \t%s', pkmn.name, [t.value for t in pkmn.typing])
 
     def get_possible_choices(self):
+        """Get all valid move actions for the active Pokémon.
+
+        Excludes moves with 0 PP and disabled moves. Forces Bide if active.
+
+        Returns:
+            list[Action]: List of valid attack actions.
+        """
         possible_choices = []
 
         if self.in_battle.biding:
@@ -72,6 +103,11 @@ class Trainer:
         return possible_choices
 
     def print_choices(self, choices):
+        """Log possible choice details for debugging.
+
+        Args:
+            choices (list[Action]): The list of valid actions.
+        """
         logger.debug('\n%s\'s possible choices:', self.in_battle.name)
         for i, c in enumerate(choices):
             logger.debug('- %d) name: %s, power: %s, type: %s, kind: %s',
@@ -79,6 +115,11 @@ class Trainer:
                          c.target.typing.value, c.target.category.value)
 
     def game_over_lose(self):
+        """Check if all team members have fainted.
+
+        Returns:
+            bool: True if the entire team is fainted or empty.
+        """
         faint_cnt = 0
 
         for pkmn in self.team:
@@ -88,12 +129,23 @@ class Trainer:
         return faint_cnt == 6
 
     def is_turn(self):
+        """Check if it's this trainer's turn.
+
+        Returns:
+            bool: True if this trainer has the turn token.
+        """
         return self.token
 
     def set_turn(self, _token):
+        """Set the turn token for this trainer.
+
+        Args:
+            _token (bool): The turn token value.
+        """
         self.token = _token
 
     def verify_fainted_switch(self):
+        """Auto-switch to the next available Pokémon if the current one has fainted."""
         if not self.game_over_lose() and self.in_battle.fainted:
             self.in_battle.on_field = False
             for pkmn in self.team:
@@ -103,6 +155,14 @@ class Trainer:
                     break
 
     def get_choice(self, rival: Trainer) -> str | None:
+        """Delegate move selection to the AI strategy, if set.
+
+        Args:
+            rival (Trainer): The opposing trainer.
+
+        Returns:
+            str | None: The battle message from the chosen action, or None if no strategy.
+        """
         if self._strategy:
             return self._strategy.get_choice(self, rival)
         return None

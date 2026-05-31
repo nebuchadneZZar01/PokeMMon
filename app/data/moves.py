@@ -338,4 +338,13 @@ learnset: dict[str, list[str]] = {
 
 
 def is_compatible(move_name: str, pokemon_name: str) -> bool:
+    """Check if a Pokémon can learn a given move by name.
+
+    Args:
+        move_name (str): The name of the move.
+        pokemon_name (str): The name of the Pokémon species.
+
+    Returns:
+        bool: True if the Pokémon can learn the move, False otherwise.
+    """
     return move_name in learnset.get(pokemon_name, [])

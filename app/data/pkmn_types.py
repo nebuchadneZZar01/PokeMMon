@@ -365,4 +365,13 @@ type_chart: dict[Typing, dict[Typing, float]] = {
 
 
 def get_effectiveness(attacking: Typing, defending: Typing) -> float:
+    """Look up type effectiveness multiplier from the type chart.
+
+    Args:
+        attacking (Typing): The attacking move's type.
+        defending (Typing): The defending Pokémon's type.
+
+    Returns:
+        float: Effectiveness multiplier (0.0, 0.5, 1.0, or 2.0).
+    """
     return type_chart[attacking][defending]

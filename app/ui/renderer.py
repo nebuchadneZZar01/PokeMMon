@@ -34,6 +34,11 @@ STATUS_COLORS = {
 
 
 def _fmt_type(typing: list) -> str:
+    """Format a list of types into colored rich text.
+
+    Returns:
+        str: Rich-formatted type string with colors.
+    """
     return " ".join(
         f"[{TYPE_COLORS.get(t.value.upper(), 'white')}]{t.value.upper()}[/]"
         for t in typing
@@ -41,6 +46,11 @@ def _fmt_type(typing: list) -> str:
 
 
 def make_hp_bar(current: float, max_hp: int, width: int = 18) -> str:
+    """Create a colored HP bar string.
+
+    Returns:
+        str: Rich-formatted HP bar (green/yellow/red filled blocks).
+    """
     ratio = current / max_hp if max_hp > 0 else 0
     filled = max(0, min(int(ratio * width), width))
     empty = width - filled
@@ -49,6 +59,11 @@ def make_hp_bar(current: float, max_hp: int, width: int = 18) -> str:
 
 
 def status_tag(pkmn) -> str:
+    """Generate a colored status tag for a Pokémon.
+
+    Returns:
+        str: Rich-formatted status string (e.g. '[red]FAINTED[/]').
+    """
     if pkmn.fainted:
         return '[red]FAINTED[/]'
     if pkmn.status is None:
@@ -58,16 +73,31 @@ def status_tag(pkmn) -> str:
 
 
 def _status_pad(pkmn, width: int = 18) -> str:
+    """Get a status tag padded to a fixed width for alignment.
+
+    Returns:
+        str: Padded status tag string.
+    """
     tag = status_tag(pkmn)
     visible = len(re.sub(r'\[/?\w+\]', '', tag))
     return tag + ' ' * max(0, width - visible)
 
 
 def team_dots(team) -> str:
+    """Create a visual team health indicator using dots.
+
+    Returns:
+        str: String of '○' (fainted/empty) and '●' (alive) dots.
+    """
     return ''.join('○' if (p is None or p.fainted) else '●' for p in team)
 
 
 def battle_messages(player_msg: str, enemy_msg: str) -> str:
+    """Combine player and enemy battle messages into a single display string.
+
+    Returns:
+        str: Combined message string.
+    """
     parts = []
     for msg in (enemy_msg, player_msg):
         if msg and not msg.startswith('You are challenged by'):
@@ -78,6 +108,7 @@ def battle_messages(player_msg: str, enemy_msg: str) -> str:
 
 
 def render_core(bs: TurnBattleSystem) -> None:
+    """Render the main battle screen: opponent, player, messages, and moves."""
     p = bs.player.in_battle
     e = bs.ai.in_battle
 
@@ -118,6 +149,7 @@ def render_core(bs: TurnBattleSystem) -> None:
 
 
 def render_team(bs: TurnBattleSystem) -> None:
+    """Render the team overview screen showing all player Pokémon."""
     console.clear()
     body_lines = []
     for i, pkmn in enumerate(bs.player.team):

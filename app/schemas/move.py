@@ -20,6 +20,8 @@ class SecondaryEffect(BaseModel):
     effect: EffectStatus
 
 class MoveCategory(StrEnum):
+    """The category of a move, determining which stat is used for damage."""
+
     SPECIAL = 'Special'
     PHYSICAL = 'Physical'
     NON_DAMAGING = 'Non-Damaging'
@@ -49,10 +51,12 @@ class Move(BaseModel):
     secondary_effect: SecondaryEffect | None = None
 
     def model_post_init(self, __context):
+        """Set max_pp to current pp on first initialization if not already set."""
         if self.max_pp == 0:
             self.max_pp = self.pp
 
     def get_info(self):
+        """Print move details to stdout for debugging."""
         print(self.name)
         print('Typing:', self.typing.value)
         print('Power:', self.power)

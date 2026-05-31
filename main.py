@@ -22,6 +22,11 @@ AI_THINKING_PANEL = Panel(
 
 
 def switch_valid(bs, idx: int) -> str | None:
+    """Validate a switch action.
+
+    Returns:
+        str | None: Error message if invalid, None if valid.
+    """
     target = bs.player.team[idx]
     if target is None:
         return 'Invalid slot.'
@@ -35,6 +40,7 @@ def switch_valid(bs, idx: int) -> str | None:
 
 
 def exec_switch(bs, idx: int):
+    """Execute a switch action: swap active Pokémon and reset state."""
     player = bs.player
     target = player.team[idx]
     old = player.in_battle
@@ -57,6 +63,11 @@ def exec_switch(bs, idx: int):
 
 
 def exec_move(bs, idx: int) -> bool:
+    """Execute a move action for the player.
+
+    Returns:
+        bool: True if the move was executed, False if invalid.
+    """
     p = bs.player.in_battle
     e = bs.ai.in_battle
     move = p.moves[idx]
@@ -81,11 +92,13 @@ def exec_move(bs, idx: int) -> bool:
 
 
 def do_ai_turn(bs):
+    """Execute the AI's turn if it's the AI's turn."""
     if not bs.player.is_turn():
         bs.handle_turns()
 
 
 def main():
+    """Main entry point: run setup menu, create trainers, start battle loop."""
     config = run_setup_menu()
     if config is None:
         return

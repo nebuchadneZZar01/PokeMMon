@@ -18,10 +18,20 @@ CONST_THAW = 0.20
 
 
 def has_type(pkmn: BattlePokemon, t: Typing) -> bool:
+    """Check if a Pokémon has a specific type.
+
+    Returns:
+        bool: True if at least one of the Pokémon's types matches.
+    """
     return any(ty == t for ty in pkmn.typing)
 
 
 def update_battle_stat(stat: float, multiplier: int) -> float:
+    """Adjust a stat value by a stage multiplier (-6 to +6).
+
+    Returns:
+        float: The adjusted stat value after applying the stage change.
+    """
     if multiplier >= 0:
         stat *= ((multiplier * 50) + 100) / 100
     elif multiplier == -1:
@@ -40,6 +50,11 @@ def update_battle_stat(stat: float, multiplier: int) -> float:
 
 
 def handle_recoil(target: BattlePokemon, damage: int, perc_scaler: int) -> int:
+    """Calculate recoil damage based on a percentage of dealt damage.
+
+    Returns:
+        int: The recoil damage amount.
+    """
     scaler = perc_scaler / 100
     damage_caused = damage - (target.hp - damage) if target.hp - damage < 0 else damage
     return int(damage_caused * scaler)
@@ -49,6 +64,11 @@ def inc_dec_stat_mult(
     attacker: BattlePokemon, stat_owner: BattlePokemon, stat_attr: str,
     increase: bool, highly: bool = False,
 ) -> tuple[int, str]:
+    """Increase or decrease a Pokémon's stat stage by 1 (or 2 if highly).
+
+    Returns:
+        tuple[int, str]: (new_stat_value, message_describing_change).
+    """
     display_names = {
         'atk_mult': 'Attack',
         'def_mult': 'Defense',
@@ -87,6 +107,10 @@ def inc_dec_stat_mult(
 
 
 def reset_stats_mult(pokemon: BattlePokemon) -> None:
+    """Reset all stat stage multipliers for a Pokémon to 0 (neutral).
+
+    Also clears reflect, light screen, and mist.
+    """
     pokemon.atk_mult = 0
     pokemon.def_mult = 0
     pokemon.sp_atk_mult = 0
@@ -100,6 +124,11 @@ def reset_stats_mult(pokemon: BattlePokemon) -> None:
 
 
 def reset_battle_stats(pokemon: BattlePokemon) -> None:
+    """Reset all transient battle stats to their maximum values.
+    
+    Restores attack, defense, sp_atk, sp_def, speed to max,
+    resets accuracy and evasion to 1.0.
+    """
     pokemon.attack = pokemon.max_attack
     pokemon.defense = pokemon.max_defense
     pokemon.sp_atk = pokemon.max_sp_atk
@@ -110,6 +139,11 @@ def reset_battle_stats(pokemon: BattlePokemon) -> None:
 
 
 def calculate_crit_multiplier(attacker: BattlePokemon, high_crit: bool = False) -> tuple[int, str]:
+    """Calculate critical hit stage multiplier based on base speed.
+
+    Returns:
+        tuple[int, str]: (damage_multiplier, message).
+    """
     treshold = math.floor(attacker.base_speed / 2)
     if high_crit:
         treshold = math.floor(attacker.base_speed / 2) * 8
@@ -126,6 +160,13 @@ def calculate_crit_multiplier(attacker: BattlePokemon, high_crit: bool = False) 
 def calculate_damage(
     attacker: BattlePokemon, move: Move, defender: BattlePokemon
 ) -> tuple[int, str]:
+    """Calculate expected damage for a move against a defender.
+
+    Applies STAB, type chart, critical hit, and fixed-damage move overrides.
+
+    Returns:
+        tuple[int, str]: (damage, effectiveness_or_crit_message).
+    """
     power = move.power
     stab = 2 if has_type(attacker, move.typing) else 1
 

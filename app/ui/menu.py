@@ -14,6 +14,8 @@ _LLM_VERIFY_TIMEOUT = 30
 
 
 class AIType(StrEnum):
+    """AI opponent type selection."""
+
     RANDOM = 'random'
     MINIMAX = 'minimax'
     ALPHABETA = 'alphabeta'
@@ -22,6 +24,8 @@ class AIType(StrEnum):
 
 
 class LLMProvider(StrEnum):
+    """LLM provider selection for the LLM strategy."""
+
     OPENAI = 'openai'
     ANTHROPIC = 'anthropic'
     GEMINI = 'gemini'
@@ -29,12 +33,25 @@ class LLMProvider(StrEnum):
 
 
 class LogLevel(StrEnum):
+    """Log verbosity level."""
+
     SILENT = 'silent'
     INFO = 'info'
     DEBUG = 'debug'
 
 
 class BattleConfig(BaseModel):
+    """Complete battle configuration set up through the menu.
+
+    Attributes:
+        ai_type (AIType): The selected AI opponent type.
+        depth (int): Search depth for minimax-based strategies (1-20).
+        llm_provider (LLMProvider | None): LLM provider for LLM strategy.
+        llm_model (str | None): LLM model name override.
+        llm_api_key (str | None): API key for remote LLM providers.
+        llm_base_uri (str | None): Base URI for Ollama.
+        log_level (LogLevel): Log verbosity level.
+    """
     ai_type: AIType = AIType.MINIMAX
     depth: int = Field(default=7, ge=1, le=20)
     llm_provider: LLMProvider | None = None
@@ -74,12 +91,18 @@ _LOG_NAMES: dict[LogLevel, str] = {
 
 
 def _show_title():
+    """Clear console and display the battle setup title."""
     console.clear()
     title = Text('PokeMMon - Battle Setup', style='bold cyan')
     console.print(Panel(title, border_style='cyan', padding=(1, 2)))
 
 
 def _step_ai_type() -> AIType:
+    """Prompt the user to select an AI opponent type.
+
+    Returns:
+        AIType: The selected AI type.
+    """
     _show_title()
     lines = ['Select AI opponent:\n']
     for i, t in enumerate(AIType, 1):
@@ -94,6 +117,11 @@ def _step_ai_type() -> AIType:
 
 
 def _step_depth() -> int:
+    """Prompt the user for search depth.
+
+    Returns:
+        int: Depth value between 1 and 20.
+    """
     console.print()
     while True:
         raw = Prompt.ask('Search depth', default='7')
@@ -107,6 +135,11 @@ def _step_depth() -> int:
 
 
 def _step_llm_provider() -> LLMProvider:
+    """Prompt the user to select an LLM provider.
+
+    Returns:
+        LLMProvider: The selected provider.
+    """
     _show_title()
     lines = ['Select LLM provider:\n']
     for i, t in enumerate(LLMProvider, 1):
@@ -121,6 +154,11 @@ def _step_llm_provider() -> LLMProvider:
 
 
 def _step_llm_model(provider: LLMProvider) -> str | None:
+    """Prompt the user for a model name with a provider-specific default.
+
+    Returns:
+        str | None: The model name, or None to use default.
+    """
     default = _LLM_DEFAULTS[provider]
     console.print()
     raw = Prompt.ask('Model (enter for default)', default=default)
@@ -128,12 +166,22 @@ def _step_llm_model(provider: LLMProvider) -> str | None:
 
 
 def _step_llm_base_uri() -> str:
+    """Prompt the user for the Ollama base URL.
+
+    Returns:
+        str: The base URL (defaults to http://localhost:11434).
+    """
     console.print()
     raw = Prompt.ask('Ollama base URL', default='http://localhost:11434')
     return raw.strip() or 'http://localhost:11434'
 
 
 def _step_api_key(provider: LLMProvider) -> str | None:
+    """Prompt the user for an API key, falling back to environment variable.
+
+    Returns:
+        str | None: The API key, or None if not provided.
+    """
     env_var_map = {
         LLMProvider.OPENAI: 'OPENAI_API_KEY',
         LLMProvider.ANTHROPIC: 'ANTHROPIC_API_KEY',
@@ -203,6 +251,11 @@ def _step_llm_verify(
 
 
 def _step_log_level() -> LogLevel:
+    """Prompt the user to select a log level.
+
+    Returns:
+        LogLevel: The selected log level.
+    """
     _show_title()
     lines = ['Select log level:\n']
     for i, t in enumerate(LogLevel, 1):
@@ -217,6 +270,11 @@ def _step_log_level() -> LogLevel:
 
 
 def _show_summary(config: BattleConfig) -> bool:
+    """Show a summary of the configuration and ask the user to confirm.
+
+    Returns:
+        bool: True if the user confirms, False to reconfigure.
+    """
     lines = []
     lines.append(f'AI Type    : {_AI_NAMES[config.ai_type]}')
     if config.ai_type in (AIType.MINIMAX, AIType.ALPHABETA, AIType.EXPECTIMAX):
@@ -246,6 +304,11 @@ def _show_summary(config: BattleConfig) -> bool:
 
 
 def run_setup_menu() -> BattleConfig | None:
+    """Run the full battle setup menu flow.
+
+    Returns:
+        BattleConfig | None: The configuration if confirmed, None if cancelled.
+    """
     try:
         while True:
             ai = _step_ai_type()

@@ -35,6 +35,8 @@ _TYPE_MAP = {t.value: t for t in Typing}
 
 
 class BattleDecision(BaseModel):
+    """Structured output from the LLM agent for a single turn decision."""
+
     action: Literal['attack', 'switch'] = Field(
         description='Choose attack to use a move, switch to change active Pokémon',
     )
@@ -52,6 +54,8 @@ class BattleDecision(BaseModel):
 
 
 class AgentState(TypedDict):
+    """State type for the LangGraph agent."""
+
     messages: Annotated[Sequence[BaseMessage], add_messages]
 
 
@@ -136,6 +140,17 @@ def _create_model(
     provider: str, model: str | None = None,
     api_key: str | None = None, base_uri: str | None = None,
 ):
+    """Create a LangChain chat model for the given provider.
+
+    Args:
+        provider (str): One of 'openai', 'anthropic', 'gemini', 'ollama'.
+        model (str | None): Model name override.
+        api_key (str | None): API key override.
+        base_uri (str | None): Base URI override (Ollama only).
+
+    Returns:
+        ChatModel: A LangChain chat model instance.
+    """
     kwargs = {}
     if api_key:
         kwargs['api_key'] = api_key
@@ -154,6 +169,11 @@ def _create_model(
 
 
 def _make_tools(trainer: Trainer, rival: Trainer) -> list:
+    """Create tool definitions for the LLM agent (module-level version).
+
+    Returns:
+        list: List of LangChain Tool objects.
+    """
     @tool
     def simulate_damage(move_name: str) -> int:
         '''Calculate expected damage for a named move against the current opponent.'''
@@ -188,10 +208,20 @@ def _make_tools(trainer: Trainer, rival: Trainer) -> list:
 
 
 def _stat_stage_str(mult: float) -> str:
+    """Format a stat stage multiplier as a short string.
+
+    Returns:
+        str: Formatted multiplier string like 'x1.5' or 'x0.5'.
+    """
     return f'x{mult:g}'
 
 
 def _build_state_str(trainer: Trainer, rival: Trainer) -> str:
+    """Build a string describing the current battle state for the LLM.
+
+    Returns:
+        str: Formatted battle state description.
+    """
     a = trainer.in_battle
     d = rival.in_battle
 
@@ -267,10 +297,20 @@ def _build_state_str(trainer: Trainer, rival: Trainer) -> str:
 
 
 class LLMAgentStrategy:
+    """AI strategy that uses a LangGraph agent with an LLM to make battle decisions."""
+
     def __init__(
         self, provider: str, model: str | None = None,
         api_key: str | None = None, base_uri: str | None = None,
     ):
+        """Initialize the LLM agent strategy.
+
+        Args:
+            provider (str): LLM provider ('openai', 'anthropic', 'gemini', 'ollama').
+            model (str | None): Model name override.
+            api_key (str | None): API key override.
+            base_uri (str | None): Base URI override (Ollama only).
+        """
         self.choices: list[str] = []
         self._turn_count: int = 0
         self._llm = _create_model(provider, model, api_key, base_uri)
@@ -287,6 +327,11 @@ class LLMAgentStrategy:
         )
 
     def _make_tools(self) -> list:
+        """Create tool definitions for this agent instance.
+
+        Returns:
+            list: List of LangChain Tool objects.
+        """
         @tool
         def simulate_damage(move_name: str) -> int:
             '''Calculate expected damage for a named move against the current opponent.'''
@@ -327,6 +372,17 @@ class LLMAgentStrategy:
         return [simulate_damage, get_type_effectiveness]
 
     def get_choice(self, trainer: Trainer, rival: Trainer) -> str | None:
+        """Get the LLM's move choice for the current turn.
+
+        Delegates to the LangGraph agent which returns a BattleDecision.
+
+        Args:
+            trainer (Trainer): The AI trainer.
+            rival (Trainer): The opposing trainer.
+
+        Returns:
+            str | None: Battle message from the chosen action.
+        """
         trainer.verify_fainted_switch()
         if trainer.game_over_lose():
             return None
@@ -373,6 +429,11 @@ class LLMAgentStrategy:
     def _execute_attack(
         self, trainer: Trainer, rival: Trainer, decision: BattleDecision,
     ) -> str:
+        """Execute an attack action chosen by the LLM.
+
+        Returns:
+            str: Battle message from the executed move.
+        """
         move = next(
             (m for m in trainer.in_battle.moves if m is not None and m.name == decision.move),
             None,
@@ -392,6 +453,11 @@ class LLMAgentStrategy:
     def _execute_switch(
         self, trainer: Trainer, rival: Trainer, decision: BattleDecision,
     ) -> str:
+        """Execute a switch action chosen by the LLM.
+
+        Returns:
+            str: Battle message announcing the switch.
+        """
         slot = decision.slot if decision.slot is not None else 0
         target = trainer.team[slot]
         if target is None or target.fainted or target is trainer.in_battle:
@@ -412,6 +478,11 @@ class LLMAgentStrategy:
         return f'{trainer.name} sent out {target.name}! Go, {target.name}!'
 
     def _fallback_attack(self, trainer: Trainer, rival: Trainer) -> str:
+        """Fallback to the first valid move if the LLM decision is invalid.
+
+        Returns:
+            str: Battle message from the chosen move.
+        """
         choices = trainer.get_possible_choices()
         if choices:
             move = choices[0].target
