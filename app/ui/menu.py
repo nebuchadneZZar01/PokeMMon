@@ -40,6 +40,7 @@ class BattleConfig(BaseModel):
     llm_provider: LLMProvider | None = None
     llm_model: str | None = None
     llm_api_key: str | None = None
+    llm_base_uri: str | None = None
     log_level: LogLevel = LogLevel.SILENT
 
 
@@ -126,6 +127,12 @@ def _step_llm_model(provider: LLMProvider) -> str | None:
     return raw.strip() or default
 
 
+def _step_llm_base_uri() -> str:
+    console.print()
+    raw = Prompt.ask('Ollama base URL', default='http://localhost:11434')
+    return raw.strip() or 'http://localhost:11434'
+
+
 def _step_api_key(provider: LLMProvider) -> str | None:
     env_var_map = {
         LLMProvider.OPENAI: 'OPENAI_API_KEY',
@@ -146,7 +153,7 @@ def _step_api_key(provider: LLMProvider) -> str | None:
 
 
 def _step_llm_verify(
-    provider_str: str, model: str | None, api_key: str | None,
+    provider_str: str, model: str | None, api_key: str | None, base_uri: str | None = None,
 ) -> bool | None:
     """Test LLM connection. Returns True=ok, False=skip, None=reconfigure."""
     from app.core.llm_strategy import verify_llm_connection
@@ -159,6 +166,7 @@ def _step_llm_verify(
             provider=provider_str,
             model=model,
             api_key=api_key,
+            base_uri=base_uri,
             timeout=_LLM_VERIFY_TIMEOUT,
         )
 
@@ -187,7 +195,7 @@ def _step_llm_verify(
     while True:
         raw = Prompt.ask("Choice", default="1")
         if raw == "1":
-            return _step_llm_verify(provider_str, model, api_key)
+            return _step_llm_verify(provider_str, model, api_key, base_uri)
         if raw == "2":
             return None
         if raw == "3":
@@ -218,6 +226,8 @@ def _show_summary(config: BattleConfig) -> bool:
         lines.append(f'Provider   : {_LLM_NAMES[prov]}')
         if config.llm_model:
             lines.append(f'Model      : {config.llm_model}')
+        if prov == LLMProvider.OLLAMA and config.llm_base_uri:
+            lines.append(f'Ollama URL : {config.llm_base_uri}')
         if config.llm_api_key:
             k = config.llm_api_key
             masked = k[:4] + '*' * (len(k) - 8) + k[-4:] if len(k) > 8 else '****'
@@ -246,16 +256,19 @@ def run_setup_menu() -> BattleConfig | None:
             llm_provider: LLMProvider | None = None
             llm_model: str | None = None
             llm_api_key: str | None = None
+            llm_base_uri: str | None = None
 
             if ai == AIType.LLM:
                 llm_provider = _step_llm_provider()
                 llm_model = _step_llm_model(llm_provider)
                 if llm_provider != LLMProvider.OLLAMA:
                     llm_api_key = _step_api_key(llm_provider)
+                else:
+                    llm_base_uri = _step_llm_base_uri()
 
                 while True:
                     result = _step_llm_verify(
-                        llm_provider.value, llm_model, llm_api_key,
+                        llm_provider.value, llm_model, llm_api_key, llm_base_uri,
                     )
                     if result is None:
                         llm_model = _step_llm_model(llm_provider)
@@ -272,6 +285,7 @@ def run_setup_menu() -> BattleConfig | None:
                 llm_provider=llm_provider,
                 llm_model=llm_model,
                 llm_api_key=llm_api_key,
+                llm_base_uri=llm_base_uri,
                 log_level=log_level,
             )
 

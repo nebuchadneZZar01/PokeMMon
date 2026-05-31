@@ -82,6 +82,7 @@ def verify_llm_connection(
     provider: str,
     model: str | None = None,
     api_key: str | None = None,
+    base_uri: str | None = None,
     timeout: int = 30,
 ) -> tuple[bool, str]:
     """Test LLM connectivity and tool-calling capability.
@@ -93,7 +94,7 @@ def verify_llm_connection(
     Returns (success, message). On failure message contains the raw error.
     """
     try:
-        llm = _create_model(provider, model, api_key)
+        llm = _create_model(provider, model, api_key, base_uri)
 
         response = llm.invoke(
             [HumanMessage(content="Reply with only the word: PONG")],
@@ -131,7 +132,10 @@ def verify_llm_connection(
         return False, f"{type(exc).__name__}: {exc}"
 
 
-def _create_model(provider: str, model: str | None = None, api_key: str | None = None):
+def _create_model(
+    provider: str, model: str | None = None,
+    api_key: str | None = None, base_uri: str | None = None,
+):
     kwargs = {}
     if api_key:
         kwargs['api_key'] = api_key
@@ -143,7 +147,7 @@ def _create_model(provider: str, model: str | None = None, api_key: str | None =
         case 'gemini':
             return ChatGoogleGenerativeAI(model=model or 'gemini-2.0-flash', **kwargs)
         case 'ollama':
-            return ChatOllama(model=model or 'llama3.1', temperature=0.2)
+            return ChatOllama(model=model or 'llama3.1', temperature=0.2, base_url=base_uri or 'http://localhost:11434')
         case _:
             msg = f'Unknown LLM provider: {provider}'
             raise ValueError(msg)
@@ -263,10 +267,13 @@ def _build_state_str(trainer: Trainer, rival: Trainer) -> str:
 
 
 class LLMAgentStrategy:
-    def __init__(self, provider: str, model: str | None = None, api_key: str | None = None):
+    def __init__(
+        self, provider: str, model: str | None = None,
+        api_key: str | None = None, base_uri: str | None = None,
+    ):
         self.choices: list[str] = []
         self._turn_count: int = 0
-        self._llm = _create_model(provider, model, api_key)
+        self._llm = _create_model(provider, model, api_key, base_uri)
         self._trainer: Trainer | None = None
         self._rival: Trainer | None = None
         self._checkpointer = MemorySaver()

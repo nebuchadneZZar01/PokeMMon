@@ -119,6 +119,7 @@ def main():
                 provider=config.llm_provider.value if config.llm_provider else 'openai',
                 model=config.llm_model,
                 api_key=config.llm_api_key,
+                base_uri=config.llm_base_uri,
             ), name=f'AI {pn} Trainer')
         case _:
             ai = Trainer(MinimaxStrategy(config.depth), name='AI Minimax Trainer')
