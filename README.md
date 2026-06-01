@@ -3,10 +3,10 @@
   <br>
   <b>PokéMMon</b>
   <br>
-  <sup><sup>(Pokémon battles <b>M</b>ini<b>M</b>ax simulator)</sup></sup>
+  <sup><sup>(Pokémon battles AI simulator)</sup></sup>
 </h1>
 
-This is a *Pokémon* battles' implementation with the use of MiniMax-type algorithms, developed as project for the Artificial Intelligence course (university subject).
+This is a *Pokémon* battles' implementation with the use of MiniMax-type algorithms, firstly developed as project for the Artificial Intelligence course (university subject) and now revamped just for fun.
 
 All credits of the material used (characters and ideas) belong to The Pokémon Company, Nintendo, Game Freak and Creatures Inc.
 
@@ -15,11 +15,12 @@ All credits of the material used (characters and ideas) belong to The Pokémon C
 This Python software is a terminal-based re-implementation of the 1st gen. Pokémon games' (Red/Blue/Yellow versions) **battle system** via `rich` TUI, with data models via `pydantic` v2.
 It implements **MiniMax-type algorithms** to move the CPU player.
 
-These are the possible **algorithms** that could move the rival agent:
+These are the possible **strategies** that could move the rival agent:
 - _Random_;
 - _MiniMax_ (vanilla);
 - _Alpha-Beta pruning MiniMax_;
-- _ExpectiMax_.
+- _ExpectiMax_;
+- _LLM-based_ (**OpenAI**, **Gemini**, **Anthropic**, **Ollama**).
 
 ## Usage
 ### Dependencies
