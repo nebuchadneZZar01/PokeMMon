@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from rich.console import Console
 from rich.panel import Panel
+from rich.table import Table
 
 from app.schemas.effect_status import EffectStatus
 
@@ -92,19 +93,47 @@ def team_dots(team) -> str:
     return ''.join('○' if (p is None or p.fainted) else '●' for p in team)
 
 
-def battle_messages(player_msg: str, enemy_msg: str) -> str:
-    """Combine player and enemy battle messages into a single display string.
+_SIDE_LABELS = {'player': 'Player', 'ai': 'AI', 'field': '·'}
+_SIDE_COLORS = {'player': 'cyan', 'ai': 'red', 'field': 'dim'}
+
+_LOG_VISIBLE_ROUNDS = 8
+
+
+def _render_log(bs: TurnBattleSystem) -> Table:
+    """Build the battle log table (round, side, message).
+
+    Args:
+        bs (TurnBattleSystem): The battle system with message history.
 
     Returns:
-        str: Combined message string.
+        Table: Rich table of recent battle log entries, newest highlighted.
     """
-    parts = []
-    for msg in (enemy_msg, player_msg):
-        if msg and not msg.startswith('You are challenged by'):
-            parts.append(msg)
-    if parts:
-        return '\n'.join(parts)
-    return player_msg or ' '
+    log = bs.message_log[-(_LOG_VISIBLE_ROUNDS * 2):]
+    table = Table(box=None, show_header=False, padding=(0, 2))
+    table.add_column(justify='right', no_wrap=True)
+    table.add_column(no_wrap=True)
+    table.add_column(justify='left')
+
+    last_round: int | None = None
+    for i, (round_n, side, text) in enumerate(log):
+        if last_round is not None and round_n != last_round:
+            table.add_row('', '', '')
+        last_round = round_n
+        label = _SIDE_LABELS.get(side, side)
+        color = _SIDE_COLORS.get(side, 'white')
+        if i == len(log) - 1:
+            table.add_row(
+                f'[bold yellow]R{round_n}[/]',
+                f'[bold {color}]{label}[/]',
+                f'[bold white]{text}[/]',
+            )
+        else:
+            table.add_row(
+                f'[bold yellow]R{round_n}[/]',
+                f'[{color}]{label}[/]',
+                text,
+            )
+    return table
 
 
 def render_core(bs: TurnBattleSystem) -> None:
@@ -130,8 +159,13 @@ def render_core(bs: TurnBattleSystem) -> None:
     )
     console.print(Panel(p_content, title=' Player ', border_style='bold'))
 
-    msg_content = battle_messages(bs.player_msg, bs.enemy_msg)
-    console.print(Panel(msg_content, title=' Message ', border_style='bold'))
+    if bs.player_msg.startswith('You are challenged by'):
+        bs.log_message('field', bs.player_msg)
+    else:
+        bs.log_message('player', bs.player_msg)
+    bs.log_message('ai', bs.enemy_msg)
+
+    console.print(Panel(_render_log(bs), title=' Battle Log ', border_style='bold'))
 
     for i, move in enumerate(p.moves):
         if move is None:

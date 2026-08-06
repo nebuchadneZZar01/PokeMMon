@@ -115,6 +115,18 @@ class TestLogMessage:
         bs.log_message('ai', 'It is confused!')
         assert len(bs.message_log) == 2
 
+    def test_stale_other_side_does_not_rededup(self, bs):
+        bs.log_message('ai', 'Gyarados used Hydro Pump!')
+        bs.log_message('player', 'Pikachu used Thunderbolt!')
+        bs.log_message('ai', 'Gyarados used Hydro Pump!')
+        assert len(bs.message_log) == 2
+
+    def test_repeat_after_new_same_side_message_logged(self, bs):
+        bs.log_message('player', 'Go, Pikachu!')
+        bs.log_message('player', 'Pikachu used Thunderbolt!')
+        bs.log_message('player', 'Go, Pikachu!')
+        assert len(bs.message_log) == 3
+
     def test_caps_at_thirty(self, bs):
         for i in range(40):
             bs.log_message('player', f'msg {i}')

@@ -38,9 +38,14 @@ class TurnBattleSystem:
         self.enemy_msg = ''
 
         self.message_log: list[tuple[int, str, str]] = []
+        self._last_by_side: dict[str, str] = {}
     
     def log_message(self, side: str, text: str) -> None:
         """Append a message to the battle log, skipping duplicates and empties.
+
+        Deduplication is per side: a message is skipped only if it repeats the
+        last logged message for the same side, which prevents stale messages
+        persisting across turns from being re-logged.
 
         Args:
             side (str): 'player', 'ai', or 'field'.
@@ -48,10 +53,11 @@ class TurnBattleSystem:
         """
         if not text.strip():
             return
-        if self.message_log and self.message_log[-1][1:] == (side, text):
+        if self._last_by_side.get(side) == text:
             return
         round_n = (self.turn_count + 1) // 2
         self.message_log.append((round_n, side, text))
+        self._last_by_side[side] = text
         if len(self.message_log) > 30:
             del self.message_log[:len(self.message_log) - 30]
 
