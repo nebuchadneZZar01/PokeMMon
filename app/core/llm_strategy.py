@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import uuid
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Annotated, Literal, TypedDict
+from typing import TYPE_CHECKING, Annotated, Any, Literal, TypedDict
 
 import ollama
 from langchain.agents import create_agent
@@ -25,10 +25,12 @@ from app.core.combat import (
     struggle_no_pp,
     try_atk_status,
 )
+from app.schemas.move import Move
 from app.schemas.typing import Typing
 
 if TYPE_CHECKING:
     from app.core.player import Trainer
+    from app.schemas.battle_pokemon import BattlePokemon
 
 logger = logging.getLogger(__name__)
 
@@ -160,7 +162,7 @@ def verify_llm_connection(
 def _create_model(
     provider: str, model: str | None = None,
     api_key: str | None = None, base_uri: str | None = None,
-):
+) -> Any:
     """Create a LangChain chat model for the given provider.
 
     Args:
@@ -246,10 +248,10 @@ def _build_state_str(trainer: Trainer, rival: Trainer) -> str:
     a = trainer.in_battle
     d = rival.in_battle
 
-    def _status(p):
+    def _status(p: BattlePokemon) -> str:
         return p.status.value if p.status else 'None'
 
-    def _stages(p):
+    def _stages(p: BattlePokemon) -> str:
         return (
             f'Atk{_stat_stage_str(p.atk_mult)} '
             f'Def{_stat_stage_str(p.def_mult)} '
@@ -260,7 +262,7 @@ def _build_state_str(trainer: Trainer, rival: Trainer) -> str:
             f'Eva{_stat_stage_str(p.ev_mult)}'
         )
 
-    def _bench(team, exclude, label: str) -> str:
+    def _bench(team: list[BattlePokemon | None], exclude: BattlePokemon, label: str) -> str:
         lines = []
         for i, p in enumerate(team):
             if p is None or p is exclude:
@@ -272,7 +274,7 @@ def _build_state_str(trainer: Trainer, rival: Trainer) -> str:
                 lines.append(f'  [{i}] {p.name} ({p.hp}/{p.max_hp} HP) | Sts: {s}')
         return label + '\n' + ('\n'.join(lines) if lines else '  (none)')
 
-    def _moves(p) -> str:
+    def _moves(p: BattlePokemon) -> str:
         lines = []
         for i, m in enumerate(p.moves):
             if m is None:
@@ -461,10 +463,11 @@ class LLMAgentStrategy:
         )
         if move is None:
             choices = trainer.get_possible_choices()
-            if choices:
-                move = choices[0].target
-            else:
+            if not choices:
                 return struggle_no_pp(trainer.in_battle, rival.in_battle)
+            chosen = choices[0].target
+            assert isinstance(chosen, Move)
+            move = chosen
 
         self.choices.append(move.name)
         return try_atk_status(trainer.in_battle, move, rival.in_battle)
@@ -505,6 +508,7 @@ class LLMAgentStrategy:
         choices = trainer.get_possible_choices()
         if choices:
             move = choices[0].target
+            assert isinstance(move, Move)
             self.choices.append(move.name)
             return try_atk_status(trainer.in_battle, move, rival.in_battle)
         return struggle_no_pp(trainer.in_battle, rival.in_battle)

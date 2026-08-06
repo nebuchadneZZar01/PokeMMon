@@ -1,6 +1,7 @@
 import logging
 
 from app.core.combat import handle_burn_poison, handle_leech_seed, handle_toxicity, handle_trapped
+from app.core.player import Trainer
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ class TurnBattleSystem:
         turn_count (int): Counter for the number of turns elapsed since battle start.
     """
 
-    def __init__(self, player, ai):
+    def __init__(self, player: Trainer, ai: Trainer) -> None:
         """Initialize a turn-based battle between a player and an AI trainer.
 
         Args:
@@ -64,7 +65,7 @@ class TurnBattleSystem:
         if len(self.message_log) > 30:
             del self.message_log[:len(self.message_log) - 30]
 
-    def switch_turn(self):
+    def switch_turn(self) -> None:
         """Swap the turn token between player and AI and increment turn counter."""
         if self.player.token:
             self.player.token = False
@@ -80,7 +81,7 @@ class TurnBattleSystem:
         self.turn_count += 1
         logger.info(f'Turn n: {self.turn_count}')
 
-    def get_turn(self):
+    def get_turn(self) -> str:
         """Get the current turn owner.
 
         Returns:
@@ -90,7 +91,7 @@ class TurnBattleSystem:
             return 'PL'
         return 'AI'
 
-    def get_player(self):
+    def get_player(self) -> Trainer:
         """Get the player trainer.
 
         Returns:
@@ -98,7 +99,7 @@ class TurnBattleSystem:
         """
         return self.player
 
-    def get_ai(self):
+    def get_ai(self) -> Trainer:
         """Get the AI trainer.
 
         Returns:
@@ -106,7 +107,7 @@ class TurnBattleSystem:
         """
         return self.ai
 
-    def handle_turns(self):
+    def handle_turns(self) -> None:
         """Process a single turn: check win conditions, execute AI move, apply status effects."""
         self.player_mon = self.player.in_battle         # prevents non updating target
         ai_win_msg = f'{self.ai.name} won the battle...\nThe battle lasted {self.turn_count} turns.'
@@ -127,7 +128,7 @@ class TurnBattleSystem:
                 self.handle_status_by_turn()
                 self.switch_turn()
 
-    def handle_status_by_turn(self):
+    def handle_status_by_turn(self) -> None:
         """Apply end-of-turn status effects to both sides."""
         self.player_mon = self.player.in_battle
         self.enemy_mon = self.ai.in_battle

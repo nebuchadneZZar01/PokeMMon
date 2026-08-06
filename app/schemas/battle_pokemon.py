@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import math
 import random
-from typing import cast
+from typing import Any, cast
 
 from pydantic import BaseModel, Field
 
@@ -151,13 +151,13 @@ class BattlePokemon(BaseModel):
     trapped: bool = False
     trapped_turns: int = 0
 
-    def model_post_init(self, __context):
+    def model_post_init(self, __context: Any) -> None:
         """Select random moves if no moves are set."""
         if all(m is None for m in self.moves):
             self._select_random_moves()
 
     @staticmethod
-    def _normalize_level(level):
+    def _normalize_level(level: int) -> int:
         """Clamp level to the valid range 1-100.
 
         Args:
@@ -172,7 +172,7 @@ class BattlePokemon(BaseModel):
             return 100
         return level
 
-    def _select_random_moves(self):
+    def _select_random_moves(self) -> None:
         """Fill empty move slots with random compatible moves from the learnset."""
         available = list(moves.COMPAT_MOVES.get(self.name, []))
         random.shuffle(available)
@@ -188,7 +188,7 @@ class BattlePokemon(BaseModel):
             self.moves[index] = move.model_copy(deep=True)
 
     @classmethod
-    def from_template(cls, template: Pokemon, level: int = 100):
+    def from_template(cls, template: Pokemon, level: int = 100) -> BattlePokemon:
         """Create a BattlePokemon from a static Pokemon template.
 
         Calculates stats at the given level using Gen 1 formulas.
@@ -236,7 +236,7 @@ class BattlePokemon(BaseModel):
             speed=max_speed,
         )
 
-    def get_stats(self):
+    def get_stats(self) -> None:
         """Log current stats for debugging."""
         logger.debug(
             'Name: %s Type: %s Level: %s',
@@ -249,7 +249,7 @@ class BattlePokemon(BaseModel):
         logger.debug('Sp Def: %s', self.sp_def)
         logger.debug('Spe: %s\n', self.speed)
 
-    def get_stats_mult(self):
+    def get_stats_mult(self) -> None:
         """Log current stat stage multipliers for debugging."""
         logger.debug('Atk: %s', self.atk_mult)
         logger.debug('Def: %s', self.def_mult)
@@ -259,7 +259,7 @@ class BattlePokemon(BaseModel):
         logger.debug('Ev: %s', self.ev_mult)
         logger.debug('Acc: %s\n', self.acc_mult)
 
-    def get_moves(self):
+    def get_moves(self) -> None:
         """Log current moves and their details for debugging."""
         for move in self.moves:
             if move is not None:

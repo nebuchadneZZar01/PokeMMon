@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from app.data.pokedex import pokedex
 from app.schemas.action import Action, ActionKind
 from app.schemas.battle_pokemon import BattlePokemon
+from app.schemas.move import Move
 
 if TYPE_CHECKING:
     from app.schemas.strategy import AIStrategy
@@ -68,14 +69,14 @@ class Trainer:
             return 'Player'
         return type(self._strategy).__name__.removesuffix('Strategy')
 
-    def get_team_with_stats(self):
+    def get_team_with_stats(self) -> None:
         """Log stats and moves for all team members."""
         for pkmn in self.team:
             assert pkmn is not None
             pkmn.get_stats()
             pkmn.get_moves()
 
-    def get_team(self):
+    def get_team(self) -> None:
         """Log team roster with names and types."""
         if not self.is_ai:
             logger.info('Player Team:')
@@ -85,7 +86,7 @@ class Trainer:
             assert pkmn is not None
             logger.info('- %s \t%s', pkmn.name, [t.value for t in pkmn.typing])
 
-    def get_possible_choices(self):
+    def get_possible_choices(self) -> list[Action]:
         """Get all valid move actions for the active Pokémon.
 
         Excludes moves with 0 PP and disabled moves. Forces Bide if active.
@@ -113,7 +114,7 @@ class Trainer:
 
         return possible_choices
 
-    def print_choices(self, choices):
+    def print_choices(self, choices: list[Action]) -> None:
         """Log possible choice details for debugging.
 
         Args:
@@ -121,11 +122,13 @@ class Trainer:
         """
         logger.debug('\n%s\'s possible choices:', self.in_battle.name)
         for i, c in enumerate(choices):
+            target = c.target
+            assert isinstance(target, Move)
             logger.debug('- %d) name: %s, power: %s, type: %s, kind: %s',
-                         i + 1, c.target.name, c.target.power,
-                         c.target.typing.value, c.target.category.value)
+                         i + 1, target.name, target.power,
+                         target.typing.value, target.category.value)
 
-    def game_over_lose(self):
+    def game_over_lose(self) -> bool:
         """Check if all team members have fainted.
 
         Returns:
@@ -139,15 +142,15 @@ class Trainer:
 
         return faint_cnt == 6
 
-    def is_turn(self):
+    def is_turn(self) -> bool:
         """Check if it's this trainer's turn.
 
         Returns:
             bool: True if this trainer has the turn token.
         """
-        return self.token
+        return bool(self.token)
 
-    def set_turn(self, _token):
+    def set_turn(self, _token: bool) -> None:
         """Set the turn token for this trainer.
 
         Args:
@@ -155,7 +158,7 @@ class Trainer:
         """
         self.token = _token
 
-    def verify_fainted_switch(self):
+    def verify_fainted_switch(self) -> None:
         """Auto-switch to the next available Pokémon if the current one has fainted."""
         if not self.game_over_lose() and self.in_battle.fainted:
             self.in_battle.on_field = False

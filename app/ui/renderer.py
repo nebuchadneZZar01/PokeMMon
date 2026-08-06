@@ -14,6 +14,7 @@ from app.schemas.effect_status import EffectStatus
 
 if TYPE_CHECKING:
     from app.core.battle_system import TurnBattleSystem
+    from app.schemas.battle_pokemon import BattlePokemon
 
 console = Console()
 
@@ -62,7 +63,7 @@ def make_hp_bar(current: float, max_hp: int, width: int = 18) -> str:
     return f'[{color}]{"█" * filled}[/]{ "░" * empty}'
 
 
-def status_tag(pkmn) -> str:
+def status_tag(pkmn: BattlePokemon) -> str:
     """Generate a colored status tag for a Pokémon.
 
     Returns:
@@ -76,7 +77,7 @@ def status_tag(pkmn) -> str:
     return f'[{c}]{pkmn.status.value}[/]'
 
 
-def _status_pad(pkmn, width: int = 18) -> str:
+def _status_pad(pkmn: BattlePokemon, width: int = 18) -> str:
     """Get a status tag padded to a fixed width for alignment.
 
     Returns:
@@ -87,7 +88,7 @@ def _status_pad(pkmn, width: int = 18) -> str:
     return tag + ' ' * max(0, width - visible)
 
 
-def team_dots(team) -> str:
+def team_dots(team: list[BattlePokemon | None]) -> str:
     """Create a visual team health indicator using dots.
 
     Returns:
@@ -184,7 +185,7 @@ def _render_log(bs: TurnBattleSystem) -> Table:
     return table
 
 
-def _render_moves(p) -> Table:
+def _render_moves(p: BattlePokemon) -> Table:
     """Build the move selection menu as a rich table.
 
     Each move is a row: colored slot number, name, colored type, and PP.

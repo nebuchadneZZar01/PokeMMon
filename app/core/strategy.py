@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 import app.data.pkmn_types as pkmn_types
 from app.core.combat import calculate_damage, struggle_no_pp, try_atk_status
+from app.schemas.action import Action
 from app.schemas.move import Move
 
 if TYPE_CHECKING:
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 class RandomStrategy:
     """Strategy that picks a random move for the AI."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.choices: list[str] = []
 
     def get_choice(self, trainer: Trainer, rival: Trainer) -> str | None:
@@ -41,7 +42,7 @@ class RandomStrategy:
 class _BaseMinimaxStrategy:
     """Base class for minimax-based AI strategies with state evaluation."""
 
-    def __init__(self, max_play_depth: int = 7):
+    def __init__(self, max_play_depth: int = 7) -> None:
         """Initialize the minimax strategy.
 
         Args:
@@ -72,12 +73,14 @@ class _BaseMinimaxStrategy:
             if val >= best_val:
                 best = action
                 best_val = val
-        self.last_move = best.target
-        logger.info('Chosen move: %s', best.target.name)
-        self.choices.append(best.target.name)
-        return try_atk_status(trainer.in_battle, best.target, rival.in_battle)
+        best_move = best.target
+        assert isinstance(best_move, Move)
+        self.last_move = best_move
+        logger.info('Chosen move: %s', best_move.name)
+        self.choices.append(best_move.name)
+        return try_atk_status(trainer.in_battle, best_move, rival.in_battle)
 
-    def evaluate(self, action, trainer: Trainer, rival: Trainer) -> float:
+    def evaluate(self, action: Action, trainer: Trainer, rival: Trainer) -> float:
         """Evaluate the board state after a hypothetical action.
 
         Considers HP difference, damage potential, stat stages, status effects,
@@ -117,6 +120,7 @@ class _BaseMinimaxStrategy:
         stats_diff = s_stats - t_stats
         fainted_diff = t_fainted - s_fainted
         move = action.target
+        assert isinstance(move, Move)
         move_damage, _ = calculate_damage(trainer.in_battle, move, rival.in_battle)
 
         logger.debug('hp_diff: %s', hp_diff)
@@ -149,7 +153,7 @@ class _BaseMinimaxStrategy:
         return value
 
 
-    def minimax(self, depth: int, action, is_maximizing: bool,
+    def minimax(self, depth: int, action: Action, is_maximizing: bool,
                 trainer: Trainer, rival: Trainer) -> float:
         """Recursive minimax search for the best action.
 
@@ -189,7 +193,7 @@ class MinimaxStrategy(_BaseMinimaxStrategy):
 class AlphaBetaStrategy(_BaseMinimaxStrategy):
     """Minimax strategy with alpha-beta pruning for efficiency."""
 
-    def __init__(self, max_play_depth: int = 7):
+    def __init__(self, max_play_depth: int = 7) -> None:
         """Initialize the alpha-beta strategy.
 
         Args:
@@ -197,7 +201,7 @@ class AlphaBetaStrategy(_BaseMinimaxStrategy):
         """
         super().__init__(max_play_depth)
 
-    def minimax(self, depth: int, action, is_maximizing: bool,
+    def minimax(self, depth: int, action: Action, is_maximizing: bool,
                 trainer: Trainer, rival: Trainer,
                 alpha: float = -float('inf'), beta: float = float('inf')) -> float:
         """Recursive minimax with alpha-beta pruning.
@@ -242,7 +246,7 @@ class AlphaBetaStrategy(_BaseMinimaxStrategy):
 class ExpectiMaxStrategy(_BaseMinimaxStrategy):
     """Expectimax strategy — averages opponent moves instead of minimizing."""
 
-    def minimax(self, depth: int, action, is_maximizing: bool,
+    def minimax(self, depth: int, action: Action, is_maximizing: bool,
                 trainer: Trainer, rival: Trainer) -> float:
         """Recursive expectimax search (averages over stochastic opponent choices).
 

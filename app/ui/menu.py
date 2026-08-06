@@ -90,7 +90,7 @@ _LOG_NAMES: dict[LogLevel, str] = {
 }
 
 
-def _show_title():
+def _show_title() -> None:
     """Clear console and display the battle setup title."""
     console.clear()
     title = Text('PokeMMon - Battle Setup', style='bold cyan')

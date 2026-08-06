@@ -21,7 +21,7 @@ AI_THINKING_PANEL = Panel(
 )
 
 
-def main():
+def main() -> None:
     """Main entry point: run setup menu, create trainers, start battle loop."""
     config = run_setup_menu()
     if config is None:

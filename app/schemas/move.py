@@ -1,4 +1,5 @@
 from enum import StrEnum
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -50,12 +51,12 @@ class Move(BaseModel):
     max_pp: int = 0
     secondary_effect: SecondaryEffect | None = None
 
-    def model_post_init(self, __context):
+    def model_post_init(self, __context: Any) -> None:
         """Set max_pp to current pp on first initialization if not already set."""
         if self.max_pp == 0:
             self.max_pp = self.pp
 
-    def get_info(self):
+    def get_info(self) -> None:
         """Print move details to stdout for debugging."""
         print(self.name)
         print('Typing:', self.typing.value)

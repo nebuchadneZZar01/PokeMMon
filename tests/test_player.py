@@ -70,7 +70,7 @@ class TestGameOverLose:
 class TestTurn:
     def test_set_turn_none(self):
         t = Trainer()
-        assert t.is_turn() is None
+        assert t.is_turn() is False
 
     def test_set_turn_true(self):
         t = Trainer()
