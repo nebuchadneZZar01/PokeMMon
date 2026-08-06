@@ -111,22 +111,29 @@ _LOG_WORD_RE = re.compile(
 )
 
 
-def _style_log_entry(text: str) -> Text:
+def _style_log_entry(message: Text, player_names: set[str], ai_names: set[str]) -> None:
     """Style move and pokemon names in a battle log message.
 
-    Moves render in italic, pokemon names in italic dim.
+    Moves render in italic, pokemon names in italic colored by team
+    ownership (cyan for player, red for AI), or italic dim when the
+    owner is unknown.
 
     Args:
-        text (str): Raw log message text.
-
-    Returns:
-        Text: Rich text with styled move and pokemon names.
+        message (Text): Rich text to style in place.
+        player_names (set[str]): Lowercased player team pokemon names.
+        ai_names (set[str]): Lowercased AI team pokemon names.
     """
-    styled = Text(text)
-    for match in _LOG_WORD_RE.finditer(text):
-        style = 'italic' if match.group(0).casefold() in _MOVE_NAMES else 'italic dim'
-        styled.stylize(style, match.start(), match.end())
-    return styled
+    for match in _LOG_WORD_RE.finditer(message.plain):
+        word = match.group(0).casefold()
+        if word in _MOVE_NAMES:
+            style = 'italic'
+        elif word in player_names:
+            style = 'italic cyan'
+        elif word in ai_names:
+            style = 'italic red'
+        else:
+            style = 'italic dim'
+        message.stylize(style, match.start(), match.end())
 
 
 def _render_log(bs: TurnBattleSystem) -> Table:
@@ -156,26 +163,24 @@ def _render_log(bs: TurnBattleSystem) -> Table:
     table.add_column(no_wrap=True)
     table.add_column(justify='left')
 
+    player_names = {p.name.casefold() for p in bs.player.team if p}
+    ai_names = {p.name.casefold() for p in bs.ai.team if p}
+
     for i, (round_n, side, msg) in enumerate(keep):
         if i != 0:
             table.add_row('', '', '')
         label = _SIDE_LABELS.get(side, side)
         color = _SIDE_COLORS.get(side, 'white')
         round_cell = '' if side == 'field' else f'[bold yellow]R{round_n}[/]'
-        message = _style_log_entry(msg)
-        if i == len(keep) - 1:
+        message = Text(msg)
+        last = i == len(keep) - 1
+        if last:
             message.stylize('bold white', 0, len(message))
-            table.add_row(
-                round_cell,
-                f'[bold {color}]{label}[/]',
-                message,
-            )
+            label_cell = f'[bold {color}]{label}[/]'
         else:
-            table.add_row(
-                round_cell,
-                f'[{color}]{label}[/]',
-                message,
-            )
+            label_cell = f'[{color}]{label}[/]'
+        _style_log_entry(message, player_names, ai_names)
+        table.add_row(round_cell, label_cell, message)
     return table
 
 
