@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from unittest.mock import MagicMock
 
 from app.core.player import Trainer
@@ -207,3 +208,67 @@ class TestGetChoice:
         t = Trainer()
         rival = Trainer()
         assert t.get_choice(rival) is None
+
+
+class TestTrainerName:
+    def test_custom_name(self):
+        assert Trainer(name='Ash').name == 'Ash'
+
+    def test_strategy_class_name_without_suffix(self):
+        class DummyStrategy:
+            def get_choice(self, trainer, rival):  # noqa: ARG002
+                return None
+
+        assert Trainer(DummyStrategy()).name == 'Dummy'
+
+    def test_human_default_player(self):
+        assert Trainer().name == 'Player'
+
+
+class TestGetTeamWithStats:
+    def test_logs_stats_and_moves_for_each_member(self, caplog, capsys):
+        t = Trainer()
+        t.team = [make_pkmn(name=f'Mon{i}') for i in range(6)]
+        with caplog.at_level(logging.DEBUG):
+            t.get_team_with_stats()
+        text = caplog.text
+        assert 'Mon0' in text
+        assert 'Mon5' in text
+        assert capsys.readouterr().out.count('Power:') >= 6
+
+
+class TestGetTeam:
+    def test_human_logs_player_team(self, caplog):
+        t = Trainer()
+        t.team = [make_pkmn(name=f'Mon{i}') for i in range(6)]
+        with caplog.at_level(logging.INFO, logger='app.core.player'):
+            t.get_team()
+        text = caplog.text
+        assert 'Player Team:' in text
+        assert '- Mon0' in text
+
+    def test_ai_logs_ai_team(self, caplog):
+        t = Trainer(MagicMock())
+        t.team = [make_pkmn(name=f'Mon{i}') for i in range(6)]
+        with caplog.at_level(logging.INFO, logger='app.core.player'):
+            t.get_team()
+        assert 'AI Team:' in caplog.text
+        assert '- Mon0' in caplog.text
+
+
+class TestGetPossibleChoicesBiding:
+    def test_biding_forces_bide_move(self):
+        t = Trainer()
+        bide = make_move(name='Bide')
+        t.in_battle.moves = [bide, make_move(name='Tackle'), None, None]
+        t.in_battle.biding = True
+        choices = t.get_possible_choices()
+        assert len(choices) == 1
+        assert choices[0].kind == ActionKind.ATTACK
+        assert choices[0].target is bide
+
+    def test_biding_without_bide_move_returns_empty(self):
+        t = Trainer()
+        t.in_battle.moves = [make_move(name='Tackle'), None, None, None]
+        t.in_battle.biding = True
+        assert t.get_possible_choices() == []
