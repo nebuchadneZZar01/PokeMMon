@@ -281,15 +281,15 @@ class TestStatusTag:
 
 class TestStatusPad:
     def test_pads_fainted_tag_to_width(self):
-        assert _status_pad(make_pkmn(fainted=True)) == '[red]FAINTED[/]' + ' ' * 8
+        assert _status_pad(make_pkmn(fainted=True)) == '[red]FAINTED[/]' + ' ' * 11
 
     def test_pads_ok_tag_to_width(self):
-        assert _status_pad(make_pkmn()) == '[green]OK[/]' + ' ' * 13
+        assert _status_pad(make_pkmn()) == '[green]OK[/]' + ' ' * 16
 
     def test_wider_tag_kept_untouched(self):
         p = make_pkmn(status=EffectStatus.CONFUSION)
         tag = _status_pad(p)
-        assert tag == '[orange]Confusion[/]' + ' ' * 6
+        assert tag == '[orange]Confusion[/]' + ' ' * 9
 
 
 class TestTeamDots:

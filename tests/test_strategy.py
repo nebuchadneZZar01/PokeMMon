@@ -61,18 +61,33 @@ class TestRandomStrategy:
         s.get_choice(trainer, rival)
         assert s.choices == ['Tackle']
 
-    def test_get_choice_loops_until_non_none(self, trainer, rival, monkeypatch):
-        calls = []
+    def test_get_choice_ignores_none_slots(self, trainer, rival, monkeypatch):
+        chosen = []
         def mock_choice(moves):
-            calls.append(1)
-            if len(calls) == 1:
-                return None
+            chosen.extend(moves)
             return moves[0]
+        trainer.in_battle.moves = [make_move(name='Tackle'), None, None, None]
         monkeypatch.setattr('app.core.strategy.random.choice', mock_choice)
         monkeypatch.setattr('app.core.strategy.try_atk_status', lambda a, m, d: 'msg')
         s = RandomStrategy()
         s.get_choice(trainer, rival)
-        assert len(calls) > 1
+        assert len(chosen) == 1
+
+    def test_get_choice_all_none_struggles(self, trainer, rival, monkeypatch):
+        trainer.in_battle.moves = [None, None, None, None]
+        monkeypatch.setattr('app.core.strategy.struggle_no_pp', lambda a, d: 'struggle!')
+        s = RandomStrategy()
+        assert s.get_choice(trainer, rival) == 'struggle!'
+
+    def test_get_choice_picks_among_available(self, trainer, rival, monkeypatch):
+        m1 = make_move(name='Tackle')
+        m2 = make_move(name='Growl')
+        trainer.in_battle.moves = [m1, m2, None, None]
+        monkeypatch.setattr('app.core.strategy.random.choice', lambda moves: m2)
+        monkeypatch.setattr('app.core.strategy.try_atk_status', lambda a, m, d: 'msg')
+        s = RandomStrategy()
+        s.get_choice(trainer, rival)
+        assert s.choices == ['Growl']
 
     def test_verify_fainted_switch_called(self, trainer, rival, monkeypatch):
         monkeypatch.setattr('app.core.strategy.random.choice', lambda moves: moves[0])

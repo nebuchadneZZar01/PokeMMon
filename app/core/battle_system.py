@@ -121,9 +121,7 @@ class TurnBattleSystem:
                 self.player_msg = ai_lose_msg
                 self.enemy_msg = ai_lose_msg
         else:
-            if self.player.is_turn():
-                pass
-            else:
+            if not self.player.is_turn():
                 ai_msg = self.ai.get_choice(self.player)
                 if ai_msg:
                     self.enemy_msg = ai_msg

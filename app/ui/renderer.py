@@ -83,7 +83,7 @@ def _status_pad(pkmn, width: int = 18) -> str:
         str: Padded status tag string.
     """
     tag = status_tag(pkmn)
-    visible = len(re.sub(r'\[/?\w+\]', '', tag))
+    visible = len(re.sub(r'\[/?[^\]]*\]', '', tag))
     return tag + ' ' * max(0, width - visible)
 
 

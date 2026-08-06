@@ -28,9 +28,10 @@ class RandomStrategy:
         """
         if trainer.is_turn():
             trainer.verify_fainted_switch()
-            move = None
-            while move is None:
-                move = random.choice(trainer.in_battle.moves)
+            available = [m for m in trainer.in_battle.moves if m is not None]
+            if not available:
+                return struggle_no_pp(trainer.in_battle, rival.in_battle)
+            move = random.choice(available)
             logger.info(move.name)
             self.choices.append(move.name)
             return try_atk_status(trainer.in_battle, move, rival.in_battle)
