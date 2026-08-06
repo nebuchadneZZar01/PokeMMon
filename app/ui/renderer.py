@@ -6,7 +6,10 @@ from typing import TYPE_CHECKING
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+from rich.text import Text
 
+from app.data.moves import attacks
+from app.data.pokedex import pokedex
 from app.schemas.effect_status import EffectStatus
 
 if TYPE_CHECKING:
@@ -98,6 +101,33 @@ _SIDE_COLORS = {'player': 'cyan', 'ai': 'red', 'field': 'dim'}
 
 _LOG_MAX_LINES = 12
 
+_MOVE_NAMES = {m.name.casefold() for m in attacks}
+_POKE_NAMES = {p.name.casefold() for p in pokedex}
+_LOG_WORD_RE = re.compile(
+    r'\b(' + '|'.join(
+        re.escape(w) for w in sorted(_MOVE_NAMES | _POKE_NAMES, key=len, reverse=True)
+    ) + r')\b',
+    re.IGNORECASE,
+)
+
+
+def _style_log_entry(text: str) -> Text:
+    """Style move and pokemon names in a battle log message.
+
+    Moves render in italic, pokemon names in italic dim.
+
+    Args:
+        text (str): Raw log message text.
+
+    Returns:
+        Text: Rich text with styled move and pokemon names.
+    """
+    styled = Text(text)
+    for match in _LOG_WORD_RE.finditer(text):
+        style = 'italic' if match.group(0).casefold() in _MOVE_NAMES else 'italic dim'
+        styled.stylize(style, match.start(), match.end())
+    return styled
+
 
 def _render_log(bs: TurnBattleSystem) -> Table:
     """Build the battle log table (round, side, message).
@@ -126,23 +156,25 @@ def _render_log(bs: TurnBattleSystem) -> Table:
     table.add_column(no_wrap=True)
     table.add_column(justify='left')
 
-    for i, (round_n, side, text) in enumerate(keep):
+    for i, (round_n, side, msg) in enumerate(keep):
         if i != 0:
             table.add_row('', '', '')
         label = _SIDE_LABELS.get(side, side)
         color = _SIDE_COLORS.get(side, 'white')
         round_cell = '' if side == 'field' else f'[bold yellow]R{round_n}[/]'
+        message = _style_log_entry(msg)
         if i == len(keep) - 1:
+            message.stylize('bold white', 0, len(message))
             table.add_row(
                 round_cell,
                 f'[bold {color}]{label}[/]',
-                f'[bold white]{text}[/]',
+                message,
             )
         else:
             table.add_row(
                 round_cell,
                 f'[{color}]{label}[/]',
-                text,
+                message,
             )
     return table
 
