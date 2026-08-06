@@ -73,7 +73,7 @@ _LLM_NAMES: dict[LLMProvider, str] = {
     LLMProvider.OPENAI: 'OpenAI',
     LLMProvider.ANTHROPIC: 'Anthropic',
     LLMProvider.GEMINI: 'Gemini',
-    LLMProvider.OLLAMA: 'Ollama (local)',
+    LLMProvider.OLLAMA: 'Ollama',
 }
 
 _LLM_DEFAULTS: dict[LLMProvider, str] = {
