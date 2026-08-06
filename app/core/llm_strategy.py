@@ -35,6 +35,12 @@ logger = logging.getLogger(__name__)
 _TYPE_MAP = {t.value: t for t in Typing}
 
 
+@tool
+def _ping() -> str:
+    """Return 'pong' to verify tool calling."""
+    return 'pong'
+
+
 class BattleDecision(BaseModel):
     """Structured output from the LLM agent for a single turn decision."""
 
@@ -130,12 +136,7 @@ def verify_llm_connection(
                 "Expected 'PONG'."
             )
 
-        @tool
-        def ping() -> str:
-            """Return 'pong' to verify tool calling."""
-            return "pong"
-
-        agent = create_agent(llm, [ping])
+        agent = create_agent(llm, [_ping])
         result = agent.invoke({
             "messages": [
                 HumanMessage(content="Call the ping tool and tell me the result."),
