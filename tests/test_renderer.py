@@ -2,14 +2,26 @@ from __future__ import annotations
 
 import io
 import re
+from unittest import mock
 
 from rich.console import Console
 from rich.text import Text
 
 from app.core.battle_system import TurnBattleSystem
 from app.core.player import Trainer
+from app.schemas.effect_status import EffectStatus
 from app.schemas.typing import Typing
-from app.ui.renderer import _render_log, _render_moves, _style_log_entry
+from app.ui.renderer import (
+    _fmt_type,
+    _render_log,
+    _render_moves,
+    _status_pad,
+    _style_log_entry,
+    render_core,
+    render_team,
+    status_tag,
+    team_dots,
+)
 
 from .conftest import make_move, make_pkmn
 
@@ -232,3 +244,159 @@ class TestRenderMoves:
         out = _render_plain(_render_moves(p))
 
         assert 'WATER' in out
+
+
+class TestFmtType:
+    def test_single_type(self):
+        assert _fmt_type([Typing.NORMAL]) == '[#A8A878]NORMAL[/]'
+
+    def test_dual_type(self):
+        assert _fmt_type([Typing.FIRE, Typing.WATER]) == '[#F08030]FIRE[/] [#6890F0]WATER[/]'
+
+
+class TestStatusTag:
+    def test_fainted(self):
+        assert status_tag(make_pkmn(fainted=True)) == '[red]FAINTED[/]'
+
+    def test_ok_when_no_status(self):
+        assert status_tag(make_pkmn()) == '[green]OK[/]'
+
+    def test_status_colored(self):
+        assert status_tag(make_pkmn(status=EffectStatus.POISON)) == '[magenta]Poison[/]'
+
+    def test_unknown_status_falls_back_white(self):
+        class WeirdStatus(str):
+            def __new__(cls):
+                return str.__new__(cls, 'weird')
+
+            def __init__(self):
+                self.value = 'WEIRD'
+
+        class Stub:
+            fainted = False
+            status = WeirdStatus()
+
+        assert status_tag(Stub()) == '[white]WEIRD[/]'
+
+
+class TestStatusPad:
+    def test_pads_fainted_tag_to_width(self):
+        assert _status_pad(make_pkmn(fainted=True)) == '[red]FAINTED[/]' + ' ' * 8
+
+    def test_pads_ok_tag_to_width(self):
+        assert _status_pad(make_pkmn()) == '[green]OK[/]' + ' ' * 13
+
+    def test_wider_tag_kept_untouched(self):
+        p = make_pkmn(status=EffectStatus.CONFUSION)
+        tag = _status_pad(p)
+        assert tag == '[orange]Confusion[/]' + ' ' * 6
+
+
+class TestTeamDots:
+    def test_alive_none_and_fainted(self):
+        team = [make_pkmn(name='A'), None, make_pkmn(name='C', fainted=True)]
+        assert team_dots(team) == '●○○'
+
+    def test_all_fainted(self):
+        assert team_dots([make_pkmn(fainted=True)] * 3) == '○○○'
+
+
+class TestRenderCore:
+    def _make_bs(self) -> TurnBattleSystem:
+        player = Trainer()
+        ai = Trainer()
+        bs = TurnBattleSystem(player, ai)
+        bs.player.team = [make_pkmn(name='Tentacruel', level=50)] + [None] * 5
+        bs.ai.team = [make_pkmn(name='Vulpix', level=50)] + [None] * 5
+        player.in_battle = bs.player.team[0]
+        ai.in_battle = bs.ai.team[0]
+        bs.player_mon = player.in_battle
+        bs.enemy_mon = ai.in_battle
+        return bs
+
+    def _capture(self, bs: TurnBattleSystem) -> str:
+        buf = io.StringIO()
+        console = Console(file=buf, width=120)
+        with mock.patch('app.ui.renderer.console', console):
+            render_core(bs)
+        return _ANSI_RE.sub('', buf.getvalue())
+
+    def test_renders_enemy_panel(self):
+        bs = self._make_bs()
+        out = self._capture(bs)
+        assert 'Vulpix' in out
+        assert 'Lv50' in out
+        assert 'NORMAL' in out
+        assert '200/200' in out
+        assert 'Team' in out
+
+    def test_renders_player_panel(self):
+        bs = self._make_bs()
+        out = self._capture(bs)
+        assert 'Tentacruel' in out
+        assert 'Player' in out
+
+    def test_challenge_msg_logged_as_field(self):
+        bs = self._make_bs()
+        out = self._capture(bs)
+        assert 'You are challenged by' in out
+
+    def test_regular_player_msg_logged_as_player(self):
+        bs = self._make_bs()
+        bs.player_msg = 'Tentacruel used Hydro Pump!'
+        out = self._capture(bs)
+        assert 'Tentacruel used Hydro Pump!' in out
+
+    def test_renders_battle_log_panel(self):
+        bs = self._make_bs()
+        assert 'Battle Log' in self._capture(bs)
+
+    def test_renders_moves_and_actions(self):
+        bs = self._make_bs()
+        out = self._capture(bs)
+        assert '[1]' in out
+        assert '[5] Team' in out
+        assert '[6] Forfeit' in out
+
+
+class TestRenderTeam:
+    def _make_bs(self) -> TurnBattleSystem:
+        player = Trainer()
+        ai = Trainer()
+        bs = TurnBattleSystem(player, ai)
+        team = [
+            make_pkmn(name='Tentacruel', on_field=True),
+            make_pkmn(name='Vulpix', fainted=True),
+            None, None, None, None,
+        ]
+        bs.player.team = team
+        bs.ai.team = [make_pkmn(name='Pidgey')] + [None] * 5
+        player.in_battle = team[0]
+        ai.in_battle = bs.ai.team[0]
+        return bs
+
+    def _capture(self, bs: TurnBattleSystem) -> str:
+        buf = io.StringIO()
+        console = Console(file=buf, width=120)
+        with mock.patch('app.ui.renderer.console', console):
+            render_team(bs)
+        return _ANSI_RE.sub('', buf.getvalue())
+
+    def test_renders_team_overview(self):
+        bs = self._make_bs()
+        out = self._capture(bs)
+        assert 'Your Team' in out
+        assert 'Tentacruel' in out
+        assert 'Vulpix' in out
+        assert 'FAINTED' in out
+        assert 'NORMAL' in out
+        assert 'Choose (1-6)' in out
+
+    def test_on_field_marked(self):
+        bs = self._make_bs()
+        assert '←' in self._capture(bs)
+
+    def test_skips_empty_slots(self):
+        bs = self._make_bs()
+        out = self._capture(bs)
+        assert 'Pidgey' not in out
