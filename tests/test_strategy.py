@@ -10,6 +10,7 @@ from app.core.strategy import (
     RandomStrategy,
 )
 from app.schemas.action import Action, ActionKind
+from app.schemas.effect_status import EffectStatus
 from app.schemas.typing import Typing
 from tests.conftest import make_move, make_pkmn
 
@@ -67,6 +68,9 @@ class TestRandomStrategy:
             chosen.extend(moves)
             return moves[0]
         trainer.in_battle.moves = [make_move(name='Tackle'), None, None, None]
+        for p in trainer.team[1:]:
+            if p is not None:
+                p.fainted = True
         monkeypatch.setattr('app.core.strategy.random.choice', mock_choice)
         monkeypatch.setattr('app.core.strategy.try_atk_status', lambda a, m, d: 'msg')
         s = RandomStrategy()
@@ -75,6 +79,9 @@ class TestRandomStrategy:
 
     def test_get_choice_all_none_struggles(self, trainer, rival, monkeypatch):
         trainer.in_battle.moves = [None, None, None, None]
+        for p in trainer.team[1:]:
+            if p is not None:
+                p.fainted = True
         monkeypatch.setattr('app.core.strategy.struggle_no_pp', lambda a, d: 'struggle!')
         s = RandomStrategy()
         assert s.get_choice(trainer, rival) == 'struggle!'
@@ -83,7 +90,10 @@ class TestRandomStrategy:
         m1 = make_move(name='Tackle')
         m2 = make_move(name='Growl')
         trainer.in_battle.moves = [m1, m2, None, None]
-        monkeypatch.setattr('app.core.strategy.random.choice', lambda moves: m2)
+        monkeypatch.setattr(
+            'app.core.strategy.random.choice',
+            lambda moves: next(a for a in moves if a.target.name == 'Growl'),
+        )
         monkeypatch.setattr('app.core.strategy.try_atk_status', lambda a, m, d: 'msg')
         s = RandomStrategy()
         s.get_choice(trainer, rival)
@@ -194,6 +204,9 @@ class TestMinimaxStrategy:
         move = make_move(name='Tackle', power=40)
         trainer.in_battle.moves = [move, None, None, None]
         trainer.in_battle.name = 'TestMon'
+        for p in trainer.team[1:]:
+            if p is not None:
+                p.fainted = True
         def fake_try_atk(a, m, d):
             return f'{a.name} used {m.name}!'
         monkeypatch.setattr('app.core.strategy.try_atk_status', fake_try_atk)
@@ -204,6 +217,9 @@ class TestMinimaxStrategy:
     def test_get_choice_no_pp(self, trainer, rival, monkeypatch):
         move = make_move(name='Tackle', power=40, pp=0)
         trainer.in_battle.moves = [move, None, None, None]
+        for p in trainer.team[1:]:
+            if p is not None:
+                p.fainted = True
         monkeypatch.setattr('app.core.strategy.struggle_no_pp', lambda a, d: f'{a.name} struggled!')
         s = MinimaxStrategy()
         result = s.get_choice(trainer, rival)
@@ -212,6 +228,9 @@ class TestMinimaxStrategy:
     def test_get_choice_stores_last_move(self, trainer, rival, monkeypatch):
         move = make_move(name='Tackle', power=40)
         trainer.in_battle.moves = [move, None, None, None]
+        for p in trainer.team[1:]:
+            if p is not None:
+                p.fainted = True
         monkeypatch.setattr('app.core.strategy.try_atk_status', lambda a, m, d: '')
         s = MinimaxStrategy()
         s.get_choice(trainer, rival)
@@ -290,6 +309,9 @@ class TestAlphaBetaStrategy:
     def test_get_choice_no_pp(self, trainer, rival, monkeypatch):
         move = make_move(name='Tackle', power=40, pp=0)
         trainer.in_battle.moves = [move, None, None, None]
+        for p in trainer.team[1:]:
+            if p is not None:
+                p.fainted = True
         monkeypatch.setattr('app.core.strategy.struggle_no_pp', lambda a, d: 'struggle')
         s = AlphaBetaStrategy()
         result = s.get_choice(trainer, rival)
@@ -401,6 +423,13 @@ class TestExpectiMaxStrategy:
         s = ExpectiMaxStrategy()
         assert s.minimax(1, attack_action, True, trainer, rival) == -s.win_val
 
+    def test_minimizer_no_children_returns_zero(self, trainer, rival):
+        rival.in_battle.moves = [None, None, None, None]
+        move = make_move(name='A')
+        action = Action(kind=ActionKind.ATTACK, user=trainer.in_battle.name, target=move)
+        em = ExpectiMaxStrategy()
+        assert em.minimax(1, action, False, trainer, rival) == 0.0
+
 
 class TestUnifiedSearch:
     @pytest.fixture(autouse=True)
@@ -458,3 +487,96 @@ class TestUnifiedSearch:
         v_base = base.minimax(3, action, True, t, rival)
         assert v_ord == v_base
         assert ordered.nodes_visited <= base.nodes_visited
+
+
+class TestStrategicSwitch:
+    @pytest.fixture(autouse=True)
+    def patch_randint(self, monkeypatch):
+        monkeypatch.setattr('app.core.strategy.random.randint', lambda a, b: 255)
+
+    def test_action_accepts_battle_pokemon_target(self):
+        mon = make_pkmn(name='Bench')
+        action = Action(kind=ActionKind.SWITCH, user='Active', target=mon)
+        assert action.kind == ActionKind.SWITCH
+        assert action.target is mon
+
+    def test_evaluate_switch_healthy_bench_better(self):
+        t = Trainer()
+        current = make_pkmn(name='Current', hp=100, max_hp=200)
+        healthy = make_pkmn(name='Healthy', hp=180, max_hp=200)
+        low = make_pkmn(name='Low', hp=20, max_hp=200)
+        r = Trainer()
+        t.in_battle = current
+        r.in_battle = make_pkmn(name='Riv', hp=200, max_hp=200)
+        s = MinimaxStrategy()
+        act_healthy = Action(kind=ActionKind.SWITCH, user=current.name, target=healthy)
+        act_low = Action(kind=ActionKind.SWITCH, user=current.name, target=low)
+        assert s.evaluate(act_healthy, t, r) > s.evaluate(act_low, t, r)
+
+    def test_evaluate_switch_penalizes_type_disadvantage(self):
+        t = Trainer()
+        current = make_pkmn(name='Current', hp=100, max_hp=200)
+        grass = make_pkmn(name='Grass', hp=100, max_hp=200, typing=[Typing.GRASS])
+        rock = make_pkmn(name='Rock', hp=100, max_hp=200, typing=[Typing.ROCK])
+        r = Trainer()
+        rival = make_pkmn(name='Riv', hp=200, max_hp=200, typing=[Typing.WATER, Typing.FLYING])
+        rival.moves = [make_move(name='Fire', typing=Typing.FIRE), None, None, None]
+        r.in_battle = rival
+        t.in_battle = current
+        s = MinimaxStrategy()
+        act_grass = Action(kind=ActionKind.SWITCH, user=current.name, target=grass)
+        act_rock = Action(kind=ActionKind.SWITCH, user=current.name, target=rock)
+        # Fire hits Grass for 2x, Rock for 0.5x → Grass target is penalised
+        assert s.evaluate(act_rock, t, r) > s.evaluate(act_grass, t, r)
+
+    def test_get_choice_switches_when_beneficial(self, monkeypatch):
+        monkeypatch.setattr('app.core.strategy.calculate_damage', lambda a, m, d: (10, ''))
+        t = Trainer()
+        current = make_pkmn(name='Current', hp=5, max_hp=200, status=EffectStatus.BURN)
+        current.moves = [make_move(name='Tackle', power=40), None, None, None]
+        bench = make_pkmn(name='Bench1', hp=190, max_hp=200, typing=[Typing.GRASS])
+        bench.moves = [make_move(name='Ember', typing=Typing.FIRE, power=60), None, None, None]
+        t.team = [current, bench, None, None, None, None]
+        t.in_battle = current
+        t.set_turn(True)
+
+        r = Trainer()
+        rival = make_pkmn(name='Riv', hp=60, max_hp=200, typing=[Typing.GRASS])
+        r.team = [rival, None, None, None, None, None]
+        r.in_battle = rival
+
+        s = MinimaxStrategy()
+        result = s.get_choice(t, r)
+        assert 'sent out Bench1' in result
+        assert t.in_battle is bench
+        assert s.last_move is None
+        assert s.choices == ['switch:Bench1']
+
+    def test_get_choice_prefers_attack_when_switch_is_bad(self, monkeypatch):
+        monkeypatch.setattr('app.core.strategy.calculate_damage', lambda a, m, d: (50, ''))
+        t = Trainer()
+        current = make_pkmn(name='Current', hp=200, max_hp=200)
+        current.moves = [make_move(name='Tackle', power=40), None, None, None]
+        bench = make_pkmn(name='Bench1', hp=10, max_hp=200)
+        t.team = [current, bench, None, None, None, None]
+        t.in_battle = current
+        t.set_turn(True)
+
+        r = Trainer()
+        r.team = [make_pkmn(name='Riv', hp=200, max_hp=200), None, None, None, None, None]
+        r.in_battle = r.team[0]
+
+        s = MinimaxStrategy()
+        result = s.get_choice(t, r)
+        assert 'used Tackle' in result
+        assert t.in_battle is current
+
+    def test_random_can_switch(self, trainer, rival, monkeypatch):
+        monkeypatch.setattr(
+            'app.core.strategy.random.choice',
+            lambda actions: next(a for a in actions if a.kind == ActionKind.SWITCH),
+        )
+        s = RandomStrategy()
+        result = s.get_choice(trainer, rival)
+        assert 'sent out' in result
+        assert s.choices[0].startswith('switch:')

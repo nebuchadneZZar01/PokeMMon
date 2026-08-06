@@ -493,7 +493,6 @@ class TestLLMChoiceFallbacks:
         active.biding = True
         active.bide_damage = 40
         active.bide_turns = 2
-        active.trapped = True
         active.trapped_turns = 1
         bench = make_pkmn(name='Bench')
         trainer.team = [active, bench, None, None, None, None]
@@ -511,6 +510,20 @@ class TestLLMChoiceFallbacks:
         assert active.atk_mult == 0
         assert trainer.in_battle is bench
         assert bench.on_field is True
+
+    def test_execute_switch_trapped_falls_back(self, monkeypatch):
+        strategy = _new_strategy(monkeypatch)
+        trainer = Trainer()
+        active = make_pkmn(name='Atk')
+        active.trapped = True
+        bench = make_pkmn(name='Bench')
+        trainer.team = [active, bench, None, None, None, None]
+        trainer.in_battle = active
+        decision = BattleDecision(action='switch', slot=1, reasoning='x')
+        msg = strategy._execute_switch(trainer, _rival(), decision)
+        assert isinstance(msg, str)
+        assert trainer.in_battle is active
+        assert trainer.in_battle.trapped is True
 
     def test_fallback_attack_no_choices_struggles(self, monkeypatch):
         strategy = _new_strategy(monkeypatch)

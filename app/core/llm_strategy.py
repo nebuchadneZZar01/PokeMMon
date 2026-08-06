@@ -20,7 +20,6 @@ from pydantic import BaseModel, Field
 import app.data.pkmn_types as pkmn_types
 from app.core.combat import (
     calculate_damage,
-    reset_on_switch_out,
     struggle_no_pp,
     try_atk_status,
 )
@@ -481,18 +480,12 @@ class LLMAgentStrategy:
         """
         slot = decision.slot if decision.slot is not None else 0
         target = trainer.team[slot]
-        if target is None or target.fainted or target is trainer.in_battle:
+        if (target is None or target.fainted or target is trainer.in_battle
+                or trainer.in_battle.trapped):
             return self._fallback_attack(trainer, rival)
 
-        old = trainer.in_battle
-        reset_on_switch_out(old)
-
-        trainer.in_battle = target
-        target.on_field = True
-
         self.choices.append(f'switch:{target.name}')
-
-        return f'{trainer.name} sent out {target.name}! Go, {target.name}!'
+        return trainer.strategic_switch(target)
 
     def _fallback_attack(self, trainer: Trainer, rival: Trainer) -> str:
         """Fallback to the first valid move if the LLM decision is invalid.

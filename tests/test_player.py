@@ -272,3 +272,51 @@ class TestGetPossibleChoicesBiding:
         t.in_battle.moves = [make_move(name='Tackle'), None, None, None]
         t.in_battle.biding = True
         assert t.get_possible_choices() == []
+
+
+class TestGetPossibleSwitchChoices:
+    def test_lists_alive_bench_excluding_active(self):
+        t = Trainer()
+        active = make_pkmn(name='Active')
+        bench1 = make_pkmn(name='Bench1')
+        bench2 = make_pkmn(name='Bench2', fainted=True)
+        t.team = [active, bench1, bench2, None, None, None]
+        t.in_battle = active
+        choices = t.get_possible_switch_choices()
+        assert len(choices) == 1
+        assert choices[0].kind == ActionKind.SWITCH
+        assert choices[0].target is bench1
+
+    def test_blocked_while_biding(self):
+        t = Trainer()
+        active = make_pkmn(name='Active')
+        t.team = [active, make_pkmn(name='Bench1'), None, None, None, None]
+        t.in_battle = active
+        t.in_battle.biding = True
+        assert t.get_possible_switch_choices() == []
+
+    def test_blocked_while_trapped(self):
+        t = Trainer()
+        active = make_pkmn(name='Active')
+        t.team = [active, make_pkmn(name='Bench1'), None, None, None, None]
+        t.in_battle = active
+        t.in_battle.trapped = True
+        assert t.get_possible_switch_choices() == []
+
+
+class TestStrategicSwitch:
+    def test_swaps_active_and_resets_outgoing(self):
+        t = Trainer()
+        active = make_pkmn(name='Active', atk_mult=3, substitute=True, on_field=True)
+        active.biding = True
+        bench = make_pkmn(name='Bench1')
+        t.team = [active, bench, None, None, None, None]
+        t.in_battle = active
+        msg = t.strategic_switch(bench)
+        assert 'sent out Bench1' in msg
+        assert t.in_battle is bench
+        assert bench.on_field is True
+        assert active.on_field is False
+        assert active.biding is False
+        assert active.substitute is False
+        assert active.atk_mult == 0

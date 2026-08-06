@@ -6,13 +6,21 @@ from typing import TYPE_CHECKING
 
 import app.data.pkmn_types as pkmn_types
 from app.core.combat import calculate_damage, struggle_no_pp, try_atk_status
-from app.schemas.action import Action
+from app.schemas.action import Action, ActionKind
+from app.schemas.battle_pokemon import BattlePokemon
 from app.schemas.move import Move
 
 if TYPE_CHECKING:
     from app.core.player import Trainer
 
 logger = logging.getLogger(__name__)
+
+_HP_WEIGHT = 0.35
+_DAMAGE_WEIGHT = 0.35
+_STATUS_WEIGHT = 0.25
+_STAT_WEIGHT = 0.05
+_FAINT_WEIGHT = 100
+_SWITCH_COST = 100
 
 
 class RandomStrategy:
@@ -22,21 +30,41 @@ class RandomStrategy:
         self.choices: list[str] = []
 
     def get_choice(self, trainer: Trainer, rival: Trainer) -> str | None:
-        """Pick and execute a random move.
+        """Pick and execute a random action (move or switch).
 
         Returns:
-            str | None: Battle message from the executed move.
+            str | None: Battle message from the executed action.
         """
         if trainer.is_turn():
             trainer.verify_fainted_switch()
-            available = [m for m in trainer.in_battle.moves if m is not None]
-            if not available:
+            moves = [m for m in trainer.in_battle.moves if m is not None]
+            attacks = [
+                Action(kind=ActionKind.ATTACK, user=trainer.in_battle.name, target=m)
+                for m in moves
+            ]
+            choices = attacks + trainer.get_possible_switch_choices()
+            if not choices:
                 return struggle_no_pp(trainer.in_battle, rival.in_battle)
-            move = random.choice(available)
-            logger.info(move.name)
-            self.choices.append(move.name)
-            return try_atk_status(trainer.in_battle, move, rival.in_battle)
+            chosen = random.choice(choices)
+            return self._execute(trainer, rival, chosen)
         return None
+
+    def _execute(self, trainer: Trainer, rival: Trainer, action: Action) -> str:
+        """Execute a chosen action (attack or switch) and return its message.
+
+        Returns:
+            str: Battle message from the executed action.
+        """
+        if action.kind == ActionKind.SWITCH:
+            target = action.target
+            assert isinstance(target, BattlePokemon)
+            self.choices.append(f'switch:{target.name}')
+            return trainer.strategic_switch(target)
+        move = action.target
+        assert isinstance(move, Move)
+        logger.info(move.name)
+        self.choices.append(move.name)
+        return try_atk_status(trainer.in_battle, move, rival.in_battle)
 
 
 class _BaseMinimaxStrategy:
@@ -58,42 +86,64 @@ class _BaseMinimaxStrategy:
         self.nodes_visited = 0
 
     def get_choice(self, trainer: Trainer, rival: Trainer) -> str | None:
-        """Pick the best move using minimax search.
+        """Pick the best action (move or switch) for the active Pokémon.
+
+        Root actions are scored directly via ``evaluate``; the chosen action
+        is then executed.
 
         Returns:
-            str | None: Battle message from the chosen move.
+            str | None: Battle message from the chosen action.
         """
         if not trainer.is_turn():
             return None
         trainer.verify_fainted_switch()
         self.nodes_visited = 0
-        choices = trainer.get_possible_choices()
+        choices = trainer.get_possible_choices() + trainer.get_possible_switch_choices()
         trainer.print_choices(choices)
         if not choices:
             return struggle_no_pp(trainer.in_battle, rival.in_battle)
         best = choices[0]
         best_val = -float('inf')
         for action in choices:
-            val = self.minimax(self.max_play_depth, action, True, trainer, rival)
+            val = self.evaluate(action, trainer, rival)
             if val >= best_val:
                 best = action
                 best_val = val
-        best_move = best.target
-        assert isinstance(best_move, Move)
-        self.last_move = best_move
-        logger.info('Chosen move: %s', best_move.name)
-        self.choices.append(best_move.name)
-        return try_atk_status(trainer.in_battle, best_move, rival.in_battle)
+        return self._execute(trainer, rival, best)
+
+    def _execute(self, trainer: Trainer, rival: Trainer, action: Action) -> str:
+        """Execute a chosen action (attack or switch) and return its message.
+
+        Returns:
+            str: Battle message from the executed action.
+        """
+        if action.kind == ActionKind.SWITCH:
+            target = action.target
+            assert isinstance(target, BattlePokemon)
+            self.last_move = None
+            self.choices.append(f'switch:{target.name}')
+            return trainer.strategic_switch(target)
+        move = action.target
+        assert isinstance(move, Move)
+        self.last_move = move
+        logger.info('Chosen move: %s', move.name)
+        self.choices.append(move.name)
+        return try_atk_status(trainer.in_battle, move, rival.in_battle)
 
     def evaluate(self, action: Action, trainer: Trainer, rival: Trainer) -> float:
         """Evaluate the board state after a hypothetical action.
 
-        Considers HP difference, damage potential, stat stages, status effects,
-        fainted count, type effectiveness, and move repetition penalty.
+        Attack actions consider HP difference, damage potential, stat stages,
+        status effects, fainted count, type effectiveness, and move repetition
+        penalty. Switch actions are scored on HP gain, status escape, lost stat
+        stages, and type matchups.
 
         Returns:
             float: Heuristic value (higher = better for the evaluating player).
         """
+        if action.kind == ActionKind.SWITCH:
+            return self._evaluate_switch(action, trainer, rival)
+
         s_hp = sum(p.hp for p in trainer.team if p is not None)
         s_hp_full = sum(p.max_hp for p in trainer.team if p is not None)
         s_stats = sum(
@@ -135,8 +185,10 @@ class _BaseMinimaxStrategy:
         logger.debug('possible move: %s', move.name)
         logger.debug('possible damage: %s', move_damage)
 
-        value = (hp_diff * .35 + move_damage * .35 + status_diff * 100 * .25
-                 + stats_diff * 100 * .05 + fainted_diff * 100)
+        value = (hp_diff * _HP_WEIGHT + move_damage * _DAMAGE_WEIGHT
+                 + status_diff * 100 * _STATUS_WEIGHT
+                 + stats_diff * 100 * _STAT_WEIGHT
+                 + fainted_diff * _FAINT_WEIGHT)
 
         if action.target == self.last_move:
             value -= 100
@@ -156,6 +208,51 @@ class _BaseMinimaxStrategy:
 
         logger.debug('value: %s\n', value)
         return value
+
+    def _evaluate_switch(
+        self, action: Action, trainer: Trainer, rival: Trainer,
+    ) -> float:
+        """Score a hypothetical switch to a bench Pokémon.
+
+        Rewards switching to a healthier bench member, escaping status, and a
+        favourable type matchup; penalises losing raised stat stages, being
+        vulnerable to the opponent, and the wasted turn.
+
+        Returns:
+            float: Heuristic value of the switch.
+        """
+        target = action.target
+        assert isinstance(target, BattlePokemon)
+        current = trainer.in_battle
+        hp_gain = (target.hp / target.max_hp) - (current.hp / current.max_hp)
+        status_escape = 100.0 if current.status is not None else 0.0
+        stage_loss = (current.atk_mult + current.def_mult + current.sp_atk_mult
+                      + current.sp_def_mult + current.speed_mult) * 100
+
+        def_eff = 1.0
+        for m in rival.in_battle.moves:
+            if m is None:
+                continue
+            eff = pkmn_types.get_effectiveness(m.typing, target.typing[0])
+            if len(target.typing) == 2:
+                eff *= pkmn_types.get_effectiveness(m.typing, target.typing[1])
+            def_eff = min(def_eff, eff)
+
+        atk_eff = 0.0
+        for m in target.moves:
+            if m is None:
+                continue
+            eff = pkmn_types.get_effectiveness(m.typing, rival.in_battle.typing[0])
+            if len(rival.in_battle.typing) == 2:
+                eff *= pkmn_types.get_effectiveness(m.typing, rival.in_battle.typing[1])
+            atk_eff = max(atk_eff, eff)
+
+        return (hp_gain * 100 * _HP_WEIGHT
+                + status_escape * _STATUS_WEIGHT
+                - stage_loss * _STAT_WEIGHT
+                + (atk_eff - 1.0) * 100
+                + (1.0 - def_eff) * 100
+                - _SWITCH_COST)
 
 
     def minimax(self, depth: int, action: Action, is_maximizing: bool,

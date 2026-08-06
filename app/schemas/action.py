@@ -2,8 +2,8 @@ from enum import StrEnum
 
 from pydantic import BaseModel
 
+from app.schemas.battle_pokemon import BattlePokemon
 from app.schemas.move import Move
-from app.schemas.pokemon import Pokemon
 
 
 class ActionKind(StrEnum):
@@ -18,9 +18,10 @@ class Action(BaseModel):
     Attributes:
         kind (ActionKind): Whether this is an attack or switch action.
         user (str): The name of the Pokémon performing the action.
-        target (Pokemon | Move): The move to use (if attacking) or the Pokémon to switch to.
+        target (BattlePokemon | Move): The move to use (if attacking) or
+            the Pokémon to switch to.
     """
 
     kind: ActionKind
     user: str
-    target: Pokemon | Move
+    target: BattlePokemon | Move
