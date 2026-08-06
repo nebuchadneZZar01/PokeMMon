@@ -83,6 +83,46 @@ class TestGetPlayerGetAi:
         assert bs.get_ai() is trainers[1]
 
 
+class TestLogMessage:
+    def test_starts_empty(self, bs):
+        assert bs.message_log == []
+
+    def test_appends_with_round(self, bs):
+        bs.log_message('player', 'Pikachu used Thunderbolt!')
+        assert bs.message_log == [(1, 'player', 'Pikachu used Thunderbolt!')]
+
+    def test_round_advances_with_turns(self, bs):
+        bs.switch_turn()
+        bs.log_message('ai', 'Gyarados used Hydro Pump!')
+        assert bs.message_log == [(1, 'ai', 'Gyarados used Hydro Pump!')]
+        bs.switch_turn()
+        bs.log_message('player', 'Pikachu used Thunderbolt!')
+        assert bs.message_log[0][0] == 1
+        assert bs.message_log[1][0] == 2
+
+    def test_skips_empty(self, bs):
+        bs.log_message('player', '')
+        bs.log_message('player', '   ')
+        assert bs.message_log == []
+
+    def test_skips_duplicate_adjacent(self, bs):
+        bs.log_message('player', 'Go, Pikachu!')
+        bs.log_message('player', 'Go, Pikachu!')
+        assert len(bs.message_log) == 1
+
+    def test_same_text_different_side_logged(self, bs):
+        bs.log_message('player', 'It is confused!')
+        bs.log_message('ai', 'It is confused!')
+        assert len(bs.message_log) == 2
+
+    def test_caps_at_thirty(self, bs):
+        for i in range(40):
+            bs.log_message('player', f'msg {i}')
+        assert len(bs.message_log) == 30
+        assert bs.message_log[0][2] == 'msg 10'
+        assert bs.message_log[-1][2] == 'msg 39'
+
+
 class TestHandleTurns:
     def test_player_game_over_sets_lose_msg(self, bs):
         bs.player.team = [make_pkmn(fainted=True) for _ in range(6)]
