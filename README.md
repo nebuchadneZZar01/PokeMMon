@@ -20,46 +20,33 @@ These are the possible **strategies** that could move the rival agent:
 - _MiniMax_ (vanilla);
 - _Alpha-Beta pruning MiniMax_;
 - _ExpectiMax_;
-- _LLM-based_ (**OpenAI**, **Gemini**, **Anthropic**, **Ollama**).
+- _LLM agent_ (LangGraph-based, via OpenAI/Anthropic/Gemini/Ollama).
 
 ## Usage
 ### Dependencies
 - Python >=3.14
-- [`uv`](https://docs.astral.sh/uv/) package manager (or `pip`)
+- [`uv`](https://docs.astral.sh/uv/) package manager
 
 ### Installation
 After ensuring that Python >=3.14 is available and `uv` is installed:
 ```
 uv sync
 ```
-Or with pip:
-```
-pip install pydantic rich
-```
 Then, make a `git clone` of this repository or simply download it.
 
 ### Execution
 Run the `main.py` script via `uv` (or activate the venv and use `python` directly):
-
 ```
-uv run python main.py -h
-
-usage: main.py [-h] [--ai AI] [--depth DEPTH] [--log LOG]
-
-Pokémon battle simulator — terminal edition.                                            
-
-options:
-  -h, --help     show this help message and exit
-  --ai AI        AI algorithm [random/minimax/alphabeta/expectimax] (default: minimax)
-  --depth DEPTH  max search depth (default: 7)
-  --log LOG      show AI battle logs [info/debug]
+uv run python main.py
 ```
-Example using *Alpha-Beta pruning* algorithm (default depth), with AI logs:
-```
-uv run python main.py --ai alphabeta --log info
-```
-During the execution of the game you choose actions via keyboard: 1-4 to attack, 5 to open team view, 6 to forfeit.
-The AI logs can be enabled via `--log {info,debug}` to explain the algorithm(s) computations.
+The game starts with an interactive **battle setup menu** where you choose:
+- the **AI algorithm** (`random`/`minimax`/`alphabeta`/`expectimax`/`llm`, default `minimax`);
+- the **search depth** for the minimax-based algorithms (default 7);
+- the **LLM provider**, model and API key/URL when `llm` is selected;
+- the **log level** (`silent`/`info`/`debug`, default `silent`).
+
+Once the battle starts, you choose actions via keyboard: 1-4 to attack, 5 to open team view, 6 to forfeit.
+The AI logs can be enabled by picking `info` or `debug` in the setup menu to explain the algorithm computations.
 
 - **Battle view** (default):
   ```
@@ -115,7 +102,9 @@ The AI logs can be enabled via `--log {info,debug}` to explain the algorithm(s) 
 
 ```bash
 uv run ruff check          # lint
+uv run mypy app main.py    # type check
 uv run pytest tests/ -v    # run tests
+uv run pytest --cov=app    # test coverage (fail_under 90)
 ```
 
 ## Known bugs
