@@ -52,6 +52,10 @@ class _BaseMinimaxStrategy:
         self.max_play_depth = max_play_depth
         self.win_val = 1000000
         self.last_move: Move | None = None
+        self.prune = False
+        self.average_opponent = False
+        self.ordered = False
+        self.nodes_visited = 0
 
     def get_choice(self, trainer: Trainer, rival: Trainer) -> str | None:
         """Pick the best move using minimax search.
@@ -62,6 +66,7 @@ class _BaseMinimaxStrategy:
         if not trainer.is_turn():
             return None
         trainer.verify_fainted_switch()
+        self.nodes_visited = 0
         choices = trainer.get_possible_choices()
         trainer.print_choices(choices)
         if not choices:
@@ -154,8 +159,13 @@ class _BaseMinimaxStrategy:
 
 
     def minimax(self, depth: int, action: Action, is_maximizing: bool,
-                trainer: Trainer, rival: Trainer) -> float:
-        """Recursive minimax search for the best action.
+                trainer: Trainer, rival: Trainer,
+                alpha: float = -float('inf'), beta: float = float('inf')) -> float:
+        """Recursive game-tree search.
+
+        Single implementation shared by minimax, alpha-beta, and expectimax;
+        the subclass chooses its behaviour through the ``prune``,
+        ``average_opponent`` and ``ordered`` flags.
 
         Args:
             depth (int): Remaining search depth.
@@ -163,10 +173,13 @@ class _BaseMinimaxStrategy:
             is_maximizing (bool): True if this is a maximizing node.
             trainer (Trainer): The current player.
             rival (Trainer): The opponent.
+            alpha (float): Best value the maximizing player can force so far.
+            beta (float): Best value the minimizing player can force so far.
 
         Returns:
             float: The evaluated value of this node.
         """
+        self.nodes_visited += 1
         if trainer.game_over_lose() or rival.game_over_lose():
             return -self.win_val if trainer.game_over_lose() else self.win_val
         if depth == 0:
@@ -174,14 +187,38 @@ class _BaseMinimaxStrategy:
 
         if is_maximizing:
             best_val = -float('inf')
-            for move in trainer.get_possible_choices():
-                val = self.minimax(depth - 1, move, False, trainer, rival)
+            children = trainer.get_possible_choices()
+            if self.ordered:
+                children = sorted(
+                    children,
+                    key=lambda a: self.evaluate(a, trainer, rival),
+                    reverse=True,
+                )
+            for move in children:
+                val = self.minimax(depth - 1, move, False, trainer, rival, alpha, beta)
                 best_val = max(best_val, val)
+                alpha = max(alpha, best_val)
+                if self.prune and beta <= alpha:
+                    break
             return best_val
+
+        children = rival.get_possible_choices()
+        if self.average_opponent:
+            n = len(children)
+            if n == 0:
+                return 0.0
+            total = 0.0
+            for move in children:
+                val = self.minimax(depth - 1, move, True, trainer, rival, alpha, beta)
+                total += val / n
+            return total
         best_val = float('inf')
-        for move in rival.get_possible_choices():
-            val = self.minimax(depth - 1, move, True, trainer, rival)
+        for move in children:
+            val = self.minimax(depth - 1, move, True, trainer, rival, alpha, beta)
             best_val = min(best_val, val)
+            beta = min(beta, best_val)
+            if self.prune and beta <= alpha:
+                break
         return best_val
 
 
@@ -200,81 +237,18 @@ class AlphaBetaStrategy(_BaseMinimaxStrategy):
             max_play_depth (int): Maximum search depth (default 7).
         """
         super().__init__(max_play_depth)
-
-    def minimax(self, depth: int, action: Action, is_maximizing: bool,
-                trainer: Trainer, rival: Trainer,
-                alpha: float = -float('inf'), beta: float = float('inf')) -> float:
-        """Recursive minimax with alpha-beta pruning.
-
-        Args:
-            depth (int): Remaining search depth.
-            action: The current action being evaluated.
-            is_maximizing (bool): True if this is a maximizing node.
-            trainer (Trainer): The current player.
-            rival (Trainer): The opponent.
-            alpha (float): Best value the maximizing player can force so far.
-            beta (float): Best value the minimizing player can force so far.
-
-        Returns:
-            float: The evaluated value of this node.
-        """
-        logger.debug('\n--- NODE DEPTH: %s ---', depth)
-        if trainer.game_over_lose() or rival.game_over_lose():
-            return -self.win_val if trainer.game_over_lose() else self.win_val
-        if depth == 0:
-            return self.evaluate(action, trainer, rival)
-
-        if is_maximizing:
-            best_val = -float('inf')
-            for move in trainer.get_possible_choices():
-                val = self.minimax(depth - 1, move, False, trainer, rival, alpha, beta)
-                best_val = max(best_val, val)
-                alpha = max(alpha, best_val)
-                if beta <= alpha:
-                    break
-            return best_val
-        best_val = float('inf')
-        for move in rival.get_possible_choices():
-            val = self.minimax(depth - 1, move, True, trainer, rival, alpha, beta)
-            best_val = min(best_val, val)
-            beta = min(beta, best_val)
-            if beta <= alpha:
-                break
-        return best_val
+        self.prune = True
+        self.ordered = True
 
 
 class ExpectiMaxStrategy(_BaseMinimaxStrategy):
     """Expectimax strategy — averages opponent moves instead of minimizing."""
 
-    def minimax(self, depth: int, action: Action, is_maximizing: bool,
-                trainer: Trainer, rival: Trainer) -> float:
-        """Recursive expectimax search (averages over stochastic opponent choices).
+    def __init__(self, max_play_depth: int = 7) -> None:
+        """Initialize the expectimax strategy.
 
         Args:
-            depth (int): Remaining search depth.
-            action: The current action being evaluated.
-            is_maximizing (bool): True if this is a maximizing node.
-            trainer (Trainer): The current player.
-            rival (Trainer): The opponent.
-
-        Returns:
-            float: The evaluated value of this node.
+            max_play_depth (int): Maximum search depth (default 7).
         """
-        logger.debug('\n--- NODE DEPTH: %s ---', depth)
-        if trainer.game_over_lose() or rival.game_over_lose():
-            return -self.win_val if trainer.game_over_lose() else self.win_val
-        if depth == 0:
-            return self.evaluate(action, trainer, rival)
-
-        if is_maximizing:
-            best_val = -float('inf')
-            for move in trainer.get_possible_choices():
-                val = self.minimax(depth - 1, move, False, trainer, rival)
-                best_val = max(best_val, val)
-            return best_val
-        total = 0.0
-        n = len(rival.get_possible_choices())
-        for move in rival.get_possible_choices():
-            val = self.minimax(depth - 1, move, True, trainer, rival)
-            total += val / n
-        return total
+        super().__init__(max_play_depth)
+        self.average_opponent = True

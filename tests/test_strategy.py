@@ -324,6 +324,7 @@ class TestAlphaBetaStrategy:
 
     def test_maximizer_prunes_when_child_meets_beta(self):
         s = AlphaBetaStrategy()
+        s.ordered = False
         calls = []
         vals = {'t1': 10.0, 't2': 1.0, 'r1': 0.0, 'r2': 0.0}
         s.evaluate = self._recording_evaluate(calls, vals)
@@ -339,6 +340,7 @@ class TestAlphaBetaStrategy:
 
     def test_minimizer_prunes_when_child_meets_alpha(self):
         s = AlphaBetaStrategy()
+        s.ordered = False
         calls = []
         vals = {'r1': 5.0, 'r2': 9.0, 't1': 0.0, 't2': 0.0}
         s.evaluate = self._recording_evaluate(calls, vals)
@@ -398,3 +400,61 @@ class TestExpectiMaxStrategy:
         trainer.in_battle = trainer.team[0]
         s = ExpectiMaxStrategy()
         assert s.minimax(1, attack_action, True, trainer, rival) == -s.win_val
+
+
+class TestUnifiedSearch:
+    @pytest.fixture(autouse=True)
+    def patch_randint(self, monkeypatch):
+        monkeypatch.setattr('app.core.strategy.random.randint', lambda a, b: 255)
+
+    @staticmethod
+    def _two_move_trainer():
+        t = Trainer()
+        t.set_turn(True)
+        t.in_battle.moves = [
+            make_move(name='High', power=80),
+            make_move(name='Low', power=10),
+            None,
+            None,
+        ]
+        return t
+
+    def test_strategies_agree_at_maximizer_depth_1(self, rival, monkeypatch):
+        monkeypatch.setattr('app.core.strategy.calculate_damage', lambda a, m, d: (50, ''))
+        t = self._two_move_trainer()
+        action = Action(kind=ActionKind.ATTACK, user=t.in_battle.name, target=t.in_battle.moves[0])
+        values = [
+            MinimaxStrategy().minimax(1, action, True, t, rival),
+            AlphaBetaStrategy().minimax(1, action, True, t, rival),
+            ExpectiMaxStrategy().minimax(1, action, True, t, rival),
+        ]
+        assert values[0] == values[1] == values[2]
+
+    def test_strategies_agree_at_minimizer_depth_1(self, rival, monkeypatch):
+        monkeypatch.setattr('app.core.strategy.calculate_damage', lambda a, m, d: (50, ''))
+        t = self._two_move_trainer()
+        action = Action(kind=ActionKind.ATTACK, user=t.in_battle.name, target=t.in_battle.moves[0])
+        mm = MinimaxStrategy().minimax(1, action, False, t, rival)
+        ab = AlphaBetaStrategy().minimax(1, action, False, t, rival)
+        assert mm == ab
+
+    def test_nodes_visited_increments(self, trainer, rival, monkeypatch):
+        monkeypatch.setattr('app.core.strategy.calculate_damage', lambda a, m, d: (50, ''))
+        move = make_move(name='Tackle', power=40)
+        trainer.in_battle.moves = [move, None, None, None]
+        action = Action(kind=ActionKind.ATTACK, user=trainer.in_battle.name, target=move)
+        s = MinimaxStrategy()
+        s.minimax(2, action, True, trainer, rival)
+        assert s.nodes_visited > 0
+
+    def test_alphabeta_ordering_same_value_no_more_nodes(self, rival, monkeypatch):
+        monkeypatch.setattr('app.core.strategy.calculate_damage', lambda a, m, d: (50, ''))
+        t = self._two_move_trainer()
+        action = Action(kind=ActionKind.ATTACK, user=t.in_battle.name, target=t.in_battle.moves[0])
+        ordered = AlphaBetaStrategy()
+        base = AlphaBetaStrategy()
+        base.ordered = False
+        v_ord = ordered.minimax(3, action, True, t, rival)
+        v_base = base.minimax(3, action, True, t, rival)
+        assert v_ord == v_base
+        assert ordered.nodes_visited <= base.nodes_visited
