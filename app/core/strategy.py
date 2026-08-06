@@ -35,6 +35,7 @@ class RandomStrategy:
             logger.info(move.name)
             self.choices.append(move.name)
             return try_atk_status(trainer.in_battle, move, rival.in_battle)
+        return None
 
 
 class _BaseMinimaxStrategy:

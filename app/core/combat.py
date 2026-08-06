@@ -787,7 +787,7 @@ def atk(attacker: BattlePokemon, move: Move, defender: BattlePokemon) -> str:
             elif move.name in ('Seismic Toss', 'Night Shade'):
                 damage = attacker.level
             elif move.name == 'Super Fang':
-                damage = defender.hp // 2
+                damage = int(defender.hp) // 2
             elif move.name == 'Psywave':
                 damage = random.randint(1, int(1.5 * attacker.level))
 

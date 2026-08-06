@@ -102,7 +102,7 @@ def list_ollama_models(base_uri: str) -> tuple[bool, list[str] | str]:
     """
     try:
         resp = ollama.Client(host=base_uri).list()
-        models = [m.model for m in resp.models]
+        models = [m.model for m in resp.models if m.model is not None]
         return True, models
     except Exception as exc:
         return False, f'{type(exc).__name__}: {exc}'

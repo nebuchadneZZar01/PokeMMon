@@ -148,7 +148,7 @@ def _render_log(bs: TurnBattleSystem) -> Table:
     Returns:
         Table: Rich table of recent battle log entries, newest highlighted.
     """
-    keep = []
+    keep: list[tuple[int, str, str]] = []
     lines_used = 0
     for entry in reversed(bs.message_log):
         lines = entry[2].count('\n') + 1

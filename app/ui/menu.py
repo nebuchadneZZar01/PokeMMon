@@ -153,11 +153,11 @@ def _step_llm_provider() -> LLMProvider:
         console.print('[red]Invalid choice. Enter 1-4.[/]')
 
 
-def _step_llm_model(provider: LLMProvider) -> str | None:
+def _step_llm_model(provider: LLMProvider) -> str:
     """Prompt the user for a model name with a provider-specific default.
 
     Returns:
-        str | None: The model name, or None to use default.
+        str: The model name (defaults when the user enters nothing).
     """
     default = _LLM_DEFAULTS[provider]
     console.print()

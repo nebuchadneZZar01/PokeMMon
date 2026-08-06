@@ -45,6 +45,7 @@ def exec_switch(bs: TurnBattleSystem, idx: int) -> None:
     """
     player = bs.player
     target = player.team[idx]
+    assert target is not None
     old = player.in_battle
     old.substitute = False
     reset_stats_mult(old)

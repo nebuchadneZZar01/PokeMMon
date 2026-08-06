@@ -26,6 +26,13 @@ class Trainer:
         in_battle (BattlePokemon): The currently active Pokémon.
     """
 
+    team: list[BattlePokemon | None]
+    token: bool | None
+    is_ai: bool
+    _strategy: AIStrategy | None
+    _name: str | None
+    in_battle: BattlePokemon
+
     def __init__(self, strategy: AIStrategy | None = None, name: str | None = None):
         """Initialize a trainer with a random team of 6 Pokémon.
 
@@ -43,8 +50,10 @@ class Trainer:
             tmp = random.choice(pokedex)
             self.team[i] = BattlePokemon.from_template(tmp)
 
-        self.in_battle = self.team[0]
-        self.team[0].on_field = True
+        first = self.team[0]
+        assert first is not None
+        self.in_battle = first
+        first.on_field = True
 
     @property
     def name(self) -> str:
@@ -62,6 +71,7 @@ class Trainer:
     def get_team_with_stats(self):
         """Log stats and moves for all team members."""
         for pkmn in self.team:
+            assert pkmn is not None
             pkmn.get_stats()
             pkmn.get_moves()
 
@@ -72,6 +82,7 @@ class Trainer:
         else:
             logger.info('AI Team:')
         for pkmn in self.team:
+            assert pkmn is not None
             logger.info('- %s \t%s', pkmn.name, [t.value for t in pkmn.typing])
 
     def get_possible_choices(self):

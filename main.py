@@ -51,9 +51,10 @@ def main():
                 'openai': 'OpenAI', 'anthropic': 'Anthropic',
                 'gemini': 'Gemini', 'ollama': 'Ollama',
             }
-            pn = _provider_names.get(config.llm_provider.value, config.llm_provider.value)
+            prov = config.llm_provider.value if config.llm_provider else 'openai'
+            pn = _provider_names.get(prov, prov)
             ai = Trainer(LLMAgentStrategy(
-                provider=config.llm_provider.value if config.llm_provider else 'openai',
+                provider=prov,
                 model=config.llm_model,
                 api_key=config.llm_api_key,
                 base_uri=config.llm_base_uri,

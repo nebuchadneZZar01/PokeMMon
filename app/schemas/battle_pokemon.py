@@ -85,7 +85,7 @@ class BattlePokemon(BaseModel):
     name: str
     typing: list[Typing] = []
     level: int = 100
-    moves: list[Move | None] = Field(default_factory=lambda: [None] * 4)
+    moves: list[Move | None] = Field(default_factory=lambda: [None] * 4)  # type: ignore[arg-type]
 
     status: EffectStatus | None = None
     temp_status: EffectStatus | None = None
@@ -174,7 +174,7 @@ class BattlePokemon(BaseModel):
         available = list(moves.COMPAT_MOVES.get(self.name, []))
         random.shuffle(available)
 
-        chosen = []
+        chosen: list[Move] = []
         for move in available:
             if len(chosen) >= 4:
                 break

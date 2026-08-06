@@ -27,6 +27,14 @@ select = ["E", "F", "I", "N", "UP", "B", "SIM"]
 "__init__.py" = ["F401"]
 "app/data/*" = ["E501"]
 
+[tool.mypy]
+python_version = "3.14"
+plugins = ["pydantic.mypy"]
+ignore_missing_imports = true
+warn_unused_ignores = true
+check_untyped_defs = true
+strict_optional = true
+
 [tool.coverage.run]
 omit = [
     "app/schemas/strategy.py",
@@ -37,6 +45,7 @@ fail_under = 90
 
 [dependency-groups]
 dev = [
+    "mypy>=2.3.0",
     "pytest>=9.0.3",
     "pytest-cov>=6.0.0",
     "ruff>=0.15.15",
