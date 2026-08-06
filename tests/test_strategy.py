@@ -137,6 +137,38 @@ class TestMinimaxEvaluate:
         v = s.evaluate(action, trainer, rival)
         assert v < 0
 
+    def test_effectiveness_2x_bonus(self, monkeypatch):
+        monkeypatch.setattr('app.core.strategy.calculate_damage', lambda a, m, d: (50, ''))
+        t, r = self._balanced_trainers()
+        r.in_battle.typing = [Typing.GRASS]
+        move = make_move(typing=Typing.FIRE, power=40)
+        action = Action(kind=ActionKind.ATTACK, user=t.in_battle.name, target=move)
+        s = MinimaxStrategy()
+        v = s.evaluate(action, t, r)
+        assert v == pytest.approx(67.5)
+
+    def test_effectiveness_half_penalty(self, monkeypatch):
+        monkeypatch.setattr('app.core.strategy.calculate_damage', lambda a, m, d: (50, ''))
+        t, r = self._balanced_trainers()
+        r.in_battle.typing = [Typing.ROCK]
+        move = make_move(typing=Typing.NORMAL, power=40)
+        action = Action(kind=ActionKind.ATTACK, user=t.in_battle.name, target=move)
+        s = MinimaxStrategy()
+        v = s.evaluate(action, t, r)
+        assert v == pytest.approx(-32.5)
+
+    @staticmethod
+    def _balanced_trainers():
+        t = Trainer()
+        r = Trainer()
+        t.team = [make_pkmn(name='A', hp=200, max_hp=200)]
+        r.team = [make_pkmn(name='B', hp=200, max_hp=200)]
+        t.team[0].on_field = True
+        r.team[0].on_field = True
+        t.in_battle = t.team[0]
+        r.in_battle = r.team[0]
+        return t, r
+
 
 class TestMinimaxStrategy:
     @pytest.fixture(autouse=True)
@@ -252,6 +284,59 @@ class TestAlphaBetaStrategy:
         s = AlphaBetaStrategy()
         assert s.max_play_depth == 7
 
+    def test_terminal_win(self, attack_action, trainer, rival):
+        rival.team = [make_pkmn(fainted=True) for _ in range(6)]
+        rival.in_battle = rival.team[0]
+        s = AlphaBetaStrategy()
+        assert s.minimax(1, attack_action, True, trainer, rival) == s.win_val
+
+    def test_terminal_lose(self, attack_action, trainer, rival):
+        trainer.team = [make_pkmn(fainted=True) for _ in range(6)]
+        trainer.in_battle = trainer.team[0]
+        s = AlphaBetaStrategy()
+        assert s.minimax(1, attack_action, True, trainer, rival) == -s.win_val
+
+    @staticmethod
+    def _mk_action(name: str) -> Action:
+        return Action(kind=ActionKind.ATTACK, user='X', target=make_move(name=name))
+
+    @staticmethod
+    def _recording_evaluate(calls: list[str], vals: dict[str, float]):
+        def evaluate(action, tr, rv):
+            calls.append(action.target.name)
+            return vals[action.target.name]
+        return evaluate
+
+    def test_maximizer_prunes_when_child_meets_beta(self):
+        s = AlphaBetaStrategy()
+        calls = []
+        vals = {'t1': 10.0, 't2': 1.0, 'r1': 0.0, 'r2': 0.0}
+        s.evaluate = self._recording_evaluate(calls, vals)
+        t = Trainer()
+        r = Trainer()
+        t.get_possible_choices = lambda: [self._mk_action('t1'), self._mk_action('t2')]
+        r.get_possible_choices = lambda: [self._mk_action('r1'), self._mk_action('r2')]
+
+        val = s.minimax(2, self._mk_action('root'), False, t, r)
+
+        assert val == 10.0
+        assert calls == ['t1', 't2', 't1']
+
+    def test_minimizer_prunes_when_child_meets_alpha(self):
+        s = AlphaBetaStrategy()
+        calls = []
+        vals = {'r1': 5.0, 'r2': 9.0, 't1': 0.0, 't2': 0.0}
+        s.evaluate = self._recording_evaluate(calls, vals)
+        t = Trainer()
+        r = Trainer()
+        t.get_possible_choices = lambda: [self._mk_action('t1'), self._mk_action('t2')]
+        r.get_possible_choices = lambda: [self._mk_action('r1'), self._mk_action('r2')]
+
+        val = s.minimax(2, self._mk_action('root'), True, t, r)
+
+        assert val == 5.0
+        assert calls == ['r1', 'r2', 'r1']
+
 
 class TestExpectiMaxStrategy:
     @pytest.fixture(autouse=True)
@@ -286,3 +371,15 @@ class TestExpectiMaxStrategy:
         em = ExpectiMaxStrategy()
         val = em.minimax(1, action, False, trainer, rival)
         assert isinstance(val, (int, float))
+
+    def test_terminal_win(self, attack_action, trainer, rival):
+        rival.team = [make_pkmn(fainted=True) for _ in range(6)]
+        rival.in_battle = rival.team[0]
+        s = ExpectiMaxStrategy()
+        assert s.minimax(1, attack_action, True, trainer, rival) == s.win_val
+
+    def test_terminal_lose(self, attack_action, trainer, rival):
+        trainer.team = [make_pkmn(fainted=True) for _ in range(6)]
+        trainer.in_battle = trainer.team[0]
+        s = ExpectiMaxStrategy()
+        assert s.minimax(1, attack_action, True, trainer, rival) == -s.win_val
