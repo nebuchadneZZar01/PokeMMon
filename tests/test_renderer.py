@@ -8,9 +8,10 @@ from rich.text import Text
 
 from app.core.battle_system import TurnBattleSystem
 from app.core.player import Trainer
-from app.ui.renderer import _render_log, _style_log_entry
+from app.schemas.typing import Typing
+from app.ui.renderer import _render_log, _render_moves, _style_log_entry
 
-from .conftest import make_pkmn
+from .conftest import make_move, make_pkmn
 
 _ANSI_RE = re.compile(r'\x1b\[[0-9;]*m')
 
@@ -164,3 +165,70 @@ class TestRenderLog:
         out = _render_plain(_render_log(bs))
 
         assert 'Vulpix used Rage!' in out
+
+
+class TestRenderMoves:
+    def test_renders_moves_with_slot_type_pp(self):
+        p = make_pkmn(
+            name='Blastoise',
+            moves=[
+                make_move(name='Hydro Pump', typing=Typing.WATER),
+                make_move(name='Tackle'),
+                None,
+                None,
+            ],
+        )
+
+        out = _render_plain(_render_moves(p))
+
+        assert '[1]' in out
+        assert '[2]' in out
+        assert 'Hydro Pump' in out
+        assert 'WATER' in out
+        assert 'NORMAL' in out
+        assert '/35' in out
+
+    def test_no_pp_move_flagged(self):
+        p = make_pkmn(
+            name='Blastoise', moves=[make_move(name='Hydro Pump', pp=0), None, None, None],
+        )
+
+        out = _render_plain(_render_moves(p))
+
+        assert '(no PP)' in out
+        assert '0/0' in out
+
+    def test_skips_empty_slots(self):
+        p = make_pkmn(
+            name='Blastoise',
+            moves=[
+                make_move(name='Hydro Pump', typing=Typing.WATER),
+                None, None, None,
+            ],
+        )
+
+        out = _render_plain(_render_moves(p))
+
+        assert '[1]' in out
+        assert '[2]' not in out
+
+    def test_no_literal_broken_tag(self):
+        p = make_pkmn(
+            name='Blastoise',
+            moves=[make_move(name='Hydro Pump'), None, None, None],
+        )
+
+        out = _render_plain(_render_moves(p))
+
+        assert '[/{c}]' not in out
+        assert '[/' not in out
+
+    def test_type_colored(self):
+        p = make_pkmn(
+            name='Blastoise',
+            moves=[make_move(name='Hydro Pump', typing=Typing.WATER), None, None, None],
+        )
+
+        out = _render_plain(_render_moves(p))
+
+        assert 'WATER' in out

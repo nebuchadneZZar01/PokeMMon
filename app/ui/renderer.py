@@ -184,6 +184,40 @@ def _render_log(bs: TurnBattleSystem) -> Table:
     return table
 
 
+def _render_moves(p) -> Table:
+    """Build the move selection menu as a rich table.
+
+    Each move is a row: colored slot number, name, colored type, and PP.
+    Moves with no PP left are dimmed and flagged in red.
+
+    Args:
+        p (BattlePokemon): The active Pokémon whose moves to show.
+
+    Returns:
+        Table: Rich table of selectable moves.
+    """
+    table = Table(box=None, show_header=False, padding=(0, 2))
+    table.add_column(width=3, justify='right')
+    table.add_column()
+    table.add_column(width=8)
+    table.add_column(justify='right')
+    for i, move in enumerate(p.moves):
+        if move is None:
+            continue
+        t = move.typing.value.upper()
+        c = TYPE_COLORS.get(t, 'white')
+        out = move.pp <= 0
+        slot = Text(f'[{i + 1}]', style=f'dim {c}' if out else c)
+        name = Text(move.name, style='dim' if out else 'bold')
+        type_cell = Text(t, style=c)
+        pp_text = f'{move.pp:>2}/{move.max_pp}'
+        pp = Text(pp_text, style='red' if out else '')
+        if out:
+            pp.append(' (no PP)', style='red')
+        table.add_row(slot, name, type_cell, pp)
+    return table
+
+
 def render_core(bs: TurnBattleSystem) -> None:
     """Render the main battle screen: opponent, player, messages, and moves."""
     p = bs.player.in_battle
@@ -215,16 +249,7 @@ def render_core(bs: TurnBattleSystem) -> None:
 
     console.print(Panel(_render_log(bs), title=' Battle Log ', border_style='bold'))
 
-    for i, move in enumerate(p.moves):
-        if move is None:
-            continue
-        t = move.typing.value.upper()
-        c = TYPE_COLORS.get(t, 'white')
-        suffix = ' [red](no PP)[/]' if move.pp <= 0 else ''
-        console.print(
-            f'  [{c}][{i + 1}][/] {move.name:<16} - [{c}]{t:<6}[/{c}]'
-            f' {move.pp:>2}/{move.max_pp}{suffix}'
-        )
+    console.print(_render_moves(p))
 
     console.print()
     console.print('  [5] Team     [6] Forfeit')
