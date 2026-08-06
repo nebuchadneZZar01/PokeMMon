@@ -1318,3 +1318,257 @@ class TestExplosionSelfDestructMessage:
         assert 'used Self-Destruct' in msg
         assert atk_pkmn.fainted
         assert df_pkmn.fainted
+
+
+class TestHit:
+    def test_reduces_hp(self):
+        df = make_pkmn(name='Df', hp=200)
+        assert hit(df, 50) == ''
+        assert df.hp == 150
+        assert not df.fainted
+
+    def test_faints_at_zero(self):
+        df = make_pkmn(name='Df', hp=200)
+        hit(df, 200)
+        assert df.hp == 0
+        assert df.fainted
+
+    def test_does_not_drop_below_zero(self):
+        df = make_pkmn(name='Df', hp=200)
+        hit(df, 300)
+        assert df.hp == 0
+        assert df.fainted
+
+    def test_records_last_damage_taken(self):
+        atk = make_pkmn(name='Atk')
+        df = make_pkmn(name='Df', hp=200)
+        hit(df, 40, atk)
+        assert df.last_damage_taken == 40
+
+    def test_no_last_damage_for_status_damage(self):
+        atk = make_pkmn(name='Atk')
+        df = make_pkmn(name='Df', hp=200)
+        hit(df, 40, atk, status=True)
+        assert df.last_damage_taken == 0
+
+    def test_no_last_damage_without_attacker(self):
+        df = make_pkmn(name='Df', hp=200)
+        hit(df, 40)
+        assert df.last_damage_taken == 0
+
+    def test_bide_accumulates_normal_damage(self):
+        atk = make_pkmn(name='Atk')
+        df = make_pkmn(name='Df', hp=200, biding=True)
+        hit(df, 30, atk)
+        assert df.bide_damage == 30
+
+    def test_bide_ignores_status_damage(self):
+        atk = make_pkmn(name='Atk')
+        df = make_pkmn(name='Df', hp=200, biding=True)
+        hit(df, 30, atk, status=True)
+        assert df.bide_damage == 0
+
+    def test_substitute_absorbs_damage(self):
+        atk = make_pkmn(name='Atk')
+        df = make_pkmn(name='Df', hp=200, substitute=True)
+        msg = hit(df, 100, atk)
+        assert df.hp == 200
+        assert df.sub_damage == 100
+        assert 'substitute was hit' in msg
+
+    def test_substitute_vanishes_at_threshold(self):
+        atk = make_pkmn(name='Atk')
+        df = make_pkmn(name='Df', hp=200, substitute=True, sub_damage=200)
+        msg = hit(df, 100, atk)
+        assert not df.substitute
+        assert df.sub_damage == 0
+        assert 'vanished' in msg
+
+    def test_substitute_status_damage_bypasses_doll(self):
+        atk = make_pkmn(name='Atk')
+        df = make_pkmn(name='Df', hp=200, substitute=True)
+        hit(df, 50, atk, status=True)
+        assert df.hp == 150
+        assert df.sub_damage == 0
+
+
+class TestTryAtkStatus:
+    def test_recharging_blocks_and_resets(self):
+        atk = make_pkmn(name='Atk', recharging=True)
+        df = make_pkmn(name='Df')
+        msg = try_atk_status(atk, make_move(), df)
+        assert msg == 'Atk must recharge!'
+        assert not atk.recharging
+
+    def test_bide_stores_energy(self):
+        atk = make_pkmn(name='Atk', biding=True)
+        df = make_pkmn(name='Df', hp=200)
+        msg = try_atk_status(atk, make_move(), df)
+        assert msg == 'Atk is storing energy!'
+        assert atk.bide_turns == 1
+
+    def test_bide_releases_double_damage(self):
+        atk = make_pkmn(name='Atk', biding=True, bide_turns=1, bide_damage=50)
+        df = make_pkmn(name='Df', hp=200)
+        msg = try_atk_status(atk, make_move(), df)
+        assert msg == 'Atk unleashed energy!'
+        assert df.hp == 100
+        assert not atk.biding
+
+    def test_bide_release_faints_defender(self):
+        atk = make_pkmn(name='Atk', biding=True, bide_turns=1, bide_damage=60)
+        df = make_pkmn(name='Df', hp=100)
+        msg = try_atk_status(atk, make_move(), df)
+        assert 'fainted' in msg
+        assert df.fainted
+
+    def test_trapped_random_block(self, monkeypatch):
+        atk = make_pkmn(name='Atk', trapped=True)
+        df = make_pkmn(name='Df')
+        monkeypatch.setattr(random, 'random', lambda: 0.2)
+        msg = try_atk_status(atk, make_move(), df)
+        assert msg == 'Atk is trapped and can\'t move!'
+
+    def test_trapped_random_acts(self, monkeypatch):
+        atk = make_pkmn(name='Atk', trapped=True)
+        df = make_pkmn(name='Df', hp=200)
+        monkeypatch.setattr(random, 'random', lambda: 0.9)
+        monkeypatch.setattr(random, 'randint', lambda a, b: 255)
+        try_atk_status(atk, make_move(), df)
+        assert df.hp < 200
+
+    def test_paralyzed_can_still_act(self, monkeypatch):
+        atk = make_pkmn(name='Atk', status=EffectStatus.PARALYZE)
+        df = make_pkmn(name='Df', hp=200)
+        monkeypatch.setattr(random, 'random', lambda: 0.1)
+        monkeypatch.setattr(random, 'randint', lambda a, b: 255)
+        try_atk_status(atk, make_move(), df)
+        assert df.hp < 200
+
+    def test_paralyzed_full_paralysis(self, monkeypatch):
+        atk = make_pkmn(name='Atk', status=EffectStatus.PARALYZE)
+        df = make_pkmn(name='Df')
+        monkeypatch.setattr(random, 'random', lambda: 0.9)
+        msg = try_atk_status(atk, make_move(), df)
+        assert msg == 'Atk is paralyzed and can\'t move!'
+
+    def test_sleep_still_sleeping(self, monkeypatch):
+        atk = make_pkmn(name='Atk', status=EffectStatus.SLEEP, sleeping_turns=0)
+        df = make_pkmn(name='Df')
+        monkeypatch.setattr(random, 'random', lambda: 0.9)
+        msg = try_atk_status(atk, make_move(), df)
+        assert msg == 'Atk is sleeping...'
+        assert atk.sleeping_turns == 1
+
+    def test_sleep_wakes_and_attacks(self, monkeypatch):
+        atk = make_pkmn(name='Atk', status=EffectStatus.SLEEP, sleeping_turns=0)
+        df = make_pkmn(name='Df', hp=200)
+        monkeypatch.setattr(random, 'random', lambda: 0.1)
+        monkeypatch.setattr(random, 'randint', lambda a, b: 255)
+        msg = try_atk_status(atk, make_move(), df)
+        assert atk.status is None
+        assert 'woke up' in msg
+        assert df.hp < 200
+
+    def test_sleep_forced_wake_after_seven_turns(self, monkeypatch):
+        atk = make_pkmn(name='Atk', status=EffectStatus.SLEEP, sleeping_turns=7)
+        df = make_pkmn(name='Df', hp=200)
+        monkeypatch.setattr(random, 'randint', lambda a, b: 255)
+        msg = try_atk_status(atk, make_move(), df)
+        assert atk.status is None
+        assert 'woke up' in msg
+
+    def test_freeze_thaws(self, monkeypatch):
+        atk = make_pkmn(name='Atk', status=EffectStatus.FREEZE)
+        df = make_pkmn(name='Df', hp=200)
+        monkeypatch.setattr(random, 'random', lambda: 0.0)
+        monkeypatch.setattr(random, 'randint', lambda a, b: 255)
+        msg = try_atk_status(atk, make_move(), df)
+        assert atk.status is None
+        assert 'thawed' in msg
+
+    def test_freeze_stays_frozen(self, monkeypatch):
+        atk = make_pkmn(name='Atk', status=EffectStatus.FREEZE)
+        df = make_pkmn(name='Df')
+        monkeypatch.setattr(random, 'random', lambda: 0.9)
+        msg = try_atk_status(atk, make_move(), df)
+        assert msg == 'Atk is frozen solid!'
+
+    def test_burn_acts(self, monkeypatch):
+        atk = make_pkmn(name='Atk', status=EffectStatus.BURN)
+        df = make_pkmn(name='Df', hp=200)
+        monkeypatch.setattr(random, 'randint', lambda a, b: 255)
+        try_atk_status(atk, make_move(), df)
+        assert df.hp < 200
+
+    def test_clean_attack(self, monkeypatch):
+        atk = make_pkmn(name='Atk', status=None)
+        df = make_pkmn(name='Df', hp=200)
+        monkeypatch.setattr(random, 'randint', lambda a, b: 255)
+        try_atk_status(atk, make_move(), df)
+        assert df.hp < 200
+
+
+class TestMoveHandlersExtended:
+    def test_transform_copies_target(self):
+        atk = make_pkmn(name='A', typing=[Typing.NORMAL])
+        df = make_pkmn(
+            name='B', typing=[Typing.FIRE],
+            attack=100, defense=80, sp_atk=70, sp_def=60, speed=90,
+            moves=[make_move(name='Ember', pp=25), None, None, None],
+        )
+        msg = MOVE_HANDLERS['Transform'](atk, df)
+        assert atk.transformed
+        assert atk.typing == [Typing.FIRE]
+        assert atk.attack == 100
+        assert atk.moves[0].name == 'Ember'
+        assert atk.moves[0].pp == 12
+        assert 'transforms into B' in msg
+
+    def test_conversion_acquires_target_typing(self):
+        atk = make_pkmn(name='A', typing=[Typing.NORMAL])
+        df = make_pkmn(name='B', typing=[Typing.WATER, Typing.ICE])
+        msg = MOVE_HANDLERS['Conversion'](atk, df)
+        assert atk.typing == [Typing.WATER, Typing.ICE]
+        assert 'assumes' in msg
+
+    def test_mist_sets_flag(self):
+        atk = make_pkmn(name='A')
+        df = make_pkmn(name='B')
+        msg = MOVE_HANDLERS['Mist'](atk, df)
+        assert atk.mist
+        assert 'shrouded in Mist' in msg
+
+    def test_mist_twice(self):
+        atk = make_pkmn(name='A', mist=True)
+        df = make_pkmn(name='B')
+        msg = MOVE_HANDLERS['Mist'](atk, df)
+        assert 'already a Mist' in msg
+
+    def test_growth_raises_spatk_spdef(self):
+        atk = make_pkmn(name='A', sp_atk_mult=0, sp_def_mult=0)
+        df = make_pkmn(name='B')
+        MOVE_HANDLERS['Growth'](atk, df)
+        assert atk.sp_atk_mult == 1
+        assert atk.sp_def_mult == 1
+
+    def test_mimic_copies_enemy_move(self, monkeypatch):
+        monkeypatch.setattr(random, 'randint', lambda a, b: 255)
+        enemy_move = make_move(name='Tackle', power=40)
+        atk_pkmn = make_pkmn(name='Attacker', attack=50)
+        df_pkmn = make_pkmn(
+            name='Defender', hp=200, defense=50,
+            moves=[enemy_move, None, None, None],
+        )
+        monkeypatch.setattr(random, 'choice', lambda seq: enemy_move)
+        msg = MOVE_HANDLERS['Mimic'](atk_pkmn, df_pkmn)
+        assert df_pkmn.hp < 200
+        assert 'copies one of Defender' in msg
+
+    def test_mimic_cannot_copy_itself(self, monkeypatch):
+        enemy_move = make_move(name='Mimic')
+        atk_pkmn = make_pkmn(name='Attacker')
+        df_pkmn = make_pkmn(name='Defender', moves=[enemy_move, None, None, None])
+        monkeypatch.setattr(random, 'choice', lambda seq: enemy_move)
+        msg = MOVE_HANDLERS['Mimic'](atk_pkmn, df_pkmn)
+        assert 'failed' in msg
