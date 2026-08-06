@@ -5,6 +5,7 @@ import uuid
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Annotated, Literal, TypedDict
 
+import ollama
 from langchain.agents import create_agent
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import BaseMessage, HumanMessage
@@ -82,6 +83,25 @@ Choose the best action. Output your decision using the provided structured respo
 '''
 
 
+def list_ollama_models(base_uri: str) -> tuple[bool, list[str] | str]:
+    """List available models from an Ollama server via its API.
+
+    Args:
+        base_uri (str): Ollama server base URL (e.g. 'http://localhost:11434').
+
+    Returns:
+        tuple[bool, list[str] | str]: (True, model names) on success,
+            (False, error message) if the server is unreachable or the
+            request failed.
+    """
+    try:
+        resp = ollama.Client(host=base_uri).list()
+        models = [m.model for m in resp.models]
+        return True, models
+    except Exception as exc:
+        return False, f'{type(exc).__name__}: {exc}'
+
+
 def verify_llm_connection(
     provider: str,
     model: str | None = None,
@@ -111,11 +131,11 @@ def verify_llm_connection(
             )
 
         @tool
-        def _ping() -> str:
+        def ping() -> str:
             """Return 'pong' to verify tool calling."""
             return "pong"
 
-        agent = create_agent(llm, [_ping])
+        agent = create_agent(llm, [ping])
         result = agent.invoke({
             "messages": [
                 HumanMessage(content="Call the ping tool and tell me the result."),

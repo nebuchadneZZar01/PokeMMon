@@ -176,6 +176,64 @@ def _step_llm_base_uri() -> str:
     return raw.strip() or 'http://localhost:11434'
 
 
+def _step_ollama_models(base_uri: str) -> str:
+    """Discover available models via the Ollama API and let the user pick one.
+
+    Falls back to manual model entry when the server is unreachable or has
+    no models installed.
+
+    Returns:
+        str: The selected (or manually entered) model name.
+    """
+    from app.core.llm_strategy import list_ollama_models
+
+    while True:
+        with console.status(f'[yellow]Interrogating Ollama at {base_uri}...[/]'):
+            ok, result = list_ollama_models(base_uri)
+
+        if not ok:
+            console.print(Panel(
+                f'✗ Ollama server unreachable.\n{result}\n\n'
+                '1) Retry\n'
+                '2) Change URL\n'
+                '3) Manual model entry',
+                title=' Ollama Discovery ', border_style='red',
+            ))
+            raw = Prompt.ask('Choice', default='1')
+            if raw == '1':
+                continue
+            if raw == '2':
+                base_uri = _step_llm_base_uri()
+                continue
+            if raw == '3':
+                return _step_llm_model(LLMProvider.OLLAMA)
+
+        if not result:
+            console.print(Panel(
+                'No models found on the server.\n'
+                'Pull one first, e.g.: ollama pull llama3.1',
+                title=' Ollama Discovery ', border_style='yellow',
+            ))
+            return _step_llm_model(LLMProvider.OLLAMA)
+
+        lines = [f'Available models on {base_uri}:\n']
+        for i, name in enumerate(result, 1):
+            lines.append(f'  {i}) {name}')
+        lines.append('\n  0) Manual entry')
+        console.print(Panel('\n'.join(lines), border_style='blue', padding=(1, 2)))
+        while True:
+            raw = Prompt.ask('Select model', default='1')
+            if raw == '0':
+                return _step_llm_model(LLMProvider.OLLAMA)
+            try:
+                idx = int(raw)
+                if 1 <= idx <= len(result):
+                    return result[idx - 1]
+            except ValueError:
+                pass
+            console.print('[red]Invalid choice. Enter a number or 0.[/]')
+
+
 def _step_api_key(provider: LLMProvider) -> str | None:
     """Prompt the user for an API key, falling back to environment variable.
 
@@ -230,6 +288,11 @@ def _step_llm_verify(
         note = (
             "\n\nNote: some local models lack tool-calling support.\n"
             "LLM strategy requires tool-capable models."
+        )
+    if provider_str == LLMProvider.OLLAMA.value and model:
+        note += (
+            f"\n\nIf the model doesn't exist, pull it first:\n"
+            f"  ollama pull {model}"
         )
 
     console.print(Panel(
@@ -323,19 +386,23 @@ def run_setup_menu() -> BattleConfig | None:
 
             if ai == AIType.LLM:
                 llm_provider = _step_llm_provider()
-                llm_model = _step_llm_model(llm_provider)
-                if llm_provider != LLMProvider.OLLAMA:
-                    llm_api_key = _step_api_key(llm_provider)
-                else:
+                if llm_provider == LLMProvider.OLLAMA:
                     llm_base_uri = _step_llm_base_uri()
+                    llm_model = _step_ollama_models(llm_base_uri)
+                else:
+                    llm_model = _step_llm_model(llm_provider)
+                    llm_api_key = _step_api_key(llm_provider)
 
                 while True:
                     result = _step_llm_verify(
                         llm_provider.value, llm_model, llm_api_key, llm_base_uri,
                     )
                     if result is None:
-                        llm_model = _step_llm_model(llm_provider)
-                        if llm_provider != LLMProvider.OLLAMA:
+                        if llm_provider == LLMProvider.OLLAMA:
+                            llm_base_uri = _step_llm_base_uri()
+                            llm_model = _step_ollama_models(llm_base_uri)
+                        else:
+                            llm_model = _step_llm_model(llm_provider)
                             llm_api_key = _step_api_key(llm_provider)
                         continue
                     break
