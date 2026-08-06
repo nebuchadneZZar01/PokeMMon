@@ -7,6 +7,7 @@ from unittest.mock import patch
 from app.core.combat import (
     CONST_THAW,
     MOVE_HANDLERS,
+    _apply_secondary_effect,
     atk,
     calculate_crit_multiplier,
     calculate_damage,
@@ -18,8 +19,10 @@ from app.core.combat import (
     handle_trapped,
     has_type,
     hit,
+    inc_dec_stat_mult,
     struggle_no_pp,
     try_atk_status,
+    update_battle_stat,
 )
 from app.data import pkmn_types
 from app.schemas.effect_status import EffectStatus
@@ -1572,3 +1575,422 @@ class TestMoveHandlersExtended:
         monkeypatch.setattr(random, 'choice', lambda seq: enemy_move)
         msg = MOVE_HANDLERS['Mimic'](atk_pkmn, df_pkmn)
         assert 'failed' in msg
+
+
+class TestUpdateBattleStatNeg:
+    def test_minus_three(self):
+        assert math.isclose(update_battle_stat(100, -3), 40.0)
+
+    def test_minus_four(self):
+        assert math.isclose(update_battle_stat(100, -4), 33.0)
+
+    def test_minus_five(self):
+        assert math.isclose(update_battle_stat(100, -5), 28.0)
+
+    def test_minus_six(self):
+        assert math.isclose(update_battle_stat(100, -6), 25.0)
+
+
+class TestIncDecStatMultCaps:
+    def test_wont_rise_at_max(self):
+        a = make_pkmn(name='A')
+        a.atk_mult = 6
+        val, msg = inc_dec_stat_mult(a, a, 'atk_mult', increase=True)
+        assert val == 6
+        assert "won't rise anymore" in msg
+
+    def test_wont_drop_at_min(self):
+        a = make_pkmn(name='A')
+        a.def_mult = -6
+        val, msg = inc_dec_stat_mult(a, a, 'def_mult', increase=False)
+        assert val == -6
+        assert "won't drop anymore" in msg
+
+
+class TestHitSubstituteStatus:
+    def test_status_damage_faints_through_substitute(self):
+        df = make_pkmn(name='Df', hp=50, substitute=True)
+        hit(df, 60, None, status=True)
+        assert df.hp == 0
+        assert df.fainted
+
+    def test_status_damage_tracks_bide_and_last_damage(self):
+        df = make_pkmn(name='Df', hp=200, substitute=True, biding=True)
+        atk_p = make_pkmn(name='A')
+        hit(df, 50, atk_p, status=True)
+        assert df.hp == 150
+        assert df.last_damage_taken == 50
+        assert df.bide_damage == 50
+
+
+class TestApplySecondaryEffect:
+    def test_blocked_by_substitute(self):
+        df = make_pkmn(name='Df', substitute=True)
+        assert _apply_secondary_effect(df, EffectStatus.BURN) == ''
+
+    def test_paralyze_reduces_speed(self):
+        df = make_pkmn(name='Df', speed=100)
+        msg = _apply_secondary_effect(df, EffectStatus.PARALYZE)
+        assert df.status == EffectStatus.PARALYZE
+        assert math.isclose(df.speed, 25.0)
+        assert 'paralyzed' in msg
+
+    def test_unknown_effect_returns_empty(self):
+        df = make_pkmn(name='Df')
+        assert _apply_secondary_effect(df, EffectStatus.TOXIC) == ''
+
+
+class TestCounterFaint:
+    def test_counter_faints_defender(self, monkeypatch):
+        atk_p = make_pkmn(name='A', last_damage_taken=60, last_move_was_physical=True)
+        df = make_pkmn(name='B', hp=100, defense=100)
+        monkeypatch.setattr(random, 'randint', lambda a, b: 255)
+        move = make_move(name='Counter', power=0)
+        msg = handle_special_physical_move(atk_p, move, df, 0)
+        assert "countered B" in msg
+        assert 'fainted' in msg
+        assert df.fainted
+
+
+class TestFixedTwoHitSecondary:
+    def test_secondary_effect_applied(self, monkeypatch):
+        atk_p = make_pkmn(name='A')
+        df = make_pkmn(name='B', hp=200)
+        move = make_move(
+            name='Bonemerang', power=50,
+            secondary_effect=SecondaryEffect(chance=100, effect=EffectStatus.PARALYZE),
+        )
+        monkeypatch.setattr(random, 'randint', lambda a, b: 5)
+        msg = handle_special_physical_move(atk_p, move, df, 20)
+        assert 'Hit 2 time(s)' in msg
+        assert df.status == EffectStatus.PARALYZE
+
+
+class TestBoostMoveHandlers:
+    def test_barrier_raises_defense_2(self):
+        a = make_pkmn(name='A', defense=100)
+        b = make_pkmn(name='B')
+        msg = MOVE_HANDLERS['Barrier'](a, b)
+        assert a.def_mult == 2
+        assert math.isclose(a.defense, 200)
+        assert 'way up' in msg
+
+    def test_agility_raises_speed_2(self):
+        a = make_pkmn(name='A', speed=100)
+        MOVE_HANDLERS['Agility'](a, make_pkmn(name='B'))
+        assert a.speed_mult == 2
+        assert math.isclose(a.speed, 200)
+
+    def test_amnesia_raises_both_2(self):
+        a = make_pkmn(name='A', sp_atk=100, sp_def=100)
+        MOVE_HANDLERS['Amnesia'](a, make_pkmn(name='B'))
+        assert a.sp_atk_mult == 2
+        assert a.sp_def_mult == 2
+
+    def test_harden_raises_defense_1(self):
+        a = make_pkmn(name='A', defense=100)
+        MOVE_HANDLERS['Harden'](a, make_pkmn(name='B'))
+        assert a.def_mult == 1
+        assert math.isclose(a.defense, 150)
+
+    def test_double_team_raises_evasion_1(self):
+        a = make_pkmn(name='A', speed=50)
+        MOVE_HANDLERS['Double Team'](a, make_pkmn(name='B'))
+        assert a.ev_mult == 1
+
+
+class TestReduceMoveHandlers:
+    def test_leer_lowers_defense(self):
+        a = make_pkmn(name='A')
+        d = make_pkmn(name='B', defense=100)
+        msg = MOVE_HANDLERS['Leer'](a, d)
+        assert d.def_mult == -1
+        assert math.isclose(d.defense, 66)
+        assert 'went down' in msg
+
+    def test_screech_blocked_by_mist(self):
+        a = make_pkmn(name='A')
+        d = make_pkmn(name='B', mist=True)
+        msg = MOVE_HANDLERS['Screech'](a, d)
+        assert 'Mist prevents' in msg
+
+    def test_string_shot_lowers_speed(self):
+        a = make_pkmn(name='A')
+        d = make_pkmn(name='B', speed=100)
+        MOVE_HANDLERS['String Shot'](a, d)
+        assert d.speed_mult == -1
+        assert math.isclose(d.speed, 66)
+
+    def test_leer_blocked_by_mist(self):
+        a = make_pkmn(name='A')
+        d = make_pkmn(name='B', mist=True)
+        msg = MOVE_HANDLERS['Leer'](a, d)
+        assert 'Mist prevents' in msg
+
+    def test_string_shot_blocked_by_mist(self):
+        a = make_pkmn(name='A')
+        d = make_pkmn(name='B', mist=True)
+        msg = MOVE_HANDLERS['String Shot'](a, d)
+        assert 'Mist prevents' in msg
+
+
+class TestStatusMoveBranches:
+    def test_glare_already_status(self):
+        a = make_pkmn(name='A')
+        d = make_pkmn(name='B', status=EffectStatus.POISON)
+        msg = MOVE_HANDLERS['Glare'](a, d)
+        assert 'nothing happened' in msg
+
+    def test_glare_substitute(self):
+        a = make_pkmn(name='A')
+        d = make_pkmn(name='B', substitute=True)
+        msg = MOVE_HANDLERS['Glare'](a, d)
+        assert 'Substitute prevents' in msg
+
+    def test_hypnosis_substitute(self):
+        a = make_pkmn(name='A')
+        d = make_pkmn(name='B', substitute=True)
+        msg = MOVE_HANDLERS['Hypnosis'](a, d)
+        assert 'Substitute prevents' in msg
+
+    def test_hypnosis_already_status(self):
+        a = make_pkmn(name='A')
+        d = make_pkmn(name='B', status=EffectStatus.BURN)
+        msg = MOVE_HANDLERS['Hypnosis'](a, d)
+        assert 'nothing happened' in msg
+
+    def test_poison_gas_already_status(self):
+        a = make_pkmn(name='A')
+        d = make_pkmn(name='B', status=EffectStatus.BURN)
+        msg = MOVE_HANDLERS['Poison Gas'](a, d)
+        assert 'nothing happened' in msg
+
+    def test_poison_gas_substitute(self):
+        a = make_pkmn(name='A')
+        d = make_pkmn(name='B', substitute=True)
+        msg = MOVE_HANDLERS['Poison Gas'](a, d)
+        assert 'Substitute prevents' in msg
+
+    def test_toxic_already_status(self):
+        a = make_pkmn(name='A')
+        d = make_pkmn(name='B', status=EffectStatus.POISON)
+        msg = MOVE_HANDLERS['Toxic'](a, d)
+        assert 'nothing happened' in msg
+
+    def test_toxic_substitute(self):
+        a = make_pkmn(name='A')
+        d = make_pkmn(name='B', substitute=True)
+        msg = MOVE_HANDLERS['Toxic'](a, d)
+        assert 'Substitute prevents' in msg
+
+
+class TestLeechSeedBranches:
+    def test_seeds_target(self):
+        a = make_pkmn(name='A')
+        d = make_pkmn(name='B')
+        msg = MOVE_HANDLERS['Leech Seed'](a, d)
+        assert d.seeded
+        assert 'was seeded' in msg
+
+    def test_already_seeded(self):
+        a = make_pkmn(name='A')
+        d = make_pkmn(name='B', seeded=True)
+        msg = MOVE_HANDLERS['Leech Seed'](a, d)
+        assert 'already seeded' in msg
+
+    def test_substitute(self):
+        a = make_pkmn(name='A')
+        d = make_pkmn(name='B', substitute=True)
+        msg = MOVE_HANDLERS['Leech Seed'](a, d)
+        assert 'Substitute prevents Leech Seed' in msg
+
+
+class TestLightScreenReflectCaps:
+    def test_light_screen_caps_at_1024(self):
+        a = make_pkmn(name='A', sp_def=600)
+        msg = MOVE_HANDLERS['Light Screen'](a, make_pkmn(name='B'))
+        assert a.sp_def == 1024
+        assert 'protected' in msg
+
+    def test_light_screen_twice(self):
+        a = make_pkmn(name='A', sp_def=100)
+        b = make_pkmn(name='B')
+        MOVE_HANDLERS['Light Screen'](a, b)
+        msg = MOVE_HANDLERS['Light Screen'](a, b)
+        assert 'already covering' in msg
+
+    def test_reflect_twice(self):
+        a = make_pkmn(name='A', defense=100)
+        b = make_pkmn(name='B')
+        MOVE_HANDLERS['Reflect'](a, b)
+        msg = MOVE_HANDLERS['Reflect'](a, b)
+        assert 'already covering' in msg
+
+    def test_reflect_caps_at_1024(self):
+        a = make_pkmn(name='A', defense=600)
+        msg = MOVE_HANDLERS['Reflect'](a, make_pkmn(name='B'))
+        assert a.defense == 1024
+        assert 'gained armor' in msg
+
+
+class TestMimicBranches:
+    def test_copies_enemy_move(self, monkeypatch):
+        a = make_pkmn(name='A')
+        d = make_pkmn(name='B', moves=[make_move(name='Ember', power=40), None, None, None])
+        monkeypatch.setattr(random, 'choice', lambda seq: seq[0])
+        monkeypatch.setattr(random, 'randint', lambda a, b: 255)
+        msg = MOVE_HANDLERS['Mimic'](a, d)
+        assert 'copies one of B' in msg
+
+    def test_no_moves_fails(self, monkeypatch):
+        a = make_pkmn(name='A')
+        d = make_pkmn(name='B', moves=[make_move(), None, None, None])
+        d.moves = [None, None, None, None]
+        monkeypatch.setattr(random, 'choice', lambda seq: seq[0])
+        msg = MOVE_HANDLERS['Mimic'](a, d)
+        assert 'failed' in msg
+
+
+class TestRecoverRestBranches:
+    def test_recover_caps_at_max_hp(self):
+        a = make_pkmn(name='A', hp=180, max_hp=200)
+        msg = MOVE_HANDLERS['Recover'](a, make_pkmn(name='B'))
+        assert a.hp == 200
+        assert 'restores half' in msg
+
+    def test_rest_clears_status_and_temp(self):
+        a = make_pkmn(
+            name='A', hp=100, max_hp=200,
+            status=EffectStatus.BURN, temp_status=EffectStatus.CONFUSION,
+        )
+        msg = MOVE_HANDLERS['Rest'](a, make_pkmn(name='B'))
+        assert a.status == EffectStatus.SLEEP
+        assert a.temp_status is None
+        assert a.hp == 200
+        assert 'regained health' in msg
+
+
+class TestSubstituteBranches:
+    def test_already_protected(self):
+        a = make_pkmn(name='A', substitute=True)
+        msg = MOVE_HANDLERS['Substitute'](a, make_pkmn(name='B'))
+        assert 'already protected' in msg
+
+
+class TestAtkEffectivenessMessages:
+    def test_not_very_effective(self, monkeypatch):
+        a = make_pkmn(name='A', typing=[Typing.NORMAL], attack=50)
+        d = make_pkmn(name='B', typing=[Typing.ROCK], defense=50)
+        move = make_move(name='Tackle', typing=Typing.NORMAL, power=40)
+        monkeypatch.setattr(random, 'randint', lambda a, b: 255)
+        msg = atk(a, move, d)
+        assert "It's not very effective" in msg
+
+
+class TestDrainHealCap:
+    def test_absorb_heal_capped(self, monkeypatch):
+        a = make_pkmn(name='A', hp=199, max_hp=200, sp_atk=50)
+        d = make_pkmn(name='B', hp=200, defense=50, sp_def=50, typing=[Typing.GRASS])
+        move = make_move(
+            name='Absorb', typing=Typing.GRASS, power=40,
+            category=MoveCategory.SPECIAL,
+        )
+        monkeypatch.setattr(random, 'randint', lambda a, b: 255)
+        msg = atk(a, move, d)
+        assert a.hp == 200
+        assert 'Sucked health' in msg
+
+    def test_dream_eater_heal_capped(self, monkeypatch):
+        a = make_pkmn(name='A', hp=199, max_hp=200, sp_atk=50)
+        d = make_pkmn(name='B', hp=200, defense=50, sp_def=50, status=EffectStatus.SLEEP)
+        move = make_move(
+            name='Dream Eater', typing=Typing.PSYCHIC, power=100,
+            category=MoveCategory.SPECIAL,
+        )
+        monkeypatch.setattr(random, 'randint', lambda a, b: 255)
+        msg = atk(a, move, d)
+        assert a.hp == 200
+        assert 'dream was eaten' in msg
+
+
+class TestConfusionSelfHitFaint:
+    def test_self_hit_faints(self, monkeypatch):
+        a = make_pkmn(
+            name='A', hp=1, max_hp=200, attack=50, defense=50,
+            temp_status=EffectStatus.CONFUSION, confused_turns=3,
+        )
+        d = make_pkmn(name='B', hp=200, defense=50)
+        move = make_move(name='Tackle', power=40)
+        monkeypatch.setattr(random, 'randint', lambda a, b: 255)
+        monkeypatch.setattr(random, 'random', lambda: 0.1)
+        msg = atk(a, move, d)
+        assert 'fainted' in msg
+        assert a.fainted
+
+
+class TestStatusMoveDispatch:
+    def test_atk_dispatches_status_move(self, monkeypatch):
+        a = make_pkmn(name='A')
+        d = make_pkmn(name='B', defense=100)
+        move = make_move(name='Growl', power=0, category=MoveCategory.NON_DAMAGING)
+        monkeypatch.setattr(random, 'randint', lambda a, b: 255)
+        msg = atk(a, move, d)
+        assert 'went down' in msg
+        assert d.atk_mult == -1
+
+
+class TestJumpKickMiss:
+    def test_jump_kick_misses_self_damage(self, monkeypatch):
+        a = make_pkmn(name='A', hp=200)
+        d = make_pkmn(name='B', defense=100)
+        move = make_move(name='Jump Kick', power=70, accuracy=95)
+        monkeypatch.setattr(random, 'randint', lambda a, b: 255)
+        msg = atk(a, move, d)
+        assert 'lost its poise' in msg
+        assert a.hp == 199
+
+
+class TestBurnPoisonPoisonBranch:
+    def test_player_poison_message(self):
+        p = make_pkmn(name='P', hp=200, status=EffectStatus.POISON)
+        e = make_pkmn(name='E', hp=200)
+        msg = handle_burn_poison(p, e)
+        assert 'hurt by poison' in msg
+        assert 'hurt by its burn' not in msg
+
+    def test_enemy_poison_message(self):
+        p = make_pkmn(name='P', hp=200)
+        e = make_pkmn(name='E', hp=200, status=EffectStatus.POISON)
+        msg = handle_burn_poison(p, e)
+        assert 'E is hurt by poison' in msg
+
+    def test_enemy_burn_message(self):
+        p = make_pkmn(name='P', hp=200)
+        e = make_pkmn(name='E', hp=200, status=EffectStatus.BURN)
+        msg = handle_burn_poison(p, e)
+        assert 'E is hurt by its burn' in msg
+
+
+class TestToxicityEnemy:
+    def test_enemy_toxic_damage(self):
+        p = make_pkmn(name='P', hp=200)
+        e = make_pkmn(name='E', hp=200, status=EffectStatus.TOXIC)
+        msg = handle_toxicity(p, e)
+        assert 'hurt by toxine' in msg
+        assert e.hp < 200
+
+    def test_enemy_toxic_caps(self):
+        p = make_pkmn(name='P', hp=200)
+        e = make_pkmn(name='E', hp=200, status=EffectStatus.TOXIC, toxic_turns=50)
+        msg = handle_toxicity(p, e)
+        assert 'hurt by toxine' in msg
+        assert e.hp == 188
+
+
+class TestLeechSeedEnemyCap:
+    def test_player_heal_capped_when_enemy_seeded(self):
+        p = make_pkmn(name='P', hp=199, max_hp=200)
+        e = make_pkmn(name='E', hp=200, seeded=True)
+        msg = handle_leech_seed(p, e)
+        assert p.hp == 200
+        assert 'saps E' in msg
