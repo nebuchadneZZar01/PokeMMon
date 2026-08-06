@@ -174,12 +174,11 @@ class _BaseMinimaxStrategy:
                 val = self.minimax(depth - 1, move, False, trainer, rival)
                 best_val = max(best_val, val)
             return best_val
-        else:
-            best_val = float('inf')
-            for move in rival.get_possible_choices():
-                val = self.minimax(depth - 1, move, True, trainer, rival)
-                best_val = min(best_val, val)
-            return best_val
+        best_val = float('inf')
+        for move in rival.get_possible_choices():
+            val = self.minimax(depth - 1, move, True, trainer, rival)
+            best_val = min(best_val, val)
+        return best_val
 
 
 class MinimaxStrategy(_BaseMinimaxStrategy):
@@ -230,15 +229,14 @@ class AlphaBetaStrategy(_BaseMinimaxStrategy):
                 if beta <= alpha:
                     break
             return best_val
-        else:
-            best_val = float('inf')
-            for move in rival.get_possible_choices():
-                val = self.minimax(depth - 1, move, True, trainer, rival, alpha, beta)
-                best_val = min(best_val, val)
-                beta = min(beta, best_val)
-                if beta <= alpha:
-                    break
-            return best_val
+        best_val = float('inf')
+        for move in rival.get_possible_choices():
+            val = self.minimax(depth - 1, move, True, trainer, rival, alpha, beta)
+            best_val = min(best_val, val)
+            beta = min(beta, best_val)
+            if beta <= alpha:
+                break
+        return best_val
 
 
 class ExpectiMaxStrategy(_BaseMinimaxStrategy):
@@ -270,10 +268,9 @@ class ExpectiMaxStrategy(_BaseMinimaxStrategy):
                 val = self.minimax(depth - 1, move, False, trainer, rival)
                 best_val = max(best_val, val)
             return best_val
-        else:
-            total = 0.0
-            n = len(rival.get_possible_choices())
-            for move in rival.get_possible_choices():
-                val = self.minimax(depth - 1, move, True, trainer, rival)
-                total += val / n
-            return total
+        total = 0.0
+        n = len(rival.get_possible_choices())
+        for move in rival.get_possible_choices():
+            val = self.minimax(depth - 1, move, True, trainer, rival)
+            total += val / n
+        return total

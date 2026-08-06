@@ -12,7 +12,7 @@ from app.core.strategy import (
     MinimaxStrategy,
     RandomStrategy,
 )
-from app.ui.menu import AIType, LogLevel, run_setup_menu
+from app.ui.menu import LLM_NAMES, AIType, LLMProvider, LogLevel, run_setup_menu
 from app.ui.renderer import Panel, console, render_core, render_team
 
 AI_THINKING_PANEL = Panel(
@@ -47,18 +47,13 @@ def main():
             ai = Trainer(ExpectiMaxStrategy(config.depth), name='AI ExpectiMax Trainer')
         case AIType.LLM:
             from app.core.llm_strategy import LLMAgentStrategy
-            _provider_names = {
-                'openai': 'OpenAI', 'anthropic': 'Anthropic',
-                'gemini': 'Gemini', 'ollama': 'Ollama',
-            }
-            prov = config.llm_provider.value if config.llm_provider else 'openai'
-            pn = _provider_names.get(prov, prov)
+            provider = config.llm_provider or LLMProvider.OPENAI
             ai = Trainer(LLMAgentStrategy(
-                provider=prov,
+                provider=provider.value,
                 model=config.llm_model,
                 api_key=config.llm_api_key,
                 base_uri=config.llm_base_uri,
-            ), name=f'AI {pn} Trainer')
+            ), name=f'AI {LLM_NAMES[provider]} Trainer')
         case _:
             ai = Trainer(MinimaxStrategy(config.depth), name='AI Minimax Trainer')
 

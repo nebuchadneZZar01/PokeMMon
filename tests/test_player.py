@@ -216,7 +216,7 @@ class TestTrainerName:
 
     def test_strategy_class_name_without_suffix(self):
         class DummyStrategy:
-            def get_choice(self, trainer, rival):  # noqa: ARG002
+            def get_choice(self, trainer, rival):
                 return None
 
         assert Trainer(DummyStrategy()).name == 'Dummy'

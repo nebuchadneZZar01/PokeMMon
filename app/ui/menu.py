@@ -69,7 +69,7 @@ _AI_NAMES: dict[AIType, str] = {
     AIType.LLM: 'LLM (LangGraph Agent)',
 }
 
-_LLM_NAMES: dict[LLMProvider, str] = {
+LLM_NAMES: dict[LLMProvider, str] = {
     LLMProvider.OPENAI: 'OpenAI',
     LLMProvider.ANTHROPIC: 'Anthropic',
     LLMProvider.GEMINI: 'Gemini',
@@ -143,7 +143,7 @@ def _step_llm_provider() -> LLMProvider:
     _show_title()
     lines = ['Select LLM provider:\n']
     for i, t in enumerate(LLMProvider, 1):
-        lines.append(f'  {i}) {_LLM_NAMES[t]}')
+        lines.append(f'  {i}) {LLM_NAMES[t]}')
     lines.append('')
     console.print(Panel('\n'.join(lines), border_style='blue', padding=(1, 2)))
     while True:
@@ -265,7 +265,7 @@ def _step_llm_verify(
     from app.core.llm_strategy import verify_llm_connection
 
     provider = LLMProvider(provider_str)
-    label = f"{_LLM_NAMES[provider]} ({model})"
+    label = f"{LLM_NAMES[provider]} ({model})"
 
     with console.status(f"[yellow]Testing {label}...[/]"):
         success, msg = verify_llm_connection(
@@ -344,7 +344,7 @@ def _show_summary(config: BattleConfig) -> bool:
         lines.append(f'Depth      : {config.depth}')
     if config.ai_type == AIType.LLM:
         prov = config.llm_provider or LLMProvider.OPENAI
-        lines.append(f'Provider   : {_LLM_NAMES[prov]}')
+        lines.append(f'Provider   : {LLM_NAMES[prov]}')
         if config.llm_model:
             lines.append(f'Model      : {config.llm_model}')
         if prov == LLMProvider.OLLAMA and config.llm_base_uri:

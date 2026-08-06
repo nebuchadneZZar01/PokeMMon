@@ -88,8 +88,7 @@ class TurnBattleSystem:
         """
         if self.player.token:
             return 'PL'
-        else:
-            return 'AI'
+        return 'AI'
 
     def get_player(self):
         """Get the player trainer.

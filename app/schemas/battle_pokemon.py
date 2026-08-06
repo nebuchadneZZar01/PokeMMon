@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import math
 import random
+from typing import cast
 
 from pydantic import BaseModel, Field
 
@@ -85,7 +86,9 @@ class BattlePokemon(BaseModel):
     name: str
     typing: list[Typing] = []
     level: int = 100
-    moves: list[Move | None] = Field(default_factory=lambda: [None] * 4)  # type: ignore[arg-type]
+    moves: list[Move | None] = Field(
+        default_factory=lambda: cast(list[Move | None], [None] * 4),
+    )
 
     status: EffectStatus | None = None
     temp_status: EffectStatus | None = None

@@ -122,7 +122,7 @@ class TestCalculateDamage:
         atk = make_pkmn(typing=[Typing.FIGHTING], attack=100, sp_atk=10)
         df = make_pkmn(defense=50)
         move = make_move(typing=Typing.NORMAL, power=40, category=MoveCategory.PHYSICAL)
-        dmg, msg = calculate_damage(atk, move, df)
+        dmg, _ = calculate_damage(atk, move, df)
         expected = damage_no_var(100, 40, 100, 50)
         assert dmg == expected
 
@@ -131,7 +131,7 @@ class TestCalculateDamage:
         atk = make_pkmn(attack=10, sp_atk=100)
         df = make_pkmn(sp_def=50)
         move = make_move(typing=Typing.WATER, power=40, category=MoveCategory.SPECIAL)
-        dmg, msg = calculate_damage(atk, move, df)
+        dmg, _ = calculate_damage(atk, move, df)
         expected = damage_no_var(100, 40, 100, 50)
         assert dmg == expected
 

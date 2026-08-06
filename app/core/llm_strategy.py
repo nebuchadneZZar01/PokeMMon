@@ -467,9 +467,7 @@ class LLMAgentStrategy:
                 return struggle_no_pp(trainer.in_battle, rival.in_battle)
 
         self.choices.append(move.name)
-        result = try_atk_status(trainer.in_battle, move, rival.in_battle)
-
-        return result
+        return try_atk_status(trainer.in_battle, move, rival.in_battle)
 
     def _execute_switch(
         self, trainer: Trainer, rival: Trainer, decision: BattleDecision,
@@ -508,6 +506,5 @@ class LLMAgentStrategy:
         if choices:
             move = choices[0].target
             self.choices.append(move.name)
-            result = try_atk_status(trainer.in_battle, move, rival.in_battle)
-            return result
+            return try_atk_status(trainer.in_battle, move, rival.in_battle)
         return struggle_no_pp(trainer.in_battle, rival.in_battle)

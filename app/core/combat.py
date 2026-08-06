@@ -204,25 +204,23 @@ def hit(
             if defender.biding:
                 defender.bide_damage += damage
         return ''
-    else:
-        if not status:
-            defender.sub_damage += damage
-            msg = f'\n{defender.name}\'s substitute was hit!'
-            if defender.sub_damage >= 255:
-                defender.substitute = False
-                defender.sub_damage = 0
-                msg += f'\n{defender.name}\'s substitute vanished!'
-            return msg
-        else:
-            defender.hp -= damage
-            if defender.hp <= 0:
-                defender.hp = 0
-                defender.fainted = True
-            if attacker is not None:
-                defender.last_damage_taken = damage
-                if defender.biding:
-                    defender.bide_damage += damage
-            return ''
+    if not status:
+        defender.sub_damage += damage
+        msg = f'\n{defender.name}\'s substitute was hit!'
+        if defender.sub_damage >= 255:
+            defender.substitute = False
+            defender.sub_damage = 0
+            msg += f'\n{defender.name}\'s substitute vanished!'
+        return msg
+    defender.hp -= damage
+    if defender.hp <= 0:
+        defender.hp = 0
+        defender.fainted = True
+    if attacker is not None:
+        defender.last_damage_taken = damage
+        if defender.biding:
+            defender.bide_damage += damage
+    return ''
 
 
 def struggle_no_pp(attacker: BattlePokemon, defender: BattlePokemon) -> str:
@@ -618,7 +616,7 @@ def _substitute(attacker: BattlePokemon, defender: BattlePokemon) -> str:
     """Create a Substitute doll using 25% of max HP."""
     if attacker.substitute:
         return f'\nBut {attacker.name} is already protected by a substitute doll...'
-    elif attacker.hp >= attacker.max_hp // 4:
+    if attacker.hp >= attacker.max_hp // 4:
         attacker.hp -= math.floor(0.25 * attacker.max_hp)
         attacker.substitute = True
         return f'\n{attacker.name} is replaced by a substitute doll!'
@@ -890,27 +888,25 @@ def try_atk_status(attacker: BattlePokemon, move: Move, defender: BattlePokemon)
             if p <= 0.25:
                 return atk(attacker, move, defender)
             return f'{attacker.name} is paralyzed and can\'t move!'
-        elif attacker.status == EffectStatus.SLEEP:
+        if attacker.status == EffectStatus.SLEEP:
             if attacker.sleeping_turns < 7:
                 p = random.random()
                 if p <= 0.33:
                     attacker.status = None
                     msg = atk(attacker, move, defender)
                     return msg + f'\n{attacker.name} woke up!'
-                else:
-                    attacker.sleeping_turns += 1
-                    return f'{attacker.name} is sleeping...'
-            else:
-                attacker.status = None
-                msg = atk(attacker, move, defender)
-                return f'{attacker.name} woke up!\n' + msg
-        elif attacker.status == EffectStatus.FREEZE:
+                attacker.sleeping_turns += 1
+                return f'{attacker.name} is sleeping...'
+            attacker.status = None
+            msg = atk(attacker, move, defender)
+            return f'{attacker.name} woke up!\n' + msg
+        if attacker.status == EffectStatus.FREEZE:
             if random.random() <= CONST_THAW:
                 attacker.status = None
                 msg = atk(attacker, move, defender)
                 return msg + f'\n{attacker.name} thawed out!'
             return f'{attacker.name} is frozen solid!'
-        elif attacker.status in (
+        if attacker.status in (
             EffectStatus.BURN, EffectStatus.POISON,
             EffectStatus.TOXIC,
         ):

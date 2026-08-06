@@ -53,7 +53,7 @@ def fake_prompt(monkeypatch):
 
 
 class TestStepAiType:
-    @pytest.mark.parametrize('idx,expected', [
+    @pytest.mark.parametrize(('idx', 'expected'), [
         ('1', AIType.RANDOM),
         ('2', AIType.MINIMAX),
         ('3', AIType.ALPHABETA),
@@ -88,7 +88,7 @@ class TestStepDepth:
 
 
 class TestStepLLMProvider:
-    @pytest.mark.parametrize('idx,expected', [
+    @pytest.mark.parametrize(('idx', 'expected'), [
         ('1', LLMProvider.OPENAI),
         ('2', LLMProvider.ANTHROPIC),
         ('3', LLMProvider.GEMINI),
@@ -105,7 +105,7 @@ class TestStepLLMProvider:
 
 
 class TestStepLogLevel:
-    @pytest.mark.parametrize('idx,expected', [
+    @pytest.mark.parametrize(('idx', 'expected'), [
         ('1', LogLevel.SILENT),
         ('2', LogLevel.INFO),
         ('3', LogLevel.DEBUG),
