@@ -96,11 +96,14 @@ def team_dots(team) -> str:
 _SIDE_LABELS = {'player': 'Player', 'ai': 'AI', 'field': '·'}
 _SIDE_COLORS = {'player': 'cyan', 'ai': 'red', 'field': 'dim'}
 
-_LOG_VISIBLE_ROUNDS = 8
+_LOG_MAX_LINES = 12
 
 
 def _render_log(bs: TurnBattleSystem) -> Table:
     """Build the battle log table (round, side, message).
+
+    Recent entries are shown newest-first, keeping whole blocks only so a
+    turn is never split across the visible boundary.
 
     Args:
         bs (TurnBattleSystem): The battle system with message history.
@@ -108,28 +111,36 @@ def _render_log(bs: TurnBattleSystem) -> Table:
     Returns:
         Table: Rich table of recent battle log entries, newest highlighted.
     """
-    log = bs.message_log[-(_LOG_VISIBLE_ROUNDS * 2):]
+    keep = []
+    lines_used = 0
+    for entry in reversed(bs.message_log):
+        lines = entry[2].count('\n') + 1
+        if keep and lines_used + 1 + lines > _LOG_MAX_LINES:
+            break
+        lines_used += (1 if keep else 0) + lines
+        keep.append(entry)
+    keep.reverse()
+
     table = Table(box=None, show_header=False, padding=(0, 2))
     table.add_column(justify='right', no_wrap=True)
     table.add_column(no_wrap=True)
     table.add_column(justify='left')
 
-    last_round: int | None = None
-    for i, (round_n, side, text) in enumerate(log):
-        if last_round is not None and round_n != last_round:
+    for i, (round_n, side, text) in enumerate(keep):
+        if i != 0:
             table.add_row('', '', '')
-        last_round = round_n
         label = _SIDE_LABELS.get(side, side)
         color = _SIDE_COLORS.get(side, 'white')
-        if i == len(log) - 1:
+        round_cell = '' if side == 'field' else f'[bold yellow]R{round_n}[/]'
+        if i == len(keep) - 1:
             table.add_row(
-                f'[bold yellow]R{round_n}[/]',
+                round_cell,
                 f'[bold {color}]{label}[/]',
                 f'[bold white]{text}[/]',
             )
         else:
             table.add_row(
-                f'[bold yellow]R{round_n}[/]',
+                round_cell,
                 f'[{color}]{label}[/]',
                 text,
             )

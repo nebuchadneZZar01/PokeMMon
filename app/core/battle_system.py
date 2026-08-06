@@ -55,7 +55,10 @@ class TurnBattleSystem:
             return
         if self._last_by_side.get(side) == text:
             return
-        round_n = (self.turn_count + 1) // 2
+        if side in ('player', 'field'):
+            round_n = (self.turn_count + 1) // 2
+        else:
+            round_n = self.turn_count // 2
         self.message_log.append((round_n, side, text))
         self._last_by_side[side] = text
         if len(self.message_log) > 30:
