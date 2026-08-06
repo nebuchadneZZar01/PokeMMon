@@ -29,7 +29,6 @@ select = ["E", "F", "I", "N", "UP", "B", "SIM"]
 
 [tool.coverage.run]
 omit = [
-    "app/ui/menu.py",
     "app/schemas/strategy.py",
 ]
 
