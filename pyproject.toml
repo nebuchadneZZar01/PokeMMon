@@ -27,8 +27,15 @@ select = ["E", "F", "I", "N", "UP", "B", "SIM"]
 "__init__.py" = ["F401"]
 "app/data/*" = ["E501"]
 
+[tool.coverage.run]
+omit = ["app/ui/menu.py"]
+
+[tool.coverage.report]
+fail_under = 80
+
 [dependency-groups]
 dev = [
     "pytest>=9.0.3",
+    "pytest-cov>=6.0.0",
     "ruff>=0.15.15",
 ]
