@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from app.core.combat import reset_battle_stats, reset_stats_mult, struggle_no_pp, try_atk_status
+from app.core.combat import reset_on_switch_out, struggle_no_pp, try_atk_status
 
 if TYPE_CHECKING:
     from app.core.battle_system import TurnBattleSystem
@@ -47,18 +47,7 @@ def exec_switch(bs: TurnBattleSystem, idx: int) -> None:
     target = player.team[idx]
     assert target is not None
     old = player.in_battle
-    old.substitute = False
-    reset_stats_mult(old)
-    reset_battle_stats(old)
-    old.temp_status = None
-    old.on_field = False
-    old.biding = False
-    old.bide_damage = 0
-    old.bide_turns = 0
-    old.trapped = False
-    old.trapped_turns = 0
-    old.last_damage_taken = 0
-    old.last_move_was_physical = False
+    reset_on_switch_out(old)
     player.in_battle = target
     target.on_field = True
     bs.player_msg = f'Go, {target.name}!'

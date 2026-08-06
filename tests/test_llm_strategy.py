@@ -486,6 +486,32 @@ class TestLLMChoiceFallbacks:
         msg = strategy._execute_switch(trainer, _rival(), decision)
         assert 'used Tackle' in msg
 
+    def test_execute_switch_resets_outgoing_state(self, monkeypatch):
+        strategy = _new_strategy(monkeypatch)
+        trainer = Trainer()
+        active = make_pkmn(name='Atk', atk_mult=2, substitute=True, on_field=True)
+        active.biding = True
+        active.bide_damage = 40
+        active.bide_turns = 2
+        active.trapped = True
+        active.trapped_turns = 1
+        bench = make_pkmn(name='Bench')
+        trainer.team = [active, bench, None, None, None, None]
+        trainer.in_battle = active
+        decision = BattleDecision(action='switch', slot=1, reasoning='x')
+        msg = strategy._execute_switch(trainer, _rival(), decision)
+        assert 'sent out Bench' in msg
+        assert active.on_field is False
+        assert active.biding is False
+        assert active.bide_damage == 0
+        assert active.bide_turns == 0
+        assert active.trapped is False
+        assert active.trapped_turns == 0
+        assert active.substitute is False
+        assert active.atk_mult == 0
+        assert trainer.in_battle is bench
+        assert bench.on_field is True
+
     def test_fallback_attack_no_choices_struggles(self, monkeypatch):
         strategy = _new_strategy(monkeypatch)
         trainer, _ = _attack_trainer([make_move(name='Tackle', pp=0), None, None, None])

@@ -138,6 +138,26 @@ def reset_battle_stats(pokemon: BattlePokemon) -> None:
     pokemon.evasion = 1
 
 
+def reset_on_switch_out(pokemon: BattlePokemon) -> None:
+    """Reset a Pokémon's battle state when it is switched out.
+
+    Clears stat stages, transient stats, substitute, bind/trap state, and
+    Bide. Leaves HP, status, and moves untouched.
+    """
+    pokemon.substitute = False
+    reset_stats_mult(pokemon)
+    reset_battle_stats(pokemon)
+    pokemon.temp_status = None
+    pokemon.on_field = False
+    pokemon.biding = False
+    pokemon.bide_damage = 0
+    pokemon.bide_turns = 0
+    pokemon.trapped = False
+    pokemon.trapped_turns = 0
+    pokemon.last_damage_taken = 0
+    pokemon.last_move_was_physical = False
+
+
 def calculate_crit_multiplier(attacker: BattlePokemon, high_crit: bool = False) -> tuple[int, str]:
     """Calculate critical hit stage multiplier based on base speed.
 

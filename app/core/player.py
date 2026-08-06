@@ -140,7 +140,7 @@ class Trainer:
             if pkmn is None or pkmn.fainted:
                 faint_cnt += 1
 
-        return faint_cnt == 6
+        return faint_cnt == len(self.team)
 
     def is_turn(self) -> bool:
         """Check if it's this trainer's turn.

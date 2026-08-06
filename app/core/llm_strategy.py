@@ -20,8 +20,7 @@ from pydantic import BaseModel, Field
 import app.data.pkmn_types as pkmn_types
 from app.core.combat import (
     calculate_damage,
-    reset_battle_stats,
-    reset_stats_mult,
+    reset_on_switch_out,
     struggle_no_pp,
     try_atk_status,
 )
@@ -486,11 +485,7 @@ class LLMAgentStrategy:
             return self._fallback_attack(trainer, rival)
 
         old = trainer.in_battle
-        old.substitute = False
-        reset_stats_mult(old)
-        reset_battle_stats(old)
-        old.temp_status = None
-        old.on_field = False
+        reset_on_switch_out(old)
 
         trainer.in_battle = target
         target.on_field = True

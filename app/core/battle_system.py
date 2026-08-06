@@ -79,7 +79,7 @@ class TurnBattleSystem:
             logger.info("----- START PLAYER TURN -----")
         
         self.turn_count += 1
-        logger.info(f'Turn n: {self.turn_count}')
+        logger.info('Turn n: %s', self.turn_count)
 
     def get_turn(self) -> str:
         """Get the current turn owner.
