@@ -197,7 +197,8 @@ class AlphaBetaStrategy(_BaseMinimaxStrategy):
         super().__init__(max_play_depth)
 
     def minimax(self, depth: int, action, is_maximizing: bool,
-                trainer: Trainer, rival: Trainer) -> float:
+                trainer: Trainer, rival: Trainer,
+                alpha: float = -float('inf'), beta: float = float('inf')) -> float:
         """Recursive minimax with alpha-beta pruning.
 
         Args:
@@ -206,6 +207,8 @@ class AlphaBetaStrategy(_BaseMinimaxStrategy):
             is_maximizing (bool): True if this is a maximizing node.
             trainer (Trainer): The current player.
             rival (Trainer): The opponent.
+            alpha (float): Best value the maximizing player can force so far.
+            beta (float): Best value the minimizing player can force so far.
 
         Returns:
             float: The evaluated value of this node.
@@ -216,13 +219,10 @@ class AlphaBetaStrategy(_BaseMinimaxStrategy):
         if depth == 0:
             return self.evaluate(action, trainer, rival)
 
-        alpha = -float('inf')
-        beta = float('inf')
-
         if is_maximizing:
             best_val = -float('inf')
             for move in trainer.get_possible_choices():
-                val = self.minimax(depth - 1, move, False, trainer, rival)
+                val = self.minimax(depth - 1, move, False, trainer, rival, alpha, beta)
                 best_val = max(best_val, val)
                 alpha = max(alpha, best_val)
                 if beta <= alpha:
@@ -231,7 +231,7 @@ class AlphaBetaStrategy(_BaseMinimaxStrategy):
         else:
             best_val = float('inf')
             for move in rival.get_possible_choices():
-                val = self.minimax(depth - 1, move, True, trainer, rival)
+                val = self.minimax(depth - 1, move, True, trainer, rival, alpha, beta)
                 best_val = min(best_val, val)
                 beta = min(beta, best_val)
                 if beta <= alpha:
