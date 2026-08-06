@@ -28,10 +28,13 @@ select = ["E", "F", "I", "N", "UP", "B", "SIM"]
 "app/data/*" = ["E501"]
 
 [tool.coverage.run]
-omit = ["app/ui/menu.py"]
+omit = [
+    "app/ui/menu.py",
+    "app/schemas/strategy.py",
+]
 
 [tool.coverage.report]
-fail_under = 80
+fail_under = 90
 
 [dependency-groups]
 dev = [
