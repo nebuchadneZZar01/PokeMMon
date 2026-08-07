@@ -256,9 +256,61 @@ def render_core(bs: TurnBattleSystem) -> None:
     console.print('  [5] Team     [6] Forfeit')
 
 
+_MOVE_NAME_COL = 15
+_MOVE_TYPE_COL = 8
+_MOVE_PP_COL = 6
+
+
+def _fmt_move_list(pkmn: BattlePokemon, dimmed: bool = False) -> str:
+    """Build aligned move rows (two moves per line) for a team member.
+
+    Each cell shows the move name, color type, and PP. Moves with no PP
+    left are dimmed with a red PP, and the whole list is dimmed for
+    fainted Pokémon. The name column is wide enough for every Gen1 move
+    name, so no truncation is needed.
+
+    Args:
+        pkmn (BattlePokemon): The Pokémon whose moves to render.
+        dimmed (bool): Whether to dim the entire list (fainted member).
+
+    Returns:
+        str: One or more newline-joined rich-formatted lines of moves.
+    """
+    rows = []
+    for j in range(0, len(pkmn.moves), 2):
+        cells = []
+        for move in pkmn.moves[j:j + 2]:
+            if move is None:
+                continue
+            t = move.typing.value.upper()
+            c = TYPE_COLORS.get(t, 'white')
+            out = move.pp <= 0
+            style = 'dim' if (out or dimmed) else 'bold'
+            pp = f'[red]{move.pp}/{move.max_pp}[/]' if out else f'{move.pp}/{move.max_pp}'
+            cells.append(
+                f'[{style}]{move.name:<{_MOVE_NAME_COL}}[/]'
+                f' [{c}]{t:<{_MOVE_TYPE_COL}}[/] {pp:>{_MOVE_PP_COL}}'
+            )
+        if cells:
+            rows.append('   '.join(cells))
+    return '\n'.join(rows)
+
+
 def render_team(bs: TurnBattleSystem) -> None:
     """Render the team overview screen showing all player Pokémon."""
     console.clear()
+    opponent = bs.ai.in_battle
+    if opponent is not None:
+        hp_bar = make_hp_bar(opponent.hp, opponent.max_hp)
+        content = (
+            f'  [bold]{opponent.name}[/bold]    Lv{opponent.level}\n'
+            f'  {_fmt_type(opponent.typing)}\n'
+            f'  HP {hp_bar}  [bold]{int(opponent.hp)}/{int(opponent.max_hp)}[/]\n'
+            f'  {_status_pad(opponent)} Team {team_dots(bs.ai.team)}'
+        )
+        console.print(Panel(content, title=f' {bs.ai.name} ', border_style='bold'))
+        console.print()
+
     body_lines = []
     for i, pkmn in enumerate(bs.player.team):
         if pkmn is None:
@@ -278,6 +330,9 @@ def render_team(bs: TurnBattleSystem) -> None:
             for t in pkmn.typing
         )
         body_lines.append(f'      {"":<10} {tags}')
+        body_lines.extend(
+            f'      {line}' for line in _fmt_move_list(pkmn, pkmn.fainted).splitlines()
+        )
         body_lines.append('')
 
     console.print(Panel('\n'.join(body_lines), title=' Your Team ', border_style='bold'))

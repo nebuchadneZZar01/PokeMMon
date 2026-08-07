@@ -396,7 +396,40 @@ class TestRenderTeam:
         bs = self._make_bs()
         assert '←' in self._capture(bs)
 
+    def test_renders_opponent_active_pokemon(self):
+        bs = self._make_bs()
+        out = self._capture(bs)
+        assert 'Pidgey' in out
+        assert 'Lv' in out
+
+    def test_renders_team_moves(self):
+        bs = self._make_bs()
+        out = self._capture(bs)
+        assert 'Tackle' in out
+        assert '35/35' in out
+
+    def test_renders_no_pp_move_dimmed(self):
+        bs = self._make_bs()
+        bs.player.team[0].moves[0].pp = 0
+        assert '0/35' in self._capture(bs)
+
+    def test_indents_continuation_move_rows(self):
+        bs = self._make_bs()
+        bs.player.team[0].moves = [
+            make_move(name='Aaa'), make_move(name='Bbb'),
+            make_move(name='Ccc'), make_move(name='Ddd'),
+        ]
+        out = self._capture(bs)
+        assert '\n│       Ccc' in out
+        assert 'Aaa' in out
+        assert 'Bbb' in out
+        assert 'Ccc' in out
+        assert 'Ddd' in out
+
     def test_skips_empty_slots(self):
         bs = self._make_bs()
         out = self._capture(bs)
-        assert 'Pidgey' not in out
+        assert 'Pidgey' in out
+        assert '[4]' not in out
+        assert '[5]' not in out
+        assert '[6]' not in out
