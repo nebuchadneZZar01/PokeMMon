@@ -147,6 +147,7 @@ class BattlePokemon(BaseModel):
 
     last_damage_taken: int = 0
     last_move_was_physical: bool = False
+    last_move_used: str = ''
 
     trapped: bool = False
     trapped_turns: int = 0

@@ -20,6 +20,7 @@ from app.core.combat import (
     has_type,
     hit,
     inc_dec_stat_mult,
+    reset_battle_stats,
     struggle_no_pp,
     try_atk_status,
     update_battle_stat,
@@ -225,12 +226,25 @@ class TestHandleBurnPoison:
         assert p.hp == 200
         assert e.hp == 200
 
-    def test_each_tick_damages_1_16(self):
+    def test_each_tick_damages_1_8(self):
         p = make_pkmn(name='A', hp=160, max_hp=160, status=EffectStatus.BURN)
         e = make_pkmn(name='B')
         handle_burn_poison(p, e)
-        expected_loss = math.floor(1 / 16 * 160)
+        expected_loss = math.floor(1 / 8 * 160)
         assert p.hp == 160 - expected_loss
+
+
+class TestResetBattleStats:
+    def test_keeps_paralyzed_speed(self):
+        p = make_pkmn(speed=50, status=EffectStatus.PARALYZE)
+        reset_battle_stats(p)
+        assert p.speed == 12.5
+
+    def test_restores_speed_when_not_paralyzed(self):
+        p = make_pkmn(speed=50)
+        p.speed = 10
+        reset_battle_stats(p)
+        assert p.speed == 50
 
 
 class TestHandleToxicity:
@@ -353,7 +367,7 @@ class TestMoveHandlers:
         df = make_pkmn(name='B')
         msg = MOVE_HANDLERS['Substitute'](atk, df)
         assert not atk.substitute
-        assert msg == ''
+        assert 'failed' in msg
 
     def test_rest_restores_hp(self):
         atk = make_pkmn(name='A', hp=50, max_hp=200)
@@ -796,6 +810,15 @@ class TestAtkOHKO:
         assert df_pkmn.fainted
         assert not atk_pkmn.fainted
 
+    def test_fissure_fails_on_lower_level(self, monkeypatch):
+        monkeypatch.setattr(random, 'randint', lambda a, b: 0)
+        atk_pkmn = make_pkmn(name='Attacker', level=50, hp=200)
+        df_pkmn = make_pkmn(name='Defender', level=100, hp=200)
+        move = make_move(name='Fissure', power=0, accuracy=30, typing=Typing.GROUND)
+        msg = atk(atk_pkmn, move, df_pkmn)
+        assert not df_pkmn.fainted
+        assert 'failed' in msg
+
 
 class TestAtkBurnAndConfusion:
     def test_burn_halves_physical_damage(self, monkeypatch):
@@ -839,14 +862,14 @@ class TestMultiHitMoves:
         move = make_move(name='Fury Swipes', power=18)
         with patch('app.core.combat.random.randint', return_value=50):
             msg = handle_special_physical_move(atk_pkmn, move, df_pkmn, 18)
-        assert df_pkmn.hp == 182
-        assert 'Hit 1 time(s)' in msg
+        assert df_pkmn.hp == 200 - 18 * 2
+        assert 'Hit 2 time(s)' in msg
 
     def test_variable_multi_hit_max_hits(self):
         atk_pkmn = make_pkmn()
         df_pkmn = make_pkmn(hp=500)
         move = make_move(name='Fury Swipes', power=18)
-        with patch('app.core.combat.random.randint', side_effect=[30, 10, 10, 10]):
+        with patch('app.core.combat.random.randint', return_value=250):
             msg = handle_special_physical_move(atk_pkmn, move, df_pkmn, 18)
         assert df_pkmn.hp == 500 - 18 * 5
         assert 'Hit 5 time(s)' in msg
@@ -855,10 +878,19 @@ class TestMultiHitMoves:
         atk_pkmn = make_pkmn()
         df_pkmn = make_pkmn(hp=500)
         move = make_move(name='Fury Swipes', power=18)
-        with patch('app.core.combat.random.randint', side_effect=[30, 10, 50]):
+        with patch('app.core.combat.random.randint', return_value=70):
             msg = handle_special_physical_move(atk_pkmn, move, df_pkmn, 18)
         assert df_pkmn.hp == 500 - 18 * 3
         assert 'Hit 3 time(s)' in msg
+
+    def test_variable_multi_hit_four_hits(self):
+        atk_pkmn = make_pkmn()
+        df_pkmn = make_pkmn(hp=500)
+        move = make_move(name='Fury Swipes', power=18)
+        with patch('app.core.combat.random.randint', return_value=150):
+            msg = handle_special_physical_move(atk_pkmn, move, df_pkmn, 18)
+        assert df_pkmn.hp == 500 - 18 * 4
+        assert 'Hit 4 time(s)' in msg
 
     def test_fixed_two_hit_moves(self):
         atk_pkmn = make_pkmn()
@@ -875,9 +907,9 @@ class TestMultiHitMoves:
             name='Fury Swipes', power=18,
             secondary_effect=SecondaryEffect(chance=100, effect=EffectStatus.POISON),
         )
-        with patch('app.core.combat.random.randint', side_effect=[50, 5]):
+        with patch('app.core.combat.random.randint', return_value=5):
             msg = handle_special_physical_move(atk_pkmn, move, df_pkmn, 18)
-        assert df_pkmn.hp == 182
+        assert df_pkmn.hp == 200 - 18 * 2
         assert df_pkmn.status == EffectStatus.POISON
         assert 'poisoned' in msg
 
@@ -894,7 +926,7 @@ class TestSecondaryEffects:
         assert df_pkmn.status == EffectStatus.BURN
         assert 'burned' in msg
 
-    def test_paralyze_ghost_immune(self):
+    def test_paralyze_ghost_not_immune(self):
         atk_pkmn = make_pkmn()
         df_pkmn = make_pkmn(hp=200, typing=[Typing.GHOST], status=None)
         move = make_move(
@@ -902,7 +934,7 @@ class TestSecondaryEffects:
         )
         with patch('app.core.combat.random.randint', return_value=5):
             handle_special_physical_move(atk_pkmn, move, df_pkmn, 40)
-        assert df_pkmn.status is None
+        assert df_pkmn.status == EffectStatus.PARALYZE
 
     def test_freeze_secondary_effect(self):
         atk_pkmn = make_pkmn()
@@ -1628,15 +1660,19 @@ class TestMoveHandlersExtended:
     def test_mimic_copies_enemy_move(self, monkeypatch):
         monkeypatch.setattr(random, 'randint', lambda a, b: 255)
         enemy_move = make_move(name='Tackle', power=40)
-        atk_pkmn = make_pkmn(name='Attacker', attack=50)
+        atk_pkmn = make_pkmn(
+            name='Attacker', attack=50,
+            moves=[make_move(name='Mimic'), None, None, None],
+        )
         df_pkmn = make_pkmn(
             name='Defender', hp=200, defense=50,
             moves=[enemy_move, None, None, None],
         )
         monkeypatch.setattr(random, 'choice', lambda seq: enemy_move)
         msg = MOVE_HANDLERS['Mimic'](atk_pkmn, df_pkmn)
-        assert df_pkmn.hp < 200
-        assert 'copies one of Defender' in msg
+        assert df_pkmn.hp == 200
+        assert atk_pkmn.moves[0].name == 'Tackle'
+        assert 'copies Tackle' in msg
 
     def test_mimic_cannot_copy_itself(self, monkeypatch):
         enemy_move = make_move(name='Mimic')
@@ -1905,17 +1941,25 @@ class TestLightScreenReflectCaps:
 
 class TestMimicBranches:
     def test_copies_enemy_move(self, monkeypatch):
-        a = make_pkmn(name='A')
+        a = make_pkmn(name='A', moves=[make_move(name='Mimic'), None, None, None])
         d = make_pkmn(name='B', moves=[make_move(name='Ember', power=40), None, None, None])
         monkeypatch.setattr(random, 'choice', lambda seq: seq[0])
         monkeypatch.setattr(random, 'randint', lambda a, b: 255)
         msg = MOVE_HANDLERS['Mimic'](a, d)
-        assert 'copies one of B' in msg
+        assert 'copies Ember' in msg
+        assert a.moves[0].name == 'Ember'
 
     def test_no_moves_fails(self, monkeypatch):
-        a = make_pkmn(name='A')
+        a = make_pkmn(name='A', moves=[make_move(name='Mimic'), None, None, None])
         d = make_pkmn(name='B', moves=[make_move(), None, None, None])
         d.moves = [None, None, None, None]
+        monkeypatch.setattr(random, 'choice', lambda seq: seq[0])
+        msg = MOVE_HANDLERS['Mimic'](a, d)
+        assert 'failed' in msg
+
+    def test_no_mimic_slot_fails(self, monkeypatch):
+        a = make_pkmn(name='A')
+        d = make_pkmn(name='B', moves=[make_move(name='Ember'), None, None, None])
         monkeypatch.setattr(random, 'choice', lambda seq: seq[0])
         msg = MOVE_HANDLERS['Mimic'](a, d)
         assert 'failed' in msg

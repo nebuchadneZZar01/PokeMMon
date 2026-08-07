@@ -176,13 +176,15 @@ def reset_battle_stats(pokemon: BattlePokemon) -> None:
     """Reset all transient battle stats to their maximum values.
     
     Restores attack, defense, sp_atk, sp_def, speed to max,
-    resets accuracy and evasion to 1.0.
+    resets accuracy and evasion to 1.0. Paralysis keeps speed quartered.
     """
     pokemon.attack = pokemon.max_attack
     pokemon.defense = pokemon.max_defense
     pokemon.sp_atk = pokemon.max_sp_atk
     pokemon.sp_def = pokemon.max_sp_def
     pokemon.speed = pokemon.max_speed
+    if pokemon.status == EffectStatus.PARALYZE:
+        pokemon.speed *= 0.25
     pokemon.accuracy = 1
     pokemon.evasion = 1
 
@@ -338,8 +340,6 @@ def _apply_secondary_effect(
         defender.status = EffectStatus.BURN
         return f'\n{defender.name} is burned!'
     if effect == EffectStatus.PARALYZE:
-        if has_type(defender, Typing.GHOST):
-            return ''
         defender.status = EffectStatus.PARALYZE
         defender.speed -= 0.75 * defender.speed
         return f'\n{defender.name} is paralyzed! Maybe it can\'t attack!'
@@ -391,28 +391,27 @@ def handle_special_physical_move(
             msg += f'\n{attacker.name} fainted!'
         return msg
     if move.name in ('Fissure', 'Guillotine', 'Horn Drill'):
-        hit(defender, defender.max_hp, attacker)
+        if attacker.level >= defender.level:
+            hit(defender, defender.max_hp, attacker)
+            msg += '\nIt\'s a one-hit KO!'
+        else:
+            msg += '\nBut it failed...'
         return msg
     if move.name in (
         'Fury Swipes', 'Fury Attack', 'Double Slap',
         'Comet Punch', 'Barrage', 'Pin Missile', 'Spike Cannon',
     ):
-        cnt = 1
-        hit(defender, damage, attacker)
-        while cnt < 5:
-            prob = random.randint(0, 100)
-            if cnt < 2:
-                if prob <= 37:
-                    hit(defender, damage, attacker)
-                    cnt += 1
-                else:
-                    break
-            elif 2 <= cnt < 5:
-                if prob <= 12:
-                    hit(defender, damage, attacker)
-                    cnt += 1
-                else:
-                    break
+        roll = random.randint(0, 255)
+        if roll < 64:
+            cnt = 2
+        elif roll < 128:
+            cnt = 3
+        elif roll < 192:
+            cnt = 4
+        else:
+            cnt = 5
+        for _ in range(cnt):
+            hit(defender, damage, attacker)
         msg += f'\nHit {cnt} time(s)!'
         if move.secondary_effect and not defender.substitute:
             prob = random.randint(0, 100)
@@ -600,7 +599,7 @@ def _toxic(attacker: BattlePokemon, defender: BattlePokemon) -> str:
 
 def _conversion(attacker: BattlePokemon, defender: BattlePokemon) -> str:
     """Change user's typing to match target's typing."""
-    attacker.typing = defender.typing
+    attacker.typing = defender.typing.copy()
     return f'\n{attacker.name} assumes {defender.name} types!'
 
 
@@ -652,18 +651,26 @@ def _mist(attacker: BattlePokemon, defender: BattlePokemon) -> str:
 
 
 def _metronome(attacker: BattlePokemon, defender: BattlePokemon) -> str:
-    """Use a random move."""
-    return atk(attacker, random.choice(moves.attacks), defender)
+    """Use a random move (never Metronome itself)."""
+    options = [m for m in moves.attacks if m.name != 'Metronome']
+    return atk(attacker, random.choice(options), defender)
 
 
 def _mimic(attacker: BattlePokemon, defender: BattlePokemon) -> str:
-    """Copy a random move from the target (except Mimic itself)."""
-    m = random.choice(defender.moves)
-    if m is not None:
-        if m.name == 'Mimic':
-            return '\nBut it failed...'
-        msg = atk(attacker, m, defender)
-        return msg + f'\n{attacker.name} copies one of {defender.name}\'s moves!'
+    """Permanently copy a random move from the target (except Mimic itself)."""
+    options = [m for m in defender.moves if m is not None and m.name != 'Mimic']
+    if not options:
+        return '\nBut it failed...'
+    m = random.choice(options)
+    slot = next(
+        (i for i, mm in enumerate(attacker.moves) if mm is not None and mm.name == 'Mimic'),
+        None,
+    )
+    if slot is not None:
+        copied = deepcopy(m)
+        copied.pp = m.pp
+        attacker.moves[slot] = copied
+        return f'\n{attacker.name} copies {m.name}!'
     return '\nBut it failed...'
 
 
@@ -697,14 +704,15 @@ def _noop(attacker: BattlePokemon, defender: BattlePokemon) -> str:
 
 
 def _substitute(attacker: BattlePokemon, defender: BattlePokemon) -> str:
-    """Create a Substitute doll using 25% of max HP."""
+    """Create a Substitute doll costing 25% of max HP."""
     if attacker.substitute:
         return f'\nBut {attacker.name} is already protected by a substitute doll...'
-    if attacker.hp >= attacker.max_hp // 4:
-        attacker.hp -= math.floor(0.25 * attacker.max_hp)
+    cost = max(1, math.floor(0.25 * attacker.max_hp))
+    if attacker.hp > cost:
+        attacker.hp -= cost
         attacker.substitute = True
         return f'\n{attacker.name} is replaced by a substitute doll!'
-    return ''
+    return '\nBut it failed...'
 
 
 def _disable(attacker: BattlePokemon, defender: BattlePokemon) -> str:
@@ -725,7 +733,12 @@ def _disable(attacker: BattlePokemon, defender: BattlePokemon) -> str:
 
 def _mirror_move(attacker: BattlePokemon, defender: BattlePokemon) -> str:
     """Use the last move used by the target."""
-    m = next((m for m in defender.moves if m is not None), None)
+    m = next(
+        (mm for mm in defender.moves if mm is not None and mm.name == defender.last_move_used),
+        None,
+    )
+    if m is None:
+        m = next((mm for mm in defender.moves if mm is not None), None)
     if m is not None:
         return atk(attacker, m, defender)
     return '\nBut nothing happened...'
@@ -743,7 +756,7 @@ def _transform(attacker: BattlePokemon, defender: BattlePokemon) -> str:
     """Transform user into a copy of the target (stats, typing, moves at 5 PP each)."""
     attacker.transformed = True
     attacker.id = defender.id
-    attacker.typing = defender.typing
+    attacker.typing = defender.typing.copy()
     attacker.moves = deepcopy(defender.moves)
     attacker.max_attack = deepcopy(defender.max_attack)
     attacker.max_defense = deepcopy(defender.max_defense)
@@ -864,6 +877,25 @@ def atk(
         return f'{msg} But {defender.name} {hide_msg}...'
 
     if move.accuracy == 0 or rand_t <= t_:
+        if attacker.temp_status == EffectStatus.CONFUSION and attacker.confused_turns >= 5:
+            attacker.temp_status = None
+            attacker.confused_turns = 0
+            msg += f'\n{attacker.name} is not confused anymore!'
+        elif attacker.temp_status == EffectStatus.CONFUSION:
+            attacker.confused_turns += 1
+            prob = random.random()
+            if prob <= 0.5:
+                power = 40
+                a = attacker.attack
+                d = attacker.defense
+                dmg = int((((2 * attacker.level) / 5 + 2) * power * (a / d)) / 50 + 2)
+                hit(attacker, dmg)
+                msg = f'{attacker.name} is so confused to hit itself!'
+                if attacker.fainted:
+                    msg += f'\n{attacker.name} fainted!'
+                if decrement_pp:
+                    move.pp -= 1
+                return msg
         if move.category in (MoveCategory.PHYSICAL, MoveCategory.SPECIAL):
             if move.name == 'Rage':
                 if not attacker.raging:
@@ -925,35 +957,14 @@ def atk(
                         move.pp -= 1
                     return msg
 
-            if attacker.temp_status == EffectStatus.CONFUSION and attacker.confused_turns >= 5:
-                attacker.temp_status = None
-                attacker.confused_turns = 0
-                msg += f'\n{attacker.name} is not confused anymore!'
-            elif attacker.temp_status == EffectStatus.CONFUSION:
-                attacker.confused_turns += 1
-                prob = random.random()
-                if prob <= 0.5:
-                    power = 40
-                    a = attacker.attack
-                    d = attacker.defense
-                    dmg = int((((2 * attacker.level) / 5 + 2) * power * (a / d)) / 50 + 2)
-                    hit(attacker, dmg)
-                    msg = f'{attacker.name} is so confused to hit itself!'
-                    if attacker.fainted:
-                        msg += f'\n{attacker.name} fainted!'
-                    if decrement_pp:
-                        move.pp -= 1
-                    return msg
-
             if defender != attacker:
                 defender.last_move_was_physical = move.category == MoveCategory.PHYSICAL
+                attacker.last_move_used = move.name
                 msg += handle_special_physical_move(attacker, move, defender, damage)
                 if move.name in ('Double-Edge', 'Take Down', 'Submission'):
                     recoil = damage // 3 if move.name == 'Double-Edge' else damage // 4
                     msg += f'\n{attacker.name} is hit with recoil!'
                     hit(attacker, recoil)
-                if move.name == 'Hyper Beam':
-                    attacker.recharging = True
                 if (
                     move.name in ('Wrap', 'Bind', 'Clamp', 'Fire Spin')
                     and not defender.fainted
@@ -969,6 +980,7 @@ def atk(
                     attacker.rampage_move = move.name
                     attacker.rampage_turns = random.randint(1, 2)
         else:
+            attacker.last_move_used = move.name
             msg += handle_status_move(attacker, move, defender)
     else:
         if 'jump kick' in move.name.lower():
@@ -979,6 +991,9 @@ def atk(
         if move.name == 'Rage':
             attacker.raging = False
             attacker.rage_move = ''
+
+    if move.name == 'Hyper Beam':
+        attacker.recharging = True
 
     if decrement_pp:
         move.pp -= 1
@@ -1082,22 +1097,20 @@ def try_atk_status(attacker: BattlePokemon, move: Move, defender: BattlePokemon)
 
 
 def handle_burn_poison(player_mon: BattlePokemon, enemy_mon: BattlePokemon) -> str:
-    """Apply burn and poison damage (1/16 max HP per turn) to both active Pokémon."""
+    """Apply burn (1/8 max HP per turn) and poison (1/16 max HP per turn) to both active Pokémon."""
     msg = ''
-    if player_mon.status in (EffectStatus.BURN, EffectStatus.POISON):
-        player_mon_max_hp = player_mon.max_hp
-        hit(player_mon, math.floor((1 / 16) * player_mon_max_hp), None, status=True)
-        if player_mon.status == EffectStatus.BURN:
-            msg += f'\n{player_mon.name} is hurt by its burn!'
-        else:
-            msg += f'\n{player_mon.name} is hurt by poison!'
-    if enemy_mon.status in (EffectStatus.BURN, EffectStatus.POISON):
-        enemy_mon_max_hp = enemy_mon.max_hp
-        hit(enemy_mon, math.floor((1 / 16) * enemy_mon_max_hp), None, status=True)
-        if enemy_mon.status == EffectStatus.BURN:
-            msg += f'\n{enemy_mon.name} is hurt by its burn!'
-        else:
-            msg += f'\n{enemy_mon.name} is hurt by poison!'
+    if player_mon.status == EffectStatus.BURN:
+        hit(player_mon, math.floor((1 / 8) * player_mon.max_hp), None, status=True)
+        msg += f'\n{player_mon.name} is hurt by its burn!'
+    elif player_mon.status == EffectStatus.POISON:
+        hit(player_mon, math.floor((1 / 16) * player_mon.max_hp), None, status=True)
+        msg += f'\n{player_mon.name} is hurt by poison!'
+    if enemy_mon.status == EffectStatus.BURN:
+        hit(enemy_mon, math.floor((1 / 8) * enemy_mon.max_hp), None, status=True)
+        msg += f'\n{enemy_mon.name} is hurt by its burn!'
+    elif enemy_mon.status == EffectStatus.POISON:
+        hit(enemy_mon, math.floor((1 / 16) * enemy_mon.max_hp), None, status=True)
+        msg += f'\n{enemy_mon.name} is hurt by poison!'
     return msg
 
 
