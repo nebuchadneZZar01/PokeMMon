@@ -364,6 +364,22 @@ type_chart: dict[Typing, dict[Typing, float]] = {
 }
 
 
+def overall_effectiveness(move_typing: Typing, target_typing: list[Typing]) -> float:
+    """Combined type effectiveness of a move against a Pokémon's typing(s).
+
+    Args:
+        move_typing (Typing): The attacking move's type.
+        target_typing (list[Typing]): The target Pokémon's one or two types.
+
+    Returns:
+        float: The product of effectiveness for each target type.
+    """
+    eff = 1.0
+    for t in target_typing:
+        eff *= get_effectiveness(move_typing, t)
+    return eff
+
+
 def get_effectiveness(attacking: Typing, defending: Typing) -> float:
     """Look up type effectiveness multiplier from the type chart.
 

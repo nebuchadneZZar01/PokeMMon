@@ -193,9 +193,7 @@ class _BaseMinimaxStrategy:
         if action.target == self.last_move:
             value -= 100
 
-        eff = pkmn_types.get_effectiveness(move.typing, rival.in_battle.typing[0])
-        if len(rival.in_battle.typing) == 2:
-            eff *= pkmn_types.get_effectiveness(move.typing, rival.in_battle.typing[1])
+        eff = pkmn_types.overall_effectiveness(move.typing, rival.in_battle.typing)
 
         if eff == 4:
             value += 100
@@ -233,18 +231,14 @@ class _BaseMinimaxStrategy:
         for m in rival.in_battle.moves:
             if m is None:
                 continue
-            eff = pkmn_types.get_effectiveness(m.typing, target.typing[0])
-            if len(target.typing) == 2:
-                eff *= pkmn_types.get_effectiveness(m.typing, target.typing[1])
+            eff = pkmn_types.overall_effectiveness(m.typing, target.typing)
             def_eff = min(def_eff, eff)
 
         atk_eff = 0.0
         for m in target.moves:
             if m is None:
                 continue
-            eff = pkmn_types.get_effectiveness(m.typing, rival.in_battle.typing[0])
-            if len(rival.in_battle.typing) == 2:
-                eff *= pkmn_types.get_effectiveness(m.typing, rival.in_battle.typing[1])
+            eff = pkmn_types.overall_effectiveness(m.typing, rival.in_battle.typing)
             atk_eff = max(atk_eff, eff)
 
         return (hp_gain * 100 * _HP_WEIGHT

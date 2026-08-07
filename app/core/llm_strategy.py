@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Annotated, Any, Literal, TypedDict
 
 import ollama
@@ -189,8 +189,14 @@ def _create_model(
             raise ValueError(msg)
 
 
-def _make_tools(trainer: Trainer, rival: Trainer) -> list:
-    """Create tool definitions for the LLM agent (module-level version).
+def _make_tool_defs(
+    get_state: Callable[[], tuple[Trainer | None, Trainer | None]],
+) -> list:
+    """Build the LLM agent's tool definitions against a state getter.
+
+    Args:
+        get_state (Callable[[], tuple[Trainer | None, Trainer | None]]): Callable
+            returning the current trainer and rival.
 
     Returns:
         list: List of LangChain Tool objects.
@@ -198,25 +204,29 @@ def _make_tools(trainer: Trainer, rival: Trainer) -> list:
     @tool
     def simulate_damage(move_name: str) -> int:
         '''Calculate expected damage for a named move against the current opponent.'''
+        t, r = get_state()
+        if t is None or r is None:
+            return 0
         move = next(
-            (m for m in trainer.in_battle.moves if m is not None and m.name == move_name),
+            (m for m in t.in_battle.moves if m is not None and m.name == move_name),
             None,
         )
         if move is None:
             return 0
-        dmg, _ = calculate_damage(trainer.in_battle, move, rival.in_battle)
+        dmg, _ = calculate_damage(t.in_battle, move, r.in_battle)
         return dmg
 
     @tool
     def get_type_effectiveness(move_type: str) -> str:
         '''Check type matchup of a move type against opponent\'s types.'''
-        t = _TYPE_MAP.get(move_type)
-        if t is None:
+        _, r = get_state()
+        if r is None:
+            return 'No opponent'
+        m = _TYPE_MAP.get(move_type)
+        if m is None:
             return f'Unknown type: {move_type}'
-        types_str = ', '.join(t.value for t in rival.in_battle.typing)
-        eff = pkmn_types.get_effectiveness(t, rival.in_battle.typing[0])
-        if len(rival.in_battle.typing) == 2:
-            eff *= pkmn_types.get_effectiveness(t, rival.in_battle.typing[1])
+        types_str = ', '.join(t.value for t in r.in_battle.typing)
+        eff = pkmn_types.overall_effectiveness(m, r.in_battle.typing)
         if eff == 0:
             return f'no effect (0x) against {types_str}'
         if eff < 1:
@@ -226,6 +236,19 @@ def _make_tools(trainer: Trainer, rival: Trainer) -> list:
         return f'super effective ({eff}x) against {types_str}'
 
     return [simulate_damage, get_type_effectiveness]
+
+
+def _make_tools(trainer: Trainer, rival: Trainer) -> list:
+    """Create tool definitions for the LLM agent (module-level version).
+
+    Args:
+        trainer (Trainer): The AI trainer.
+        rival (Trainer): The opposing trainer.
+
+    Returns:
+        list: List of LangChain Tool objects.
+    """
+    return _make_tool_defs(lambda: (trainer, rival))
 
 
 def _stat_stage_str(mult: float) -> str:
@@ -353,44 +376,7 @@ class LLMAgentStrategy:
         Returns:
             list: List of LangChain Tool objects.
         """
-        @tool
-        def simulate_damage(move_name: str) -> int:
-            '''Calculate expected damage for a named move against the current opponent.'''
-            t = self._trainer
-            r = self._rival
-            if t is None or r is None:
-                return 0
-            move = next(
-                (m for m in t.in_battle.moves if m is not None and m.name == move_name),
-                None,
-            )
-            if move is None:
-                return 0
-            dmg, _ = calculate_damage(t.in_battle, move, r.in_battle)
-            return dmg
-
-        @tool
-        def get_type_effectiveness(move_type: str) -> str:
-            '''Check type matchup of a move type against opponent\'s types.'''
-            r = self._rival
-            if r is None:
-                return 'No opponent'
-            t = _TYPE_MAP.get(move_type)
-            if t is None:
-                return f'Unknown type: {move_type}'
-            types_str = ', '.join(t.value for t in r.in_battle.typing)
-            eff = pkmn_types.get_effectiveness(t, r.in_battle.typing[0])
-            if len(r.in_battle.typing) == 2:
-                eff *= pkmn_types.get_effectiveness(t, r.in_battle.typing[1])
-            if eff == 0:
-                return f'no effect (0x) against {types_str}'
-            if eff < 1:
-                return f'not very effective ({eff}x) against {types_str}'
-            if eff == 1:
-                return f'neutral (1x) against {types_str}'
-            return f'super effective ({eff}x) against {types_str}'
-
-        return [simulate_damage, get_type_effectiveness]
+        return _make_tool_defs(lambda: (self._trainer, self._rival))
 
     def get_choice(self, trainer: Trainer, rival: Trainer) -> str | None:
         """Get the LLM's move choice for the current turn.

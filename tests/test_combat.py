@@ -97,6 +97,15 @@ class TestCalculateDamage:
         assert dmg == expected
         assert msg == ''
 
+    def test_overall_effectiveness(self):
+        assert pkmn_types.overall_effectiveness(Typing.WATER, [Typing.ROCK]) == 2.0
+        assert pkmn_types.overall_effectiveness(
+            Typing.ICE, [Typing.GRASS, Typing.GROUND]
+        ) == 4.0
+        assert pkmn_types.overall_effectiveness(Typing.FIRE, [Typing.FIRE, Typing.WATER]) == 0.25
+        assert pkmn_types.overall_effectiveness(Typing.NORMAL, [Typing.GHOST]) == 0.0
+        assert pkmn_types.overall_effectiveness(Typing.NORMAL, [Typing.NORMAL]) == 1.0
+
     def test_no_effect(self, monkeypatch):
         monkeypatch.setattr(random, 'randint', lambda a, b: 255)
         atk = make_pkmn(attack=50)
