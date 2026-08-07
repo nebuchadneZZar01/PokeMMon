@@ -143,6 +143,17 @@ def main() -> None:
                 time.sleep(1.2)
                 continue
 
+            forced = p.forced_move()
+            if forced is not None:
+                forced_idx = next(
+                    (i for i, m in enumerate(p.moves) if m is forced), None
+                )
+                if forced_idx is not None:
+                    exec_move(bs, forced_idx)
+                    render_core(bs)
+                    time.sleep(1.2)
+                    continue
+
             render_core(bs)
 
             choice = Prompt.ask('Action', choices=['1', '2', '3', '4', '5', '6'])

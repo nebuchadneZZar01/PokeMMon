@@ -440,12 +440,12 @@ class LLMAgentStrategy:
         Returns:
             str: Battle message from the executed move.
         """
+        choices = trainer.get_possible_choices()
         move = next(
             (m for m in trainer.in_battle.moves if m is not None and m.name == decision.move),
             None,
         )
-        if move is None:
-            choices = trainer.get_possible_choices()
+        if move is None or all(c.target is not move for c in choices):
             if not choices:
                 return trainer.struggle(rival)
             chosen = choices[0].target
@@ -466,7 +466,10 @@ class LLMAgentStrategy:
         slot = decision.slot if decision.slot is not None else 0
         target = trainer.team[slot]
         if (target is None or target.fainted or target is trainer.in_battle
-                or trainer.in_battle.trapped):
+                or trainer.in_battle.trapped
+                or trainer.in_battle.charging
+                or trainer.in_battle.rampaging
+                or trainer.in_battle.raging):
             return self._fallback_attack(trainer, rival)
 
         self.choices.append(f'switch:{target.name}')

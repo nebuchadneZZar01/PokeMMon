@@ -151,6 +151,17 @@ class BattlePokemon(BaseModel):
     trapped: bool = False
     trapped_turns: int = 0
 
+    rampaging: bool = False
+    rampage_turns: int = 0
+    rampage_move: str = ''
+
+    charging: bool = False
+    charge_move: str = ''
+
+    raging: bool = False
+    rage_move: str = ''
+    rage_hit: bool = False
+
     def model_post_init(self, __context: Any) -> None:
         """Select random moves if no moves are set."""
         if all(m is None for m in self.moves):
@@ -186,6 +197,19 @@ class BattlePokemon(BaseModel):
 
         for index, move in enumerate(chosen):
             self.moves[index] = move.model_copy(deep=True)
+
+    def forced_move(self) -> Move | None:
+        """Return the move this Pokémon is locked into (charge, rampage, or Rage)."""
+        name = ''
+        if self.charging:
+            name = self.charge_move
+        elif self.rampaging:
+            name = self.rampage_move
+        elif self.raging:
+            name = self.rage_move
+        if not name:
+            return None
+        return next((m for m in self.moves if m is not None and m.name == name), None)
 
     @classmethod
     def from_template(cls, template: Pokemon, level: int = 100) -> BattlePokemon:

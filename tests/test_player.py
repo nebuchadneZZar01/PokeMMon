@@ -139,6 +139,64 @@ class TestGetPossibleChoices:
         choices = t.get_possible_choices()
         assert len(choices) == 2
 
+    def test_charging_forces_charge_move(self):
+        t = Trainer()
+        dig = make_move(name='Dig', pp=10)
+        tackle = make_move(name='Tackle', pp=35)
+        t.in_battle.moves = [dig, tackle, None, None]
+        t.in_battle.charging = True
+        t.in_battle.charge_move = 'Dig'
+        choices = t.get_possible_choices()
+        assert len(choices) == 1
+        assert choices[0].target is dig
+
+    def test_rampaging_forces_rampage_move(self):
+        t = Trainer()
+        thrash = make_move(name='Thrash', pp=20)
+        tackle = make_move(name='Tackle', pp=35)
+        t.in_battle.moves = [thrash, tackle, None, None]
+        t.in_battle.rampaging = True
+        t.in_battle.rampage_move = 'Thrash'
+        t.in_battle.rampage_turns = 1
+        choices = t.get_possible_choices()
+        assert len(choices) == 1
+        assert choices[0].target is thrash
+
+    def test_raging_forces_rage_move(self):
+        t = Trainer()
+        rage = make_move(name='Rage', pp=20)
+        tackle = make_move(name='Tackle', pp=35)
+        t.in_battle.moves = [rage, tackle, None, None]
+        t.in_battle.raging = True
+        t.in_battle.rage_move = 'Rage'
+        choices = t.get_possible_choices()
+        assert len(choices) == 1
+        assert choices[0].target is rage
+
+    def test_locked_move_with_zero_pp_gives_none(self):
+        t = Trainer()
+        dig = make_move(name='Dig', pp=0)
+        t.in_battle.moves = [dig, None, None, None]
+        t.in_battle.charging = True
+        t.in_battle.charge_move = 'Dig'
+        assert t.get_possible_choices() == []
+
+    def test_no_switch_while_locked(self):
+        t = Trainer()
+        t.in_battle.rampaging = True
+        t.in_battle.rampage_move = 'Thrash'
+        t.team = [t.in_battle, make_pkmn(name='B'), make_pkmn(name='C'), None, None, None]
+        assert t.get_possible_switch_choices() == []
+
+    def test_forced_move_helper(self):
+        t = Trainer()
+        thrash = make_move(name='Thrash', pp=20)
+        t.in_battle.moves = [thrash, None, None, None]
+        t.in_battle.rampaging = True
+        t.in_battle.rampage_move = 'Thrash'
+        assert t.in_battle.forced_move() is thrash
+        assert make_pkmn().forced_move() is None
+
 
 class TestVerifyFaintedSwitch:
     def test_switches_to_first_alive(self):

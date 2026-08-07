@@ -2003,3 +2003,248 @@ class TestLeechSeedEnemyCap:
         msg = handle_leech_seed(p, e)
         assert p.hp == 200
         assert 'saps E' in msg
+
+
+class TestTwoTurnMoves:
+    def test_dig_charges_turn_one(self):
+        atk_pkmn = make_pkmn(name='Atk')
+        df_pkmn = make_pkmn(name='Df', hp=200)
+        move = make_move(name='Dig', power=100, typing=Typing.GROUND, pp=10)
+        atk_pkmn.moves = [move, None, None, None]
+        msg = atk(atk_pkmn, move, df_pkmn)
+        assert atk_pkmn.charging
+        assert atk_pkmn.charge_move == 'Dig'
+        assert df_pkmn.hp == 200
+        assert 'dug a hole' in msg
+        assert move.pp == 9
+
+    def test_fly_charges_turn_one(self):
+        atk_pkmn = make_pkmn(name='Atk')
+        df_pkmn = make_pkmn(name='Df', hp=200)
+        move = make_move(name='Fly', power=70, typing=Typing.FLYING, pp=15)
+        atk_pkmn.moves = [move, None, None, None]
+        msg = atk(atk_pkmn, move, df_pkmn)
+        assert atk_pkmn.charging
+        assert 'flew up high' in msg
+        assert df_pkmn.hp == 200
+
+    def test_solar_beam_charges_turn_one(self):
+        atk_pkmn = make_pkmn(name='Atk')
+        df_pkmn = make_pkmn(name='Df', hp=200)
+        move = make_move(name='Solar Beam', power=120, typing=Typing.GRASS, pp=10)
+        atk_pkmn.moves = [move, None, None, None]
+        msg = atk(atk_pkmn, move, df_pkmn)
+        assert atk_pkmn.charging
+        assert 'absorbed light' in msg
+        assert df_pkmn.hp == 200
+
+    def test_razor_wind_charges_turn_one(self):
+        atk_pkmn = make_pkmn(name='Atk')
+        df_pkmn = make_pkmn(name='Df', hp=200)
+        move = make_move(name='Razor Wind', power=80, typing=Typing.NORMAL, pp=10)
+        atk_pkmn.moves = [move, None, None, None]
+        msg = atk(atk_pkmn, move, df_pkmn)
+        assert atk_pkmn.charging
+        assert 'whipped up a whirlwind' in msg
+
+    def test_sky_attack_charges_turn_one(self):
+        atk_pkmn = make_pkmn(name='Atk')
+        df_pkmn = make_pkmn(name='Df', hp=200)
+        move = make_move(name='Sky Attack', power=140, typing=Typing.NORMAL, pp=5)
+        atk_pkmn.moves = [move, None, None, None]
+        msg = atk(atk_pkmn, move, df_pkmn)
+        assert atk_pkmn.charging
+        assert 'is glowing' in msg
+
+    def test_skull_bash_charges_and_boosts_def(self):
+        atk_pkmn = make_pkmn(name='Atk')
+        df_pkmn = make_pkmn(name='Df', hp=200)
+        move = make_move(name='Skull Bash', power=100, typing=Typing.NORMAL, pp=15)
+        atk_pkmn.moves = [move, None, None, None]
+        msg = atk(atk_pkmn, move, df_pkmn)
+        assert atk_pkmn.charging
+        assert atk_pkmn.def_mult == 1
+        assert 'lowered its head' in msg
+
+    def test_charge_without_pp_decrement_flag(self):
+        atk_pkmn = make_pkmn(name='Atk')
+        df_pkmn = make_pkmn(name='Df', hp=200)
+        move = make_move(name='Dig', power=100, typing=Typing.GROUND, pp=10)
+        atk_pkmn.moves = [move, None, None, None]
+        atk(atk_pkmn, move, df_pkmn, decrement_pp=False)
+        assert move.pp == 10
+
+    def test_release_attacks_and_consumes_pp_once(self):
+        atk_pkmn = make_pkmn(name='Atk')
+        df_pkmn = make_pkmn(name='Df', hp=300)
+        move = make_move(name='Dig', power=100, typing=Typing.GROUND, pp=10)
+        atk_pkmn.moves = [move, None, None, None]
+        atk(atk_pkmn, move, df_pkmn)
+        assert move.pp == 9
+        assert atk_pkmn.charging
+        try_atk_status(atk_pkmn, move, df_pkmn)
+        assert not atk_pkmn.charging
+        assert df_pkmn.hp < 300
+        assert move.pp == 9
+
+    def test_release_missing_move_falls_back(self):
+        atk_pkmn = make_pkmn(name='Atk')
+        df_pkmn = make_pkmn(name='Df')
+        atk_pkmn.charging = True
+        atk_pkmn.charge_move = 'Dig'
+        msg = try_atk_status(atk_pkmn, make_move(), df_pkmn)
+        assert not atk_pkmn.charging
+        assert 'could not complete' in msg
+
+
+class TestTwoTurnInvulnerability:
+    def _charging_def(self, move_name):
+        df = make_pkmn(name='Df', hp=300)
+        df.charging = True
+        df.charge_move = move_name
+        return df
+
+    def test_attack_misses_against_digging_defender(self):
+        atk_pkmn = make_pkmn(name='Atk')
+        df_pkmn = self._charging_def('Dig')
+        move = make_move(name='Tackle', power=40, pp=35)
+        msg = atk(atk_pkmn, move, df_pkmn)
+        assert df_pkmn.hp == 300
+        assert 'dug a hole' in msg
+        assert move.pp == 34
+
+    def test_attack_misses_against_flying_defender(self):
+        atk_pkmn = make_pkmn(name='Atk')
+        df_pkmn = self._charging_def('Fly')
+        move = make_move(name='Tackle', power=40, pp=35)
+        msg = atk(atk_pkmn, move, df_pkmn)
+        assert df_pkmn.hp == 300
+        assert 'flew up high' in msg
+
+    def test_attack_hits_solar_beam_charger(self):
+        atk_pkmn = make_pkmn(name='Atk')
+        df_pkmn = self._charging_def('Solar Beam')
+        move = make_move(name='Tackle', power=40, pp=35)
+        msg = atk(atk_pkmn, move, df_pkmn)
+        assert df_pkmn.hp < 300
+        assert 'dug a hole' not in msg
+
+
+class TestRampage:
+    def test_thrash_starts_rampage(self, monkeypatch):
+        monkeypatch.setattr(random, 'randint', lambda a, b: 255 if a == 0 or a == 217 else 1)
+        atk_pkmn = make_pkmn(name='Atk')
+        df_pkmn = make_pkmn(name='Df', hp=300)
+        move = make_move(name='Thrash', power=90, typing=Typing.NORMAL, pp=20)
+        atk_pkmn.moves = [move, None, None, None]
+        atk(atk_pkmn, move, df_pkmn)
+        assert atk_pkmn.rampaging
+        assert atk_pkmn.rampage_move == 'Thrash'
+        assert atk_pkmn.rampage_turns in (1, 2)
+        assert df_pkmn.hp < 300
+
+    def test_petal_dance_starts_rampage(self):
+        atk_pkmn = make_pkmn(name='Atk')
+        df_pkmn = make_pkmn(name='Df', hp=300)
+        move = make_move(name='Petal Dance', power=70, typing=Typing.GRASS, pp=20)
+        atk_pkmn.moves = [move, None, None, None]
+        atk(atk_pkmn, move, df_pkmn)
+        assert atk_pkmn.rampaging
+        assert atk_pkmn.rampage_move == 'Petal Dance'
+
+    def test_rampage_continuation_no_confusion_yet(self):
+        atk_pkmn = make_pkmn(name='Atk')
+        df_pkmn = make_pkmn(name='Df', hp=300)
+        move = make_move(name='Thrash', power=90, typing=Typing.NORMAL, pp=20)
+        atk_pkmn.moves = [move, None, None, None]
+        atk_pkmn.rampaging = True
+        atk_pkmn.rampage_move = 'Thrash'
+        atk_pkmn.rampage_turns = 2
+        try_atk_status(atk_pkmn, move, df_pkmn)
+        assert atk_pkmn.rampaging
+        assert atk_pkmn.rampage_turns == 1
+        assert atk_pkmn.temp_status is None
+        assert df_pkmn.hp < 300
+
+    def test_rampage_ends_with_confusion(self):
+        atk_pkmn = make_pkmn(name='Atk')
+        df_pkmn = make_pkmn(name='Df', hp=300)
+        move = make_move(name='Thrash', power=90, typing=Typing.NORMAL, pp=20)
+        atk_pkmn.moves = [move, None, None, None]
+        atk_pkmn.rampaging = True
+        atk_pkmn.rampage_move = 'Thrash'
+        atk_pkmn.rampage_turns = 1
+        msg = try_atk_status(atk_pkmn, move, df_pkmn)
+        assert not atk_pkmn.rampaging
+        assert atk_pkmn.temp_status == EffectStatus.CONFUSION
+        assert atk_pkmn.confused_turns == 0
+        assert 'became confused' in msg
+
+    def test_rampage_missing_move_clears_lock(self):
+        atk_pkmn = make_pkmn(name='Atk')
+        df_pkmn = make_pkmn(name='Df')
+        atk_pkmn.rampaging = True
+        atk_pkmn.rampage_move = 'Thrash'
+        atk_pkmn.rampage_turns = 1
+        msg = try_atk_status(atk_pkmn, make_move(), df_pkmn)
+        assert not atk_pkmn.rampaging
+        assert atk_pkmn.rampage_turns == 0
+        assert 'could not complete' in msg
+
+
+class TestRage:
+    def test_rage_locks_and_boosts_after_hit(self):
+        atk_pkmn = make_pkmn(name='Atk')
+        df_pkmn = make_pkmn(name='Df', hp=300)
+        move = make_move(name='Rage', power=20, typing=Typing.NORMAL, pp=20)
+        atk_pkmn.moves = [move, None, None, None]
+        atk(atk_pkmn, move, df_pkmn)
+        assert atk_pkmn.raging
+        assert atk_pkmn.atk_mult == 0
+        atk_pkmn.rage_hit = True
+        msg = atk(atk_pkmn, move, df_pkmn)
+        assert atk_pkmn.rage_hit is False
+        assert atk_pkmn.atk_mult == 1
+        assert 'getting angry' in msg
+
+    def test_rage_breaks_when_it_misses(self):
+        atk_pkmn = make_pkmn(name='Atk')
+        df_pkmn = make_pkmn(name='Df')
+        move = make_move(name='Rage', power=20, accuracy=0, pp=20)
+        atk_pkmn.moves = [move, None, None, None]
+        atk_pkmn.raging = True
+        atk_pkmn.rage_move = 'Rage'
+        msg = atk(atk_pkmn, move, df_pkmn)
+        assert not atk_pkmn.raging
+        assert atk_pkmn.rage_move == ''
+        assert 'failed' in msg
+
+    def test_rage_hit_flag_set_on_damage(self):
+        defender = make_pkmn(name='Df', hp=300, raging=True)
+        attacker = make_pkmn(name='Atk')
+        hit(defender, 20, attacker)
+        assert defender.rage_hit is True
+
+    def test_rage_hit_flag_not_set_by_status_damage(self):
+        defender = make_pkmn(name='Df', hp=300, raging=True)
+        hit(defender, 20, None, status=True)
+        assert defender.rage_hit is False
+
+
+class TestResetOnSwitchOutLocks:
+    def test_clears_charge_rampage_rage(self):
+        from app.core.combat import reset_on_switch_out
+        pkmn = make_pkmn(
+            charging=True, charge_move='Dig',
+            rampaging=True, rampage_move='Thrash', rampage_turns=2,
+            raging=True, rage_move='Rage', rage_hit=True,
+        )
+        reset_on_switch_out(pkmn)
+        assert not pkmn.charging
+        assert pkmn.charge_move == ''
+        assert not pkmn.rampaging
+        assert pkmn.rampage_turns == 0
+        assert pkmn.rampage_move == ''
+        assert not pkmn.raging
+        assert pkmn.rage_move == ''
+        assert not pkmn.rage_hit

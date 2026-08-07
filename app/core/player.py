@@ -105,6 +105,12 @@ class Trainer:
                 return [Action.attack(self.in_battle.name, bide_move)]
             return []
 
+        forced = self.in_battle.forced_move()
+        if forced is not None:
+            if forced.pp > 0:
+                return [Action.attack(self.in_battle.name, forced)]
+            return []
+
         for i, move in enumerate(self.in_battle.moves):
             if move is not None and move.pp > 0 and i != self.in_battle.disabled_move:
                 possible_choices.append(Action.attack(self.in_battle.name, move))
@@ -121,6 +127,9 @@ class Trainer:
             list[Action]: List of valid switch actions.
         """
         if self.in_battle.biding or self.in_battle.trapped:
+            return []
+        if (self.in_battle.charging or self.in_battle.rampaging
+                or self.in_battle.raging):
             return []
         return [
             Action.switch(self.in_battle.name, p)

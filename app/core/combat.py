@@ -16,6 +16,17 @@ if TYPE_CHECKING:
 
 CONST_THAW = 0.20
 
+_RAMPAGE_MOVES = {'Thrash', 'Petal Dance'}
+
+_TWO_TURN_MOVES: dict[str, tuple[str, bool]] = {
+    'Dig': ('dug a hole', True),
+    'Fly': ('flew up high', True),
+    'Solar Beam': ('absorbed light', False),
+    'Razor Wind': ('whipped up a whirlwind', False),
+    'Sky Attack': ('is glowing', False),
+    'Skull Bash': ('lowered its head', False),
+}
+
 
 def has_type(pkmn: BattlePokemon, t: Typing) -> bool:
     """Check if a Pokémon has a specific type.
@@ -156,6 +167,14 @@ def reset_on_switch_out(pokemon: BattlePokemon) -> None:
     pokemon.trapped_turns = 0
     pokemon.last_damage_taken = 0
     pokemon.last_move_was_physical = False
+    pokemon.rampaging = False
+    pokemon.rampage_turns = 0
+    pokemon.rampage_move = ''
+    pokemon.charging = False
+    pokemon.charge_move = ''
+    pokemon.raging = False
+    pokemon.rage_move = ''
+    pokemon.rage_hit = False
 
 
 def calculate_crit_multiplier(attacker: BattlePokemon, high_crit: bool = False) -> tuple[int, str]:
@@ -197,7 +216,10 @@ def calculate_damage(
     for t in defender.typing:
         effectiveness *= pkmn_types.get_effectiveness(move.typing, t)
 
-    high_crit = move.name in {'Slash', 'Razor Leaf', 'Crabhammer', 'Karate Chop'}
+    high_crit = move.name in {
+        'Slash', 'Razor Leaf', 'Crabhammer', 'Karate Chop',
+        'Razor Wind', 'Sky Attack',
+    }
     crit, crit_msg = calculate_crit_multiplier(attacker, high_crit)
 
     rand = random.randint(217, 255) / 255
@@ -223,6 +245,8 @@ def hit(
             defender.last_damage_taken = damage
             if defender.biding:
                 defender.bide_damage += damage
+            if defender.raging:
+                defender.rage_hit = True
         return ''
     if not status:
         defender.sub_damage += damage
@@ -763,21 +787,52 @@ def handle_status_move(attacker: BattlePokemon, move: Move, defender: BattlePoke
         return handler(attacker, defender)
     return ''
 
-def atk(attacker: BattlePokemon, move: Move, defender: BattlePokemon) -> str:
+def atk(
+    attacker: BattlePokemon, move: Move, defender: BattlePokemon,
+    decrement_pp: bool = True,
+) -> str:
     """Execute a move: accuracy check, damage calc, secondary effects, status moves."""
     if move.name == 'Bide' and not attacker.biding:
         attacker.biding = True
         attacker.bide_turns = 0
         attacker.bide_damage = 0
-        move.pp -= 1
+        if decrement_pp:
+            move.pp -= 1
         return f'{attacker.name} used Bide!'
 
     t_ = int(move.accuracy * attacker.accuracy * defender.evasion * 255 / 100)
     rand_t = random.randint(0, 255)
     msg = f'{attacker.name} used {move.name}!'
 
+    charge_info = _TWO_TURN_MOVES.get(move.name)
+    if charge_info is not None and not attacker.charging:
+        attacker.charging = True
+        attacker.charge_move = move.name
+        charge_msg, _ = charge_info
+        if move.name == 'Skull Bash':
+            inc_dec_stat_mult(attacker, attacker, 'def_mult', True)
+        msg += f'\n{attacker.name} {charge_msg}!'
+        if decrement_pp:
+            move.pp -= 1
+        return msg
+
+    if (defender.charging and defender is not attacker
+            and _TWO_TURN_MOVES.get(defender.charge_move, (None, False))[1]):
+        hide_msg, _ = _TWO_TURN_MOVES[defender.charge_move]
+        if decrement_pp:
+            move.pp -= 1
+        return f'{msg} But {defender.name} {hide_msg}...'
+
     if rand_t <= t_:
         if move.category in (MoveCategory.PHYSICAL, MoveCategory.SPECIAL):
+            if move.name == 'Rage':
+                if not attacker.raging:
+                    attacker.raging = True
+                    attacker.rage_move = 'Rage'
+                if attacker.rage_hit:
+                    attacker.rage_hit = False
+                    inc_dec_stat_mult(attacker, attacker, 'atk_mult', True)
+                    msg += f'\n{attacker.name} is getting angry!'
             tmp = ''
             if move.name != 'Dream Eater' and defender.status != EffectStatus.SLEEP:
                 effectiveness = 1.0
@@ -826,7 +881,8 @@ def atk(attacker: BattlePokemon, move: Move, defender: BattlePokemon) -> str:
                     msg += f'\n{defender.name} dream was eaten!'
                 else:
                     msg += '\nIt does nothing...'
-                    move.pp -= 1
+                    if decrement_pp:
+                        move.pp -= 1
                     return msg
 
             if attacker.temp_status == EffectStatus.CONFUSION and attacker.confused_turns >= 5:
@@ -844,7 +900,8 @@ def atk(attacker: BattlePokemon, move: Move, defender: BattlePokemon) -> str:
                     msg = f'{attacker.name} is so confused to hit itself!'
                     if attacker.fainted:
                         msg += f'\n{attacker.name} fainted!'
-                    move.pp -= 1
+                    if decrement_pp:
+                        move.pp -= 1
                     return msg
 
             if defender != attacker:
@@ -866,6 +923,10 @@ def atk(attacker: BattlePokemon, move: Move, defender: BattlePokemon) -> str:
                     msg += f'\n{defender.name} was trapped!'
                 if defender.fainted:
                     msg += f'\n{defender.name} fainted!'
+                if move.name in _RAMPAGE_MOVES and not attacker.rampaging:
+                    attacker.rampaging = True
+                    attacker.rampage_move = move.name
+                    attacker.rampage_turns = random.randint(1, 2)
         else:
             msg += handle_status_move(attacker, move, defender)
     else:
@@ -874,8 +935,12 @@ def atk(attacker: BattlePokemon, move: Move, defender: BattlePokemon) -> str:
             hit(attacker, 1)
         else:
             msg += '\nBut it failed...'
+        if move.name == 'Rage':
+            attacker.raging = False
+            attacker.rage_move = ''
 
-    move.pp -= 1
+    if decrement_pp:
+        move.pp -= 1
     return msg
 
 
@@ -884,6 +949,40 @@ def try_atk_status(attacker: BattlePokemon, move: Move, defender: BattlePokemon)
     if attacker.recharging:
         attacker.recharging = False
         return f'{attacker.name} must recharge!'
+
+    if attacker.charging:
+        charge = next(
+            (m for m in attacker.moves if m is not None and m.name == attacker.charge_move),
+            None,
+        )
+        if charge is None:
+            attacker.charging = False
+            attacker.charge_move = ''
+            return f'{attacker.name} could not complete the move!'
+        msg = atk(attacker, charge, defender, decrement_pp=False)
+        attacker.charging = False
+        attacker.charge_move = ''
+        return msg
+
+    if attacker.rampaging:
+        rage = next(
+            (m for m in attacker.moves if m is not None and m.name == attacker.rampage_move),
+            None,
+        )
+        if rage is None:
+            attacker.rampaging = False
+            attacker.rampage_turns = 0
+            attacker.rampage_move = ''
+            return f'{attacker.name} could not complete the move!'
+        attacker.rampage_turns -= 1
+        msg = atk(attacker, rage, defender)
+        if attacker.rampage_turns <= 0:
+            attacker.rampaging = False
+            attacker.rampage_move = ''
+            attacker.temp_status = EffectStatus.CONFUSION
+            attacker.confused_turns = 0
+            msg += f'\n{attacker.name} became confused!'
+        return msg
 
     if attacker.biding:
         attacker.bide_turns += 1

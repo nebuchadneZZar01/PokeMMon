@@ -64,12 +64,7 @@ class RandomStrategy:
         """
         if trainer.is_turn():
             trainer.verify_fainted_switch()
-            moves = [m for m in trainer.in_battle.moves if m is not None]
-            attacks = [
-                Action.attack(trainer.in_battle.name, m)
-                for m in moves
-            ]
-            choices = attacks + trainer.get_possible_switch_choices()
+            choices = trainer.get_possible_choices() + trainer.get_possible_switch_choices()
             if not choices:
                 return trainer.struggle(rival)
             chosen = random.choice(choices)
