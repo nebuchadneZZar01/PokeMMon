@@ -12,7 +12,7 @@ All credits of the material used (characters and ideas) belong to The Pokémon C
 
 
 ## Description
-This Python software is a terminal-based re-implementation of the 1st gen. Pokémon games' (Red/Blue/Yellow versions) **battle system** via `rich` TUI, with data models via `pydantic` v2.
+This Python software is a terminal-based re-implementation of the 1st gen. Pokémon games' (Red/Blue/Yellow versions) **battle system** via `rich` TUI, with data models via `pydantic` v2. It keeps the Gen 1 Pokédex, moves and type chart, but applies **modern (Gen 2+) battle mechanics** (sleep/confusion turn counters, 5-turn screens, 25%-HP Substitute, 2× critical hits).
 It implements **MiniMax-type algorithms** to move the CPU player.
 
 These are the possible **strategies** that could move the rival agent:
