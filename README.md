@@ -50,23 +50,29 @@ The AI logs can be enabled by picking `info` or `debug` in the setup menu to exp
 
 - **Battle view** (default):
   ```
-  ╭────────────────────────────────────  AI  ────────────────────────────────────╮
-  │   Tangela    Lv100                                                           │
-  │   HP ████████████████████  240/240                                           │
-  │   OK               Team ●●●●●●                                               │
-  ╰──────────────────────────────────────────────────────────────────────────────╯
-  ╭──────────────────────────────────  Player  ──────────────────────────────────╮
-  │   Flareon    Lv100                                                           │
-  │   HP ████████████████████  240/240                                           │
-  │   OK               Team ●●●●●●                                               │
-  ╰──────────────────────────────────────────────────────────────────────────────╯
-  ╭─────────────────────────────────  Message  ──────────────────────────────────╮
-  │ Flareon used Take Down!                                                      │
-  ╰──────────────────────────────────────────────────────────────────────────────╯
-    [1] Skull Bash       - NORMAL 15/15
-    [2] Double Team      - NORMAL 15/15
-    [3] Take Down        - NORMAL 20/20
-    [4] Substitute       - NORMAL 10/10
+  ╭───────────────────────────  AI  ───────────────────────────╮
+  │   Tangela    Lv100                                         │
+  │   GRASS                                                    │
+  │   HP ██████████████████  240/240                           │
+  │   OK                 Team ●●●●●●                           │
+  ╰────────────────────────────────────────────────────────────╯
+  ╭─────────────────────────  Player  ─────────────────────────╮
+  │   Flareon    Lv100                                         │
+  │   FIRE                                                     │
+  │   HP ██████████████████  240/240                           │
+  │   OK                 Team ●○○○○○                           │
+  │    Boosts  Atk ↑2                                          │
+  │    Drops   Def ↓1                                          │
+  ╰────────────────────────────────────────────────────────────╯
+  ╭───────────────────────  Battle Log  ───────────────────────╮
+  │   R1    Player    Flareon used Take Down!                  │
+  │                                                            │
+  │   R0    AI        Tangela used Mega Drain!                 │
+  ╰────────────────────────────────────────────────────────────╯
+    [1] Skull Bash     NORMAL      15/15
+    [2] Double Team    NORMAL      15/15
+    [3] Take Down      NORMAL      20/20
+    [4] Substitute     NORMAL      10/10
 
     [5] Team     [6] Forfeit
   Action [1/2/3/4/5/6]:
@@ -74,26 +80,29 @@ The AI logs can be enabled by picking `info` or `debug` in the setup menu to exp
 
 - **Team view** (press <kbd>5</kbd>):
   ```
-  ╭───────────────────────────────  Your Team  ──────────────────────────────────╮
-  │                                                                              │
-  │   [1] Flareon   ████████████████   240/240          OK                       │
-  │                 NORMAL                                                       │
-  │                                                                              │
-  │   [2] Vaporeon  ████████████████   240/240          OK                       │
-  │                 WATER                                                        │
-  │                                                                              │
-  │   [3] Jolteon   ████████████████   130/240          OK                       │
-  │                 ELECTRIC                                                     │
-  │                                                                              │
-  │   [4] Espeon    ████████████████   240/240          OK                       │
-  │                 PSYCHIC                                                      │
-  │                                                                              │
-  │   [5] Umbreon   ████████████████   240/240          OK                       │
-  │                 DARK                                                         │
-  │                                                                              │
-  │   [6] Leafeon   ████████████████   240/240          OK                       │
-  │                 GRASS                                                        │
-  ╰──────────────────────────────────────────────────────────────────────────────╯
+  ╭───────────────────────────────  AI  ───────────────────────────────╮
+  │   Tangela    Lv100                                                 │
+  │   GRASS                                                            │
+  │   HP █████████░░░░░░░░░  132/240                                   │
+  │   OK                 Team ●                                        │
+  ╰────────────────────────────────────────────────────────────────────╯
+
+  ╭──────────────────────────  Your Team  ────────────────────────────╮
+  │   [1] Flareon    ██████████████  240/240  OK  ←                   │
+  │                 FIRE                                              │
+  │       Skull Bash      NORMAL  15/15   Double Team   NORMAL  15/15  │
+  │       Take Down       NORMAL  20/20  Substitute   NORMAL  10/10   │
+  │                                                                   │
+  │   [2] Vaporeon   ██████████████  240/240  OK                      │
+  │                 WATER                                             │
+  │       Surf           WATER   35/35   Aurora Beam  ICE     35/35   │
+  │       Blizzard       ICE     35/35   Hydro Pump   WATER   35/35   │
+  │                                                                   │
+  │   [3] Jolteon    ███████░░░░░░░  130/240  OK                      │
+  │                 ELECTRIC                                          │
+  │       ThunderShock  ELECTRIC 35/35   Thunderbolt  ELECTRIC 35/35  │
+  │       ...                                                         │
+  ╰────────────────────────────────────────────────────────────────────╯
 
     Choose (1-6) to switch, [0] back to battle
   ```
@@ -106,9 +115,6 @@ uv run mypy app main.py    # type check
 uv run pytest tests/ -v    # run tests
 uv run pytest --cov=app    # test coverage (fail_under 90)
 ```
-
-## Known bugs
-- When using a non-damaging move that updates stat multipliers (like "Growl", "Tail Whip", "Double Team" etc.), the first use may display the wrong stat name in the message; subsequent uses display correctly.
 
 ## Author
 - [@nebuchadneZZar01](https://github.com/nebuchadneZZar01) (Michele Ferro)
