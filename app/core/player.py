@@ -4,7 +4,7 @@ import logging
 import random
 from typing import TYPE_CHECKING
 
-from app.core.combat import reset_on_switch_out
+from app.core.combat import reset_on_switch_out, struggle_no_pp
 from app.data.pokedex import pokedex
 from app.schemas.action import Action, ActionKind
 from app.schemas.battle_pokemon import BattlePokemon
@@ -102,16 +102,12 @@ class Trainer:
                 (m for m in self.in_battle.moves if m is not None and m.name == 'Bide'), None
             )
             if bide_move:
-                return [Action(
-                    kind=ActionKind.ATTACK, user=self.in_battle.name, target=bide_move,
-                )]
+                return [Action.attack(self.in_battle.name, bide_move)]
             return []
 
         for i, move in enumerate(self.in_battle.moves):
             if move is not None and move.pp > 0 and i != self.in_battle.disabled_move:
-                possible_choices.append(Action(
-                    kind=ActionKind.ATTACK, user=self.in_battle.name, target=move,
-                ))
+                possible_choices.append(Action.attack(self.in_battle.name, move))
 
         return possible_choices
 
@@ -127,7 +123,7 @@ class Trainer:
         if self.in_battle.biding or self.in_battle.trapped:
             return []
         return [
-            Action(kind=ActionKind.SWITCH, user=self.in_battle.name, target=p)
+            Action.switch(self.in_battle.name, p)
             for p in self.team
             if p is not None and p is not self.in_battle and not p.fainted
         ]
@@ -149,6 +145,17 @@ class Trainer:
         self.in_battle = target
         target.on_field = True
         return f'{self.name} sent out {target.name}! Go, {target.name}!'
+
+    def struggle(self, rival: Trainer) -> str:
+        """Resolve a Struggle attack when no usable moves are available.
+
+        Args:
+            rival (Trainer): The opposing trainer.
+
+        Returns:
+            str: The Struggle battle message.
+        """
+        return struggle_no_pp(self.in_battle, rival.in_battle)
 
     def print_choices(self, choices: list[Action]) -> None:
         """Log possible choice details for debugging.

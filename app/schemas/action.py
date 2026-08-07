@@ -25,3 +25,13 @@ class Action(BaseModel):
     kind: ActionKind
     user: str
     target: BattlePokemon | Move
+
+    @classmethod
+    def attack(cls, user: str, move: Move) -> Action:
+        """Create an attack action using ``move``."""
+        return cls(kind=ActionKind.ATTACK, user=user, target=move)
+
+    @classmethod
+    def switch(cls, user: str, pkmn: BattlePokemon) -> Action:
+        """Create a switch action to ``pkmn``."""
+        return cls(kind=ActionKind.SWITCH, user=user, target=pkmn)

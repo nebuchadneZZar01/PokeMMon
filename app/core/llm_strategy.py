@@ -20,7 +20,6 @@ from pydantic import BaseModel, Field
 import app.data.pkmn_types as pkmn_types
 from app.core.combat import (
     calculate_damage,
-    struggle_no_pp,
     try_atk_status,
 )
 from app.schemas.move import Move
@@ -396,7 +395,7 @@ class LLMAgentStrategy:
 
         choices = trainer.get_possible_choices()
         if not choices:
-            return struggle_no_pp(trainer.in_battle, rival.in_battle)
+            return trainer.struggle(rival)
 
         self._trainer = trainer
         self._rival = rival
@@ -448,7 +447,7 @@ class LLMAgentStrategy:
         if move is None:
             choices = trainer.get_possible_choices()
             if not choices:
-                return struggle_no_pp(trainer.in_battle, rival.in_battle)
+                return trainer.struggle(rival)
             chosen = choices[0].target
             assert isinstance(chosen, Move)
             move = chosen
@@ -485,4 +484,4 @@ class LLMAgentStrategy:
             assert isinstance(move, Move)
             self.choices.append(move.name)
             return try_atk_status(trainer.in_battle, move, rival.in_battle)
-        return struggle_no_pp(trainer.in_battle, rival.in_battle)
+        return trainer.struggle(rival)

@@ -5,7 +5,7 @@ import random
 from typing import TYPE_CHECKING
 
 import app.data.pkmn_types as pkmn_types
-from app.core.combat import calculate_damage, struggle_no_pp, try_atk_status
+from app.core.combat import calculate_damage, try_atk_status
 from app.schemas.action import Action, ActionKind
 from app.schemas.battle_pokemon import BattlePokemon
 from app.schemas.move import Move
@@ -21,6 +21,33 @@ _STATUS_WEIGHT = 0.25
 _STAT_WEIGHT = 0.05
 _FAINT_WEIGHT = 100
 _SWITCH_COST = 100
+
+
+def _execute_action(
+    choice_log: list[str], trainer: Trainer, rival: Trainer, action: Action,
+) -> tuple[str, Move | None]:
+    """Execute a chosen action and record it in ``choice_log``.
+
+    Args:
+        choice_log (list[str]): Log of executed action records.
+        trainer (Trainer): The acting trainer.
+        rival (Trainer): The opposing trainer.
+        action (Action): The action to execute.
+
+    Returns:
+        tuple[str, Move | None]: The battle message and the move used, or
+            None if the action was a switch.
+    """
+    if action.kind == ActionKind.SWITCH:
+        target = action.target
+        assert isinstance(target, BattlePokemon)
+        choice_log.append(f'switch:{target.name}')
+        return trainer.strategic_switch(target), None
+    move = action.target
+    assert isinstance(move, Move)
+    choice_log.append(move.name)
+    logger.info('Chosen move: %s', move.name)
+    return try_atk_status(trainer.in_battle, move, rival.in_battle), move
 
 
 class RandomStrategy:
@@ -39,12 +66,12 @@ class RandomStrategy:
             trainer.verify_fainted_switch()
             moves = [m for m in trainer.in_battle.moves if m is not None]
             attacks = [
-                Action(kind=ActionKind.ATTACK, user=trainer.in_battle.name, target=m)
+                Action.attack(trainer.in_battle.name, m)
                 for m in moves
             ]
             choices = attacks + trainer.get_possible_switch_choices()
             if not choices:
-                return struggle_no_pp(trainer.in_battle, rival.in_battle)
+                return trainer.struggle(rival)
             chosen = random.choice(choices)
             return self._execute(trainer, rival, chosen)
         return None
@@ -55,16 +82,8 @@ class RandomStrategy:
         Returns:
             str: Battle message from the executed action.
         """
-        if action.kind == ActionKind.SWITCH:
-            target = action.target
-            assert isinstance(target, BattlePokemon)
-            self.choices.append(f'switch:{target.name}')
-            return trainer.strategic_switch(target)
-        move = action.target
-        assert isinstance(move, Move)
-        logger.info(move.name)
-        self.choices.append(move.name)
-        return try_atk_status(trainer.in_battle, move, rival.in_battle)
+        msg, _ = _execute_action(self.choices, trainer, rival, action)
+        return msg
 
 
 class _BaseMinimaxStrategy:
@@ -101,7 +120,7 @@ class _BaseMinimaxStrategy:
         choices = trainer.get_possible_choices() + trainer.get_possible_switch_choices()
         trainer.print_choices(choices)
         if not choices:
-            return struggle_no_pp(trainer.in_battle, rival.in_battle)
+            return trainer.struggle(rival)
         best = choices[0]
         best_val = -float('inf')
         for action in choices:
@@ -117,18 +136,9 @@ class _BaseMinimaxStrategy:
         Returns:
             str: Battle message from the executed action.
         """
-        if action.kind == ActionKind.SWITCH:
-            target = action.target
-            assert isinstance(target, BattlePokemon)
-            self.last_move = None
-            self.choices.append(f'switch:{target.name}')
-            return trainer.strategic_switch(target)
-        move = action.target
-        assert isinstance(move, Move)
+        msg, move = _execute_action(self.choices, trainer, rival, action)
         self.last_move = move
-        logger.info('Chosen move: %s', move.name)
-        self.choices.append(move.name)
-        return try_atk_status(trainer.in_battle, move, rival.in_battle)
+        return msg
 
     def evaluate(self, action: Action, trainer: Trainer, rival: Trainer) -> float:
         """Evaluate the board state after a hypothetical action.

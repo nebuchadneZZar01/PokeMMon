@@ -82,7 +82,7 @@ class TestRandomStrategy:
         for p in trainer.team[1:]:
             if p is not None:
                 p.fainted = True
-        monkeypatch.setattr('app.core.strategy.struggle_no_pp', lambda a, d: 'struggle!')
+        monkeypatch.setattr('app.core.player.struggle_no_pp', lambda a, d: 'struggle!')
         s = RandomStrategy()
         assert s.get_choice(trainer, rival) == 'struggle!'
 
@@ -220,7 +220,7 @@ class TestMinimaxStrategy:
         for p in trainer.team[1:]:
             if p is not None:
                 p.fainted = True
-        monkeypatch.setattr('app.core.strategy.struggle_no_pp', lambda a, d: f'{a.name} struggled!')
+        monkeypatch.setattr('app.core.player.struggle_no_pp', lambda a, d: f'{a.name} struggled!')
         s = MinimaxStrategy()
         result = s.get_choice(trainer, rival)
         assert 'struggled' in result
@@ -312,7 +312,7 @@ class TestAlphaBetaStrategy:
         for p in trainer.team[1:]:
             if p is not None:
                 p.fainted = True
-        monkeypatch.setattr('app.core.strategy.struggle_no_pp', lambda a, d: 'struggle')
+        monkeypatch.setattr('app.core.player.struggle_no_pp', lambda a, d: 'struggle')
         s = AlphaBetaStrategy()
         result = s.get_choice(trainer, rival)
         assert result == 'struggle'
