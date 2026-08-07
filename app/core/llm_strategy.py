@@ -73,26 +73,32 @@ SYSTEM_PROMPT = '''You are an AI battle strategist for Pokémon Generation 1 (Re
 STAB: 1.5x damage if move type matches attacker type.
 Type chart: Normal→Ghost=0x, Electric→Ground=0x, Fighting→Ghost=0x, etc.
 Critical hit: base_speed/2 threshold vs random 0-255 roll; Focus Energy x4.
+  Crits ignore the attacker's negative stat stages and the target's positive stat
+  stages, plus Reflect/Light Screen.
 Burn: physical moves do 50% damage. 1/8 max HP per turn.
 Paralyze: speed -75%, 25% chance can't move. (Electric types immune.)
 Freeze: 20% thaw chance each turn (no type is immune).
-Sleep: 33% wake chance each turn.
+Sleep: 1-3 turns (Rest exactly 2 turns).
 Poison: 1/16 max HP per turn (Poison types immune).
 Toxic: +1/16 max HP each turn (caps at 15/16).
-Confusion: 50% chance to self-hit (40 base power typeless), lasts up to 5 turns.
-Reflect: halves physical damage until the user switches out or Haze.
-Light Screen: halves special damage until the user switches out or Haze.
-Mist: blocks stat drops until the user switches out or Haze.
-Substitute: blocks status changes; absorbs damage until it breaks.
+Confusion: 50% chance to self-hit (40 base power typeless), lasts 2-5 turns.
+Reflect: halves physical damage for 5 turns (persists across switches).
+Light Screen: halves special damage for 5 turns (persists across switches).
+Mist: blocks stat drops for 5 turns (persists across switches).
+Substitute: costs 25% max HP and absorbs 25% max HP.
+Grass types are immune to powder moves (Sleep Powder, Stun Spore, Poison
+  Powder, Spore). Electric types are immune to paralysis.
 Disable: blocks a target move for 4 turns.
 Trapping (Wrap/Bind/Clamp/Fire Spin): 2-5 turns, 50% chance target can't move,
   and the target cannot switch.
-Rampage (Thrash/Petal Dance): 2 turns, then the user becomes confused.
-Hyper Beam: the user must recharge the next turn.
+Rampage (Thrash/Petal Dance): 2-3 turns, then the user becomes confused.
+Hyper Beam: recharge only if it hits and the target survives.
 Charge moves: Dig/Fly hide the user (unhittable that turn); Solar Beam, Razor
-  Wind, Sky Attack, Skull Bash roll damage the following turn.
-Bide: stores incoming damage for 2 turns, then deals double back.
-OHKO moves (Fissure/Guillotine/Horn Drill): fail if the target's level is higher.
+  Wind, Sky Attack, Skull Bash charge first, roll damage the following turn.
+Bide: stores incoming damage for 2-3 turns, then deals double back.
+OHKO moves (Fissure/Guillotine/Horn Drill): accuracy = 30 + (user level -
+  target level)% (clamped 0-100); fail if the target's level is higher or
+  the target has a Substitute.
 No abilities, no hold items. SpDef = SpAtk.
 
 === INSTRUCTIONS ===
@@ -334,9 +340,9 @@ def _build_state_str(trainer: Trainer, rival: Trainer) -> str:
     def _status_line(p: BattlePokemon) -> str:
         label = _status(p)
         if p.status == EffectStatus.SLEEP and p.sleeping_turns > 0:
-            label = f'Sleep ({p.sleeping_turns} turns)'
+            label = f'Sleep ({p.sleeping_turns} turns left)'
         if p.temp_status == EffectStatus.CONFUSION:
-            label += f' + Confusion ({p.confused_turns} turns)'
+            label += f' + Confusion ({p.confused_turns} turns left)'
         return label
 
     def _flags(p: BattlePokemon) -> list[str]:
@@ -362,7 +368,8 @@ def _build_state_str(trainer: Trainer, rival: Trainer) -> str:
             name = disabled.name if disabled else '?'
             flags.append(f'{name} disabled')
         if p.substitute:
-            flags.append(f'Substitute (absorbs {255 - p.sub_damage} HP)')
+            remain = max(0, p.sub_max - p.sub_damage)
+            flags.append(f'Substitute (absorbs {remain}/{p.sub_max} HP)')
         return flags
 
     def _active_line(p: BattlePokemon) -> str:
@@ -392,6 +399,18 @@ def _build_state_str(trainer: Trainer, rival: Trainer) -> str:
     reflect_opp = 'Yes' if d.reflect else 'No'
     ls_opp = 'Yes' if d.light_screen else 'No'
     mist_opp = 'Yes' if d.mist else 'No'
+    if a.reflect:
+        reflect_self = f'Yes ({a.reflect_turns})'
+    if a.light_screen:
+        ls_self = f'Yes ({a.light_screen_turns})'
+    if a.mist:
+        mist_self = f'Yes ({a.mist_turns})'
+    if d.reflect:
+        reflect_opp = f'Yes ({d.reflect_turns})'
+    if d.light_screen:
+        ls_opp = f'Yes ({d.light_screen_turns})'
+    if d.mist:
+        mist_opp = f'Yes ({d.mist_turns})'
 
     state += '=== FIELD ===\n'
     state += (

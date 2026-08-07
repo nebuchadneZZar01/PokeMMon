@@ -1,6 +1,12 @@
 import logging
 
-from app.core.combat import handle_burn_poison, handle_leech_seed, handle_toxicity, handle_trapped
+from app.core.combat import (
+    handle_burn_poison,
+    handle_leech_seed,
+    handle_screens,
+    handle_toxicity,
+    handle_trapped,
+)
 from app.core.player import Trainer
 
 logger = logging.getLogger(__name__)
@@ -140,7 +146,10 @@ class TurnBattleSystem:
                 if mon.disabled_turns <= 0:
                     mon.disabled_move = -1
                     mon.disabled_turns = 0
-        for fn in (handle_burn_poison, handle_toxicity, handle_leech_seed, handle_trapped):
+        for fn in (
+            handle_burn_poison, handle_toxicity, handle_leech_seed,
+            handle_trapped, handle_screens,
+        ):
             msg = fn(self.player_mon, self.enemy_mon)
             if msg:
                 msgs.append(msg)

@@ -62,14 +62,18 @@ class BattlePokemon(BaseModel):
         ev_mult (int): Evasion stat stage (-6 to +6).
         substitute (bool): Whether a Substitute doll is active.
         sub_damage (int): Damage absorbed by Substitute.
+        sub_max (int): Max HP of the Substitute doll (25% of max HP).
         transformed (bool): Whether this Pokémon has used Transform.
         seeded (bool): Whether this Pokémon is seeded by Leech Seed.
-        sleeping_turns (int): Turns spent asleep.
-        confused_turns (int): Turns spent confused.
+        sleeping_turns (int): Turns of sleep remaining (decrements to 0).
+        confused_turns (int): Turns of confusion remaining (decrements to 0).
         toxic_turns (int): Turns of Toxic accumulation.
         reflect (bool): Whether Reflect is active on this side.
+        reflect_turns (int): Turns remaining for Reflect.
         light_screen (bool): Whether Light Screen is active on this side.
+        light_screen_turns (int): Turns remaining for Light Screen.
         mist (bool): Whether Mist is active on this side.
+        mist_turns (int): Turns remaining for Mist.
         disabled_move (int): Index of disabled move, or -1.
         disabled_turns (int): Turns remaining for disable.
         focus_energy (bool): Whether Focus Energy is active.
@@ -77,6 +81,7 @@ class BattlePokemon(BaseModel):
         biding (bool): Whether the Pokémon is using Bide.
         bide_damage (int): Accumulated damage during Bide.
         bide_turns (int): Turns spent charging Bide.
+        bide_duration (int): Total turns Bide charges (2-3).
         last_damage_taken (int): Most recent damage received.
         last_move_was_physical (bool): Whether the last move used against this was physical.
         trapped (bool): Whether the Pokémon is trapped (Wrap, Bind, etc.).
@@ -128,14 +133,18 @@ class BattlePokemon(BaseModel):
 
     substitute: bool = False
     sub_damage: int = 0
+    sub_max: int = 0
     transformed: bool = False
     seeded: bool = False
     sleeping_turns: int = 0
     confused_turns: int = 0
     toxic_turns: int = 0
     reflect: bool = False
+    reflect_turns: int = 0
     light_screen: bool = False
+    light_screen_turns: int = 0
     mist: bool = False
+    mist_turns: int = 0
     disabled_move: int = -1
     disabled_turns: int = 0
     focus_energy: bool = False
@@ -144,6 +153,7 @@ class BattlePokemon(BaseModel):
     biding: bool = False
     bide_damage: int = 0
     bide_turns: int = 0
+    bide_duration: int = 0
 
     last_damage_taken: int = 0
     last_move_was_physical: bool = False

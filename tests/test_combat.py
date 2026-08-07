@@ -13,6 +13,7 @@ from app.core.combat import (
     calculate_damage,
     handle_burn_poison,
     handle_leech_seed,
+    handle_screens,
     handle_special_physical_move,
     handle_status_move,
     handle_toxicity,
@@ -836,7 +837,7 @@ class TestAtkBurnAndConfusion:
         monkeypatch.setattr(random, 'random', lambda: 0.25)
         atk_pkmn = make_pkmn(
             name='Attacker', hp=200, attack=50, defense=50,
-            temp_status=EffectStatus.CONFUSION,
+            temp_status=EffectStatus.CONFUSION, confused_turns=3,
         )
         df_pkmn = make_pkmn(name='Defender', hp=200, defense=50)
         move = make_move(power=40)
@@ -1113,7 +1114,8 @@ class TestBide:
         df_pkmn = make_pkmn(name='Df', hp=200)
         move = make_move(name='Bide', power=0, category=MoveCategory.PHYSICAL)
 
-        atk(atk_pkmn, move, df_pkmn)
+        with patch('app.core.combat.random.randint', return_value=2):
+            atk(atk_pkmn, move, df_pkmn)
         assert atk_pkmn.biding
 
         hit(atk_pkmn, 30, df_pkmn)
@@ -1138,7 +1140,8 @@ class TestBide:
         df_pkmn = make_pkmn(name='Df', hp=10)
         move = make_move(name='Bide', power=0, category=MoveCategory.PHYSICAL)
 
-        atk(atk_pkmn, move, df_pkmn)
+        with patch('app.core.combat.random.randint', return_value=2):
+            atk(atk_pkmn, move, df_pkmn)
 
         hit(atk_pkmn, 30, df_pkmn)
 
@@ -1329,10 +1332,10 @@ class TestAccuracy:
 
 
 class TestConfusionSnapOut:
-    def test_auto_snap_after_5_turns(self):
+    def test_snaps_out_when_counter_exhausted(self):
         atk_pkmn = make_pkmn(
             name='Atk', hp=200, attack=50, defense=50,
-            temp_status=EffectStatus.CONFUSION, confused_turns=5,
+            temp_status=EffectStatus.CONFUSION, confused_turns=0,
         )
         df_pkmn = make_pkmn(name='Df', hp=200, defense=50)
         move = make_move(power=40)
@@ -1340,11 +1343,27 @@ class TestConfusionSnapOut:
             msg = atk(atk_pkmn, move, df_pkmn)
         assert atk_pkmn.temp_status is None
         assert 'not confused' in msg
+        assert df_pkmn.hp < 200
+
+    def test_counts_down_and_does_not_snap_early(self, monkeypatch):
+        monkeypatch.setattr(random, 'random', lambda: 0.75)
+        atk_pkmn = make_pkmn(
+            name='Atk', hp=200, attack=50, defense=50,
+            temp_status=EffectStatus.CONFUSION, confused_turns=3,
+        )
+        df_pkmn = make_pkmn(name='Df', hp=200, defense=50)
+        move = make_move(power=40)
+        for expected in (2, 1, 0):
+            atk(atk_pkmn, move, df_pkmn)
+            assert atk_pkmn.confused_turns == expected
+            assert atk_pkmn.temp_status == EffectStatus.CONFUSION
+        atk(atk_pkmn, move, df_pkmn)
+        assert atk_pkmn.temp_status is None
 
     def test_snap_out_after_hit(self):
         atk_pkmn = make_pkmn(
             name='Atk', hp=200, attack=50, defense=50,
-            temp_status=EffectStatus.CONFUSION, confused_turns=5,
+            temp_status=EffectStatus.CONFUSION, confused_turns=0,
         )
         df_pkmn = make_pkmn(name='Df', hp=200, defense=50)
         move = make_move(power=40)
@@ -1483,7 +1502,7 @@ class TestHit:
 
     def test_substitute_vanishes_at_threshold(self):
         atk = make_pkmn(name='Atk')
-        df = make_pkmn(name='Df', hp=200, substitute=True, sub_damage=200)
+        df = make_pkmn(name='Df', hp=200, substitute=True, sub_max=120, sub_damage=80)
         msg = hit(df, 100, atk)
         assert not df.substitute
         assert df.sub_damage == 0
@@ -1506,7 +1525,7 @@ class TestTryAtkStatus:
         assert not atk.recharging
 
     def test_bide_stores_energy(self):
-        atk = make_pkmn(name='Atk', biding=True)
+        atk = make_pkmn(name='Atk', biding=True, bide_duration=2)
         df = make_pkmn(name='Df', hp=200)
         msg = try_atk_status(atk, make_move(), df)
         assert msg == 'Atk is storing energy!'
@@ -1558,7 +1577,7 @@ class TestTryAtkStatus:
         assert msg == 'Atk is paralyzed and can\'t move!'
 
     def test_sleep_still_sleeping(self, monkeypatch):
-        atk = make_pkmn(name='Atk', status=EffectStatus.SLEEP, sleeping_turns=0)
+        atk = make_pkmn(name='Atk', status=EffectStatus.SLEEP, sleeping_turns=2)
         df = make_pkmn(name='Df')
         monkeypatch.setattr(random, 'random', lambda: 0.9)
         msg = try_atk_status(atk, make_move(), df)
@@ -1575,12 +1594,13 @@ class TestTryAtkStatus:
         assert 'woke up' in msg
         assert df.hp < 200
 
-    def test_sleep_forced_wake_after_seven_turns(self, monkeypatch):
-        atk = make_pkmn(name='Atk', status=EffectStatus.SLEEP, sleeping_turns=7)
+    def test_sleep_wakes_after_last_turn(self, monkeypatch):
+        atk = make_pkmn(name='Atk', status=EffectStatus.SLEEP, sleeping_turns=1)
         df = make_pkmn(name='Df', hp=200)
         monkeypatch.setattr(random, 'randint', lambda a, b: 255)
         msg = try_atk_status(atk, make_move(), df)
         assert atk.status is None
+        assert atk.sleeping_turns == 0
         assert 'woke up' in msg
 
     def test_freeze_thaws(self, monkeypatch):
@@ -2282,7 +2302,7 @@ class TestRampage:
         msg = try_atk_status(atk_pkmn, move, df_pkmn)
         assert not atk_pkmn.rampaging
         assert atk_pkmn.temp_status == EffectStatus.CONFUSION
-        assert atk_pkmn.confused_turns == 0
+        assert 2 <= atk_pkmn.confused_turns <= 5
         assert 'became confused' in msg
 
     def test_rampage_missing_move_clears_lock(self):
@@ -2354,3 +2374,179 @@ class TestResetOnSwitchOutLocks:
         assert not pkmn.raging
         assert pkmn.rage_move == ''
         assert not pkmn.rage_hit
+
+
+class TestElectricParalysisImmunity:
+    def test_thunder_wave_electric_target(self):
+        atk = make_pkmn(name='Atk')
+        df = make_pkmn(name='Df', typing=[Typing.ELECTRIC], speed=100)
+        msg = MOVE_HANDLERS['Thunder Wave'](atk, df)
+        assert df.status is None
+        assert 'no effect' in msg
+
+    def test_paralyze_secondary_electric_target(self):
+        df = make_pkmn(name='Df', typing=[Typing.ELECTRIC])
+        msg = _apply_secondary_effect(df, EffectStatus.PARALYZE)
+        assert df.status is None
+        assert msg == ''
+
+
+class TestGrassPowderImmunity:
+    def test_all_powder_moves_blocked_on_grass(self):
+        atk = make_pkmn(name='Atk')
+        for move_name in ('Sleep Powder', 'Stun Spore', 'Poison Powder', 'Spore'):
+            df = make_pkmn(name='Df', typing=[Typing.GRASS], hp=200)
+            move = make_move(name=move_name, power=0, accuracy=75)
+            msg = handle_status_move(atk, move, df)
+            assert 'has no effect' in msg
+            assert df.status is None
+
+
+class TestModernSleepRestConfusion:
+    def test_sleep_powder_sets_1_to_3(self):
+        atk = make_pkmn(name='Atk')
+        df = make_pkmn(name='Df', hp=200)
+        with patch('app.core.combat.random.randint', return_value=2):
+            MOVE_HANDLERS['Sleep Powder'](atk, df)
+        assert df.status == EffectStatus.SLEEP
+        assert df.sleeping_turns == 2
+
+    def test_rest_sets_two_turns_sleep(self):
+        atk = make_pkmn(name='Atk', hp=50, max_hp=200)
+        df = make_pkmn(name='Df')
+        _rest = MOVE_HANDLERS['Rest']
+        msg = _rest(atk, df)
+        assert atk.status == EffectStatus.SLEEP
+        assert atk.sleeping_turns == 2
+        assert 'health' in msg
+
+    def test_confusion_sets_2_to_5(self):
+        atk = make_pkmn(name='Atk')
+        df = make_pkmn(name='Df', hp=200)
+        msg = MOVE_HANDLERS['Confuse Ray'](atk, df)
+        assert df.temp_status == EffectStatus.CONFUSION
+        assert 2 <= df.confused_turns <= 5
+        assert 'confused' in msg
+
+
+class TestScreensModern:
+    def test_screen_setters_start_five_turn_counters(self):
+        atk = make_pkmn(name='Atk', hp=100)
+        MOVE_HANDLERS['Reflect'](atk, make_pkmn(name='Df'))
+        MOVE_HANDLERS['Light Screen'](atk, make_pkmn(name='Df'))
+        MOVE_HANDLERS['Mist'](atk, make_pkmn(name='Df'))
+        assert atk.reflect
+        assert atk.reflect_turns == 5
+        assert atk.light_screen
+        assert atk.light_screen_turns == 5
+        assert atk.mist
+        assert atk.mist_turns == 5
+
+    def test_reset_battle_stats_reapplies_screens(self):
+        atk_ = make_pkmn(name='Atk', reflect=True, light_screen=True)
+        atk_.max_defense = 100
+        atk_.max_sp_def = 200
+        reset_battle_stats(atk_)
+        assert atk_.defense == 200
+        assert atk_.sp_def == 400
+
+    def test_handle_screens_expires_at_zero(self):
+        p = make_pkmn(
+            name='Df', reflect=True, reflect_turns=1,
+            light_screen=True, light_screen_turns=1,
+            mist=True, mist_turns=1,
+        )
+        q = make_pkmn(
+            name='Df2', reflect=True, reflect_turns=5,
+            light_screen=True, light_screen_turns=6,
+            mist=True, mist_turns=7,
+        )
+        msg = handle_screens(p, q)
+        assert not p.reflect
+        assert not p.light_screen
+        assert not p.mist
+        assert "\nDf's Reflect wore off!" in msg
+        assert "\nDf's Light Screen wore off!" in msg
+        assert "\nDf's Mist wore off!" in msg
+        assert q.reflect
+        assert q.reflect_turns == 4
+        assert q.light_screen
+        assert q.light_screen_turns == 5
+        assert q.mist
+        assert q.mist_turns == 6
+        assert 'Df2' not in msg
+
+    def test_screens_do_not_expire_before_zero(self):
+        p = make_pkmn(
+            name='Df', reflect=True, reflect_turns=4,
+            light_screen=True, light_screen_turns=5,
+            mist=True, mist_turns=3,
+        )
+        q = make_pkmn(name='Df2')
+        msg = handle_screens(p, q)
+        assert p.reflect
+        assert p.reflect_turns == 3
+        assert p.light_screen
+        assert p.light_screen_turns == 4
+        assert p.mist
+        assert p.mist_turns == 2
+        assert 'wore off' not in msg
+
+
+class TestCriticalHitModernStatIgnore:
+    def test_crit_ignores_negative_attacker_stage(self):
+        atk_ = make_pkmn(name='Atk', attack=50, atk_mult=-4, base_speed=100)
+        atk_.max_attack = 100
+        df_ = make_pkmn(name='Df', defense=50, typing=[Typing.NORMAL])
+        move = make_move(name='Slash', power=40, typing=Typing.NORMAL)
+        with patch('app.core.combat.random.randint', side_effect=[0, 255]):
+            dmg, msg = calculate_damage(atk_, move, df_)
+        assert 'Critical hit' in msg
+        assert dmg > 0
+
+    def test_crit_uses_special_stats(self):
+        attack = make_pkmn(
+            name='Atk', sp_atk=50, sp_atk_mult=2, base_speed=100,
+        )
+        attack.max_sp_atk = 100
+        df = make_pkmn(name='Df', sp_def=50, sp_def_mult=3, typing=[Typing.NORMAL])
+        df.max_sp_def = 100
+        move = make_move(
+            name='Psybeam', power=40,
+            category=MoveCategory.SPECIAL, typing=Typing.PSYCHIC,
+        )
+        with patch('app.core.combat.random.randint', side_effect=[0, 255]):
+            dmg, msg = calculate_damage(attack, move, df)
+        assert 'Critical hit' in msg
+        assert dmg > 0
+
+
+class TestHyperBeamModernRecharge:
+    def test_no_recharge_on_ko(self, monkeypatch):
+        monkeypatch.setattr(random, 'randint', lambda a, b: 255)
+        atk_ = make_pkmn(name='Atk', attack=50, hp=200)
+        df_ = make_pkmn(name='Df', hp=10, defense=1)
+        move = make_move(name='Hyper Beam', power=150, category=MoveCategory.SPECIAL, accuracy=100)
+        atk(atk_, move, df_)
+        assert df_.fainted
+        assert not atk_.recharging
+
+    def test_no_recharge_on_miss(self, monkeypatch):
+        monkeypatch.setattr(random, 'randint', lambda a, b: 255)
+        atk_ = make_pkmn(name='Atk', attack=50)
+        df_ = make_pkmn(name='Df', hp=200, defense=1)
+        move = make_move(
+            name='Hyper Beam', power=150, accuracy=1,
+            category=MoveCategory.PHYSICAL,
+        )
+        atk(atk_, move, df_)
+        assert df_.hp == 200
+        assert not atk_.recharging
+
+    def test_recharge_after_hit(self, monkeypatch):
+        monkeypatch.setattr(random, 'randint', lambda a, b: 255)
+        atk_ = make_pkmn(name='Atk', attack=50, sp_atk=50)
+        df_ = make_pkmn(name='Df', hp=200)
+        move = make_move(name='Hyper Beam', power=150, accuracy=100)
+        atk(atk_, move, df_)
+        assert atk_.recharging

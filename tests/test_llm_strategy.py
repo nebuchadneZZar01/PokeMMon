@@ -403,13 +403,13 @@ class TestBuildStateStr:
         active = make_pkmn(name='Atk', temp_status=EffectStatus.CONFUSION)
         active.confused_turns = 2
         state = _battle_trainer(active)
-        assert 'Confusion (2 turns)' in state
+        assert 'Confusion (2 turns left)' in state
 
     def test_sleep_turns_shown(self):
         active = make_pkmn(name='Atk', status=EffectStatus.SLEEP)
         active.sleeping_turns = 3
         state = _battle_trainer(active)
-        assert 'Sleep (3 turns)' in state
+        assert 'Sleep (3 turns left)' in state
 
     def test_sleep_and_confusion_combined(self):
         active = make_pkmn(
@@ -420,15 +420,15 @@ class TestBuildStateStr:
         active.sleeping_turns = 1
         active.confused_turns = 1
         state = _battle_trainer(active)
-        assert 'Sleep (1 turns)' in state
-        assert '+ Confusion (1 turns)' in state
+        assert 'Sleep (1 turns left)' in state
+        assert '+ Confusion (1 turns left)' in state
 
     def test_opponent_confusion_shown(self):
         rival = _rival()
         rival.in_battle.temp_status = EffectStatus.CONFUSION
         rival.in_battle.confused_turns = 4
         state = _battle_trainer(make_pkmn(name='Atk'), rival)
-        assert 'Confusion (4 turns)' in state
+        assert 'Confusion (4 turns left)' in state
 
     def test_recharging_flag(self):
         active = make_pkmn(name='Atk', recharging=True)
@@ -483,9 +483,32 @@ class TestBuildStateStr:
 
     def test_substitute_hp_shown(self):
         active = make_pkmn(name='Atk', substitute=True)
-        active.sub_damage = 55
+        active.sub_max = 50
+        active.sub_damage = 20
         state = _battle_trainer(active)
-        assert 'Substitute (absorbs 200 HP)' in state
+        assert 'Substitute (absorbs 30/50 HP)' in state
+
+    def test_screen_turn_counters_shown(self):
+        active = make_pkmn(
+            name='Atk', reflect=True, light_screen=True, mist=True,
+        )
+        active.reflect_turns = 3
+        active.light_screen_turns = 2
+        active.mist_turns = 4
+        rival = _rival()
+        rival.in_battle.reflect = True
+        rival.in_battle.reflect_turns = 1
+        rival.in_battle.light_screen = True
+        rival.in_battle.light_screen_turns = 2
+        rival.in_battle.mist = True
+        rival.in_battle.mist_turns = 3
+        state = _battle_trainer(active, rival)
+        assert 'Reflect=Yes (3)' in state
+        assert 'LS=Yes (2)' in state
+        assert 'Mist=Yes (4)' in state
+        assert 'Reflect=Yes (1)' in state
+        assert 'LS=Yes (2)' in state
+        assert 'Mist=Yes (3)' in state
 
     def test_opponent_trapped_flag(self):
         rival = _rival()
@@ -502,11 +525,11 @@ class TestSystemPrompt:
     def test_no_stale_burn_one_sixteenth(self):
         assert 'Burn: physical moves do 50% damage. 1/16 max HP per turn' not in SYSTEM_PROMPT
 
-    def test_no_stale_reflect_turn_limit(self):
-        assert 'for 5 turns' not in SYSTEM_PROMPT
+    def test_reflect_last_five_turns(self):
+        assert 'Reflect: halves physical damage for 5 turns' in SYSTEM_PROMPT
 
-    def test_side_effects_persist_until_switch_or_haze(self):
-        assert 'until the user switches out or Haze.' in SYSTEM_PROMPT
+    def test_screens_persist_across_switches(self):
+        assert 'persists across switches' in SYSTEM_PROMPT
 
     def test_status_immunities_documented(self):
         assert 'Electric types immune' in SYSTEM_PROMPT

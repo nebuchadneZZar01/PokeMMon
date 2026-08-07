@@ -18,6 +18,8 @@ CONST_THAW = 0.20
 
 _RAMPAGE_MOVES = {'Thrash', 'Petal Dance'}
 
+_OHKO_MOVES = {'Fissure', 'Guillotine', 'Horn Drill'}
+
 _TWO_TURN_MOVES: dict[str, tuple[str, bool]] = {
     'Dig': ('dug a hole', True),
     'Fly': ('flew up high', True),
@@ -98,6 +100,20 @@ def _sp_def_stat(pokemon: BattlePokemon) -> float:
     return v
 
 
+def _crit_offense_stat(pokemon: BattlePokemon, move: Move) -> float:
+    """Offensive stat on a critical hit: ignores negative stat stages (Gen 2+)."""
+    if move.category == MoveCategory.PHYSICAL:
+        return update_battle_stat(pokemon.max_attack, max(0, pokemon.atk_mult))
+    return update_battle_stat(pokemon.max_sp_atk, max(0, pokemon.sp_atk_mult))
+
+
+def _crit_defense_stat(pokemon: BattlePokemon, move: Move) -> float:
+    """Defensive stat on a critical hit: ignores positive stat stages and screens (Gen 2+)."""
+    if move.category == MoveCategory.PHYSICAL:
+        return update_battle_stat(pokemon.max_defense, min(0, pokemon.def_mult))
+    return update_battle_stat(pokemon.max_sp_def, min(0, pokemon.sp_def_mult))
+
+
 def handle_recoil(target: BattlePokemon, damage: int, perc_scaler: int) -> int:
     """Calculate recoil damage based on a percentage of dealt damage.
 
@@ -158,7 +174,8 @@ def inc_dec_stat_mult(
 def reset_stats_mult(pokemon: BattlePokemon) -> None:
     """Reset all stat stage multipliers for a Pokémon to 0 (neutral).
 
-    Also clears reflect, light screen, and mist.
+    Reflect, Light Screen, and Mist are NOT cleared here (screens persist
+    until their 5-turn timer runs out).
     """
     pokemon.atk_mult = 0
     pokemon.def_mult = 0
@@ -167,9 +184,6 @@ def reset_stats_mult(pokemon: BattlePokemon) -> None:
     pokemon.speed_mult = 0
     pokemon.ev_mult = 0
     pokemon.acc_mult = 0
-    pokemon.reflect = False
-    pokemon.light_screen = False
-    pokemon.mist = False
 
 
 def reset_battle_stats(pokemon: BattlePokemon) -> None:
@@ -177,11 +191,18 @@ def reset_battle_stats(pokemon: BattlePokemon) -> None:
     
     Restores attack, defense, sp_atk, sp_def, speed to max,
     resets accuracy and evasion to 1.0. Paralysis keeps speed quartered.
+    Active screens (Reflect/Light Screen) are re-applied.
     """
     pokemon.attack = pokemon.max_attack
-    pokemon.defense = pokemon.max_defense
+    if pokemon.reflect:
+        pokemon.defense = _defense_stat(pokemon)
+    else:
+        pokemon.defense = pokemon.max_defense
+    if pokemon.light_screen:
+        pokemon.sp_def = _sp_def_stat(pokemon)
+    else:
+        pokemon.sp_def = pokemon.max_sp_def
     pokemon.sp_atk = pokemon.max_sp_atk
-    pokemon.sp_def = pokemon.max_sp_def
     pokemon.speed = pokemon.max_speed
     if pokemon.status == EffectStatus.PARALYZE:
         pokemon.speed *= 0.25
@@ -196,6 +217,8 @@ def reset_on_switch_out(pokemon: BattlePokemon) -> None:
     Bide. Leaves HP, status, and moves untouched.
     """
     pokemon.substitute = False
+    pokemon.sub_damage = 0
+    pokemon.sub_max = 0
     reset_stats_mult(pokemon)
     reset_battle_stats(pokemon)
     pokemon.temp_status = None
@@ -206,6 +229,7 @@ def reset_on_switch_out(pokemon: BattlePokemon) -> None:
     pokemon.biding = False
     pokemon.bide_damage = 0
     pokemon.bide_turns = 0
+    pokemon.bide_duration = 0
     pokemon.trapped = False
     pokemon.trapped_turns = 0
     pokemon.last_damage_taken = 0
@@ -265,6 +289,10 @@ def calculate_damage(
     }
     crit, crit_msg = calculate_crit_multiplier(attacker, high_crit)
 
+    if crit == 2:
+        a = _crit_offense_stat(attacker, move)
+        d = _crit_defense_stat(defender, move)
+
     rand = random.randint(217, 255) / 255
 
     damage = int(((2 * attacker.level * crit / 5 + 2) * power * (a / d) / 50 + 2)
@@ -294,9 +322,10 @@ def hit(
     if not status:
         defender.sub_damage += damage
         msg = f'\n{defender.name}\'s substitute was hit!'
-        if defender.sub_damage >= 255:
+        if defender.sub_max and defender.sub_damage >= defender.sub_max:
             defender.substitute = False
             defender.sub_damage = 0
+            defender.sub_max = 0
             msg += f'\n{defender.name}\'s substitute vanished!'
         return msg
     defender.hp -= damage
@@ -340,6 +369,8 @@ def _apply_secondary_effect(
         defender.status = EffectStatus.BURN
         return f'\n{defender.name} is burned!'
     if effect == EffectStatus.PARALYZE:
+        if has_type(defender, Typing.ELECTRIC):
+            return ''
         defender.status = EffectStatus.PARALYZE
         defender.speed -= 0.75 * defender.speed
         return f'\n{defender.name} is paralyzed! Maybe it can\'t attack!'
@@ -355,7 +386,7 @@ def _apply_secondary_effect(
         return f'\n{defender.name} is poisoned!'
     if effect == EffectStatus.CONFUSION:
         defender.temp_status = EffectStatus.CONFUSION
-        defender.confused_turns = 0
+        defender.confused_turns = random.randint(2, 5)
         return f'\n{defender.name} is now confused!'
     return ''
 
@@ -391,11 +422,11 @@ def handle_special_physical_move(
             msg += f'\n{attacker.name} fainted!'
         return msg
     if move.name in ('Fissure', 'Guillotine', 'Horn Drill'):
-        if attacker.level >= defender.level:
+        if attacker.level < defender.level or defender.substitute:
+            msg += '\nBut it failed...'
+        else:
             hit(defender, defender.max_hp, attacker)
             msg += '\nIt\'s a one-hit KO!'
-        else:
-            msg += '\nBut it failed...'
         return msg
     if move.name in (
         'Fury Swipes', 'Fury Attack', 'Double Slap',
@@ -544,29 +575,31 @@ def _reduce_speed(attacker: BattlePokemon, defender: BattlePokemon) -> str:
 
 
 def _paralyze(attacker: BattlePokemon, defender: BattlePokemon) -> str:
-    """Paralyze the target (blocked by Substitute)."""
+    """Paralyze the target (blocked by Substitute; Electric types immune)."""
     if not defender.substitute:
         if defender.status is None:
-            defender.status = EffectStatus.PARALYZE
-            defender.speed -= 0.75 * defender.speed
-            return f'\n{defender.name} is paralyzed! Maybe it can\'t attack!'
+            if not has_type(defender, Typing.ELECTRIC):
+                defender.status = EffectStatus.PARALYZE
+                defender.speed -= 0.75 * defender.speed
+                return f'\n{defender.name} is paralyzed! Maybe it can\'t attack!'
+            return f'\nIt has no effect on {defender.name}...'
         return '\nBut nothing happened...'
     return f'\n{defender.name}\'s Substitute prevents its status change!'
 
 
 def _confuse(attacker: BattlePokemon, defender: BattlePokemon) -> str:
-    """Confuse the target."""
+    """Confuse the target (2-5 turns)."""
     defender.temp_status = EffectStatus.CONFUSION
-    defender.confused_turns = 0
+    defender.confused_turns = random.randint(2, 5)
     return f'\n{defender.name} is now confused!'
 
 
 def _sleep(attacker: BattlePokemon, defender: BattlePokemon) -> str:
-    """Put the target to sleep (blocked by Substitute)."""
+    """Put the target to sleep (1-3 turns, blocked by Substitute)."""
     if not defender.substitute:
         if defender.status is None:
             defender.status = EffectStatus.SLEEP
-            defender.sleeping_turns = 0
+            defender.sleeping_turns = random.randint(1, 3)
             return f'\n{defender.name} is now sleeping!'
         return '\nBut nothing happened...'
     return f'\n{defender.name}\'s Substitute prevents its status change!'
@@ -628,6 +661,7 @@ def _light_screen(attacker: BattlePokemon, defender: BattlePokemon) -> str:
     """Halve incoming special damage for 5 turns."""
     if not attacker.light_screen:
         attacker.light_screen = True
+        attacker.light_screen_turns = 5
         attacker.sp_def = _sp_def_stat(attacker)
         return f'\n{attacker.name} protected against special attacks!'
     return f'\nBut Light Screen is already covering {attacker.name}...'
@@ -637,6 +671,7 @@ def _reflect(attacker: BattlePokemon, defender: BattlePokemon) -> str:
     """Halve incoming physical damage for 5 turns."""
     if not attacker.reflect:
         attacker.reflect = True
+        attacker.reflect_turns = 5
         attacker.defense = _defense_stat(attacker)
         return f'\n{attacker.name} gained armor!'
     return f'\nBut Reflect is already covering {attacker.name}...'
@@ -646,6 +681,7 @@ def _mist(attacker: BattlePokemon, defender: BattlePokemon) -> str:
     """Shroud user in Mist to block stat reduction for 5 turns."""
     if not attacker.mist:
         attacker.mist = True
+        attacker.mist_turns = 5
         return f'\n{attacker.name} is shrouded in Mist!'
     return f'\nBut there is already a Mist covering {attacker.name}...'
 
@@ -685,7 +721,7 @@ def _recover(attacker: BattlePokemon, defender: BattlePokemon) -> str:
 
 
 def _rest(attacker: BattlePokemon, defender: BattlePokemon) -> str:
-    """Fully restore HP and cure status, then fall asleep."""
+    """Fully restore HP and cure status, then fall asleep for 2 turns."""
     if attacker.hp < attacker.max_hp or attacker.status is not None:
         if attacker.status is not None:
             attacker.status = None
@@ -693,7 +729,7 @@ def _rest(attacker: BattlePokemon, defender: BattlePokemon) -> str:
             attacker.temp_status = None
         attacker.hp = attacker.max_hp
         attacker.status = EffectStatus.SLEEP
-        attacker.sleeping_turns = 0
+        attacker.sleeping_turns = 2
         return f'\n{attacker.name} went to sleep and regained health!'
     return f'\nBut {attacker.name} already has all its hp!'
 
@@ -704,13 +740,14 @@ def _noop(attacker: BattlePokemon, defender: BattlePokemon) -> str:
 
 
 def _substitute(attacker: BattlePokemon, defender: BattlePokemon) -> str:
-    """Create a Substitute doll costing 25% of max HP."""
+    """Create a Substitute doll costing 25% of max HP (doll HP = 25% max HP)."""
     if attacker.substitute:
         return f'\nBut {attacker.name} is already protected by a substitute doll...'
     cost = max(1, math.floor(0.25 * attacker.max_hp))
     if attacker.hp > cost:
         attacker.hp -= cost
         attacker.substitute = True
+        attacker.sub_max = max(1, math.floor(0.25 * attacker.max_hp))
         return f'\n{attacker.name} is replaced by a substitute doll!'
     return '\nBut it failed...'
 
@@ -833,8 +870,13 @@ MOVE_HANDLERS: dict[str, Callable[[BattlePokemon, BattlePokemon], str]] = {
 }
 
 
+_POWDER_MOVES = {'Spore', 'Sleep Powder', 'Stun Spore', 'Poison Powder'}
+
+
 def handle_status_move(attacker: BattlePokemon, move: Move, defender: BattlePokemon) -> str:
     """Dispatch a status move to its registered handler in MOVE_HANDLERS."""
+    if move.name in _POWDER_MOVES and has_type(defender, Typing.GRASS):
+        return f'\nIt has no effect on {defender.name}...'
     handler = MOVE_HANDLERS.get(move.name)
     if handler:
         return handler(attacker, defender)
@@ -849,11 +891,16 @@ def atk(
         attacker.biding = True
         attacker.bide_turns = 0
         attacker.bide_damage = 0
+        attacker.bide_duration = random.randint(2, 3)
         if decrement_pp:
             move.pp -= 1
         return f'{attacker.name} used Bide!'
 
-    t_ = int(move.accuracy * attacker.accuracy * defender.evasion * 255 / 100)
+    if move.name in _OHKO_MOVES:
+        ohko_acc = max(0, min(100, 30 + (attacker.level - defender.level)))
+        t_ = int(ohko_acc * attacker.accuracy * defender.evasion * 255 / 100)
+    else:
+        t_ = int(move.accuracy * attacker.accuracy * defender.evasion * 255 / 100)
     rand_t = random.randint(0, 255)
     msg = f'{attacker.name} used {move.name}!'
 
@@ -876,13 +923,14 @@ def atk(
             move.pp -= 1
         return f'{msg} But {defender.name} {hide_msg}...'
 
+    missed = False
     if move.accuracy == 0 or rand_t <= t_:
-        if attacker.temp_status == EffectStatus.CONFUSION and attacker.confused_turns >= 5:
+        if attacker.temp_status == EffectStatus.CONFUSION and attacker.confused_turns <= 0:
             attacker.temp_status = None
             attacker.confused_turns = 0
             msg += f'\n{attacker.name} is not confused anymore!'
         elif attacker.temp_status == EffectStatus.CONFUSION:
-            attacker.confused_turns += 1
+            attacker.confused_turns -= 1
             prob = random.random()
             if prob <= 0.5:
                 power = 40
@@ -983,6 +1031,7 @@ def atk(
             attacker.last_move_used = move.name
             msg += handle_status_move(attacker, move, defender)
     else:
+        missed = True
         if 'jump kick' in move.name.lower():
             msg += f'\n{attacker.name} lost its poise and damaged itself!'
             hit(attacker, 1)
@@ -992,7 +1041,7 @@ def atk(
             attacker.raging = False
             attacker.rage_move = ''
 
-    if move.name == 'Hyper Beam':
+    if move.name == 'Hyper Beam' and not defender.fainted and not missed:
         attacker.recharging = True
 
     if decrement_pp:
@@ -1036,13 +1085,13 @@ def try_atk_status(attacker: BattlePokemon, move: Move, defender: BattlePokemon)
             attacker.rampaging = False
             attacker.rampage_move = ''
             attacker.temp_status = EffectStatus.CONFUSION
-            attacker.confused_turns = 0
+            attacker.confused_turns = random.randint(2, 5)
             msg += f'\n{attacker.name} became confused!'
         return msg
 
     if attacker.biding:
         attacker.bide_turns += 1
-        if attacker.bide_turns >= 2:
+        if attacker.bide_turns >= max(1, attacker.bide_duration):
             damage = attacker.bide_damage * 2
             hit(defender, damage, attacker)
             attacker.biding = False
@@ -1069,19 +1118,18 @@ def try_atk_status(attacker: BattlePokemon, move: Move, defender: BattlePokemon)
                 return atk(attacker, move, defender)
             return f'{attacker.name} is paralyzed and can\'t move!'
         if attacker.status == EffectStatus.SLEEP:
-            if attacker.sleeping_turns < 7:
-                p = random.random()
-                if p <= 0.33:
-                    attacker.status = None
-                    attacker.sleeping_turns = 0
-                    msg = atk(attacker, move, defender)
-                    return msg + f'\n{attacker.name} woke up!'
-                attacker.sleeping_turns += 1
-                return f'{attacker.name} is sleeping...'
-            attacker.status = None
-            attacker.sleeping_turns = 0
-            msg = atk(attacker, move, defender)
-            return f'{attacker.name} woke up!\n' + msg
+            if attacker.sleeping_turns <= 0:
+                attacker.status = None
+                attacker.sleeping_turns = 0
+                msg = atk(attacker, move, defender)
+                return msg + f'\n{attacker.name} woke up!'
+            attacker.sleeping_turns -= 1
+            if attacker.sleeping_turns <= 0:
+                attacker.status = None
+                attacker.sleeping_turns = 0
+                msg = atk(attacker, move, defender)
+                return f'{attacker.name} woke up!\n' + msg
+            return f'{attacker.name} is sleeping...'
         if attacker.status == EffectStatus.FREEZE:
             if random.random() <= CONST_THAW:
                 attacker.status = None
@@ -1149,6 +1197,33 @@ def handle_trapped(player_mon: BattlePokemon, enemy_mon: BattlePokemon) -> str:
             if mon.trapped_turns <= 0:
                 mon.trapped = False
             msg += f'\n{mon.name} is hurt by the trap!'
+    return msg
+
+
+def handle_screens(player_mon: BattlePokemon, enemy_mon: BattlePokemon) -> str:
+    """Decrement Reflect/Light Screen/Mist turn counters; expire screens at 0.
+
+    Screens persist across switches, so this only runs for the two active mons.
+    """
+    msg = ''
+    for mon in (player_mon, enemy_mon):
+        if mon.reflect:
+            mon.reflect_turns -= 1
+            if mon.reflect_turns <= 0:
+                mon.reflect = False
+                mon.defense = _defense_stat(mon)
+                msg += f'\n{mon.name}\'s Reflect wore off!'
+        if mon.light_screen:
+            mon.light_screen_turns -= 1
+            if mon.light_screen_turns <= 0:
+                mon.light_screen = False
+                mon.sp_def = _sp_def_stat(mon)
+                msg += f'\n{mon.name}\'s Light Screen wore off!'
+        if mon.mist:
+            mon.mist_turns -= 1
+            if mon.mist_turns <= 0:
+                mon.mist = False
+                msg += f'\n{mon.name}\'s Mist wore off!'
     return msg
 
 
