@@ -452,6 +452,21 @@ class TestMoveHandlers:
         MOVE_HANDLERS['Swords Dance'](atk, df)
         assert atk.atk_mult == 2
 
+    def test_swords_dance_hits_via_atk(self):
+        attacker = make_pkmn(name='A', atk_mult=0, attack=100)
+        df = make_pkmn(name='B')
+        move = make_move(
+            name='Swords Dance', accuracy=0,
+            category=MoveCategory.NON_DAMAGING,
+        )
+        attacker.moves = [move, None, None, None]
+        with patch('app.core.combat.random.randint', return_value=255):
+            msg = atk(attacker, move, df)
+        assert attacker.atk_mult == 2
+        assert 'went way up' in msg
+        assert 'failed' not in msg
+        assert move.pp == 34
+
     def test_growl_lowers_atk(self):
         atk = make_pkmn(name='A')
         df = make_pkmn(name='B', atk_mult=0, attack=100)
@@ -2210,11 +2225,12 @@ class TestRage:
     def test_rage_breaks_when_it_misses(self):
         atk_pkmn = make_pkmn(name='Atk')
         df_pkmn = make_pkmn(name='Df')
-        move = make_move(name='Rage', power=20, accuracy=0, pp=20)
+        move = make_move(name='Rage', power=20, accuracy=1, pp=20)
         atk_pkmn.moves = [move, None, None, None]
         atk_pkmn.raging = True
         atk_pkmn.rage_move = 'Rage'
-        msg = atk(atk_pkmn, move, df_pkmn)
+        with patch('app.core.combat.random.randint', return_value=255):
+            msg = atk(atk_pkmn, move, df_pkmn)
         assert not atk_pkmn.raging
         assert atk_pkmn.rage_move == ''
         assert 'failed' in msg

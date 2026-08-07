@@ -823,7 +823,7 @@ def atk(
             move.pp -= 1
         return f'{msg} But {defender.name} {hide_msg}...'
 
-    if rand_t <= t_:
+    if move.accuracy == 0 or rand_t <= t_:
         if move.category in (MoveCategory.PHYSICAL, MoveCategory.SPECIAL):
             if move.name == 'Rage':
                 if not attacker.raging:
