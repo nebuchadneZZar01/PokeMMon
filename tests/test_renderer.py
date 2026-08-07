@@ -358,6 +358,34 @@ class TestRenderCore:
         assert '[5] Team' in out
         assert '[6] Forfeit' in out
 
+    def test_renders_boosts_and_drops(self):
+        bs = self._make_bs()
+        p = bs.player.in_battle
+        e = bs.ai.in_battle
+        p.atk_mult, p.sp_atk_mult = 2, 3
+        e.def_mult, e.acc_mult = -1, -2
+        out = self._capture(bs)
+        assert 'Boosts' in out
+        assert 'Atk ↑2' in out
+        assert 'SpA ↑3' in out
+        assert 'Drops' in out
+        assert 'Def ↓1' in out
+        assert 'Acc ↓2' in out
+
+    def test_only_boosts_single_line(self):
+        bs = self._make_bs()
+        p = bs.player.in_battle
+        p.atk_mult = 1
+        out = self._capture(bs)
+        assert 'Boosts' in out
+        assert 'Drops' not in out
+
+    def test_no_stages_no_line(self):
+        bs = self._make_bs()
+        out = self._capture(bs)
+        assert 'Boosts' not in out
+        assert 'Drops' not in out
+
 
 class TestRenderTeam:
     def _make_bs(self) -> TurnBattleSystem:
@@ -433,3 +461,10 @@ class TestRenderTeam:
         assert '[4]' not in out
         assert '[5]' not in out
         assert '[6]' not in out
+
+    def test_renders_opponent_stages(self):
+        bs = self._make_bs()
+        bs.ai.in_battle.def_mult = -1
+        out = self._capture(bs)
+        assert 'Drops' in out
+        assert 'Def ↓1' in out

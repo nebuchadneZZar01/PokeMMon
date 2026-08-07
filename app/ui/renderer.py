@@ -77,6 +77,50 @@ def status_tag(pkmn: BattlePokemon) -> str:
     return f'[{c}]{pkmn.status.value}[/]'
 
 
+_STAGE_DEFS = [
+    ('atk_mult', 'Atk'),
+    ('def_mult', 'Def'),
+    ('sp_atk_mult', 'SpA'),
+    ('sp_def_mult', 'SpD'),
+    ('speed_mult', 'Spe'),
+    ('acc_mult', 'Acc'),
+    ('ev_mult', 'Eva'),
+]
+
+
+def _fmt_stages_lines(pkmn: BattlePokemon) -> str:
+    """Build colored boost/drop lines from a Pokémon's stat stages.
+
+    Positive stages are grouped under a green 'Boosts' line and negative
+    ones under a red 'Drops' line, each chip showing the stat label and an
+    arrow: e.g. 'Atk ↑2' / 'Def ↓1'. Only the sides with non-neutral
+    stages are emitted, and an empty string is returned when every stage
+    is neutral.
+
+    Args:
+        pkmn (BattlePokemon): The Pokémon whose stat stages to render.
+
+    Returns:
+        str: Newline-joined rich-formatted stage lines, or '' if neutral.
+    """
+    boosts: list[str] = []
+    drops: list[str] = []
+    for attr, label in _STAGE_DEFS:
+        value = getattr(pkmn, attr)
+        if value == 0:
+            continue
+        arrow = '↑' if value > 0 else '↓'
+        chip = f'[bold {"green" if value > 0 else "red"}]{label} {arrow}{abs(value)}[/]'
+        (boosts if value > 0 else drops).append(chip)
+
+    lines = []
+    if boosts:
+        lines.append('   [bold green]Boosts[/]  ' + '   '.join(boosts))
+    if drops:
+        lines.append('   [bold red]Drops[/]   ' + '   '.join(drops))
+    return '\n'.join(lines)
+
+
 def _status_pad(pkmn: BattlePokemon, width: int = 18) -> str:
     """Get a status tag padded to a fixed width for alignment.
 
@@ -231,6 +275,9 @@ def render_core(bs: TurnBattleSystem) -> None:
         f'  HP {hp_e}  [bold]{int(e.hp)}/{int(e.max_hp)}[/]\n'
         f'  {_status_pad(e)} Team {team_dots(bs.ai.team)}'
     )
+    e_stages = _fmt_stages_lines(e)
+    if e_stages:
+        e_content += '\n' + e_stages
     console.print(Panel(e_content, title=f' {bs.ai.name} ', border_style='bold'))
 
     hp_p = make_hp_bar(p.hp, p.max_hp)
@@ -240,6 +287,9 @@ def render_core(bs: TurnBattleSystem) -> None:
         f'  HP {hp_p}  [bold]{int(p.hp)}/{int(p.max_hp)}[/]\n'
         f'  {_status_pad(p)} Team {team_dots(bs.player.team)}'
     )
+    p_stages = _fmt_stages_lines(p)
+    if p_stages:
+        p_content += '\n' + p_stages
     console.print(Panel(p_content, title=' Player ', border_style='bold'))
 
     if bs.player_msg.startswith('You are challenged by'):
@@ -308,6 +358,9 @@ def render_team(bs: TurnBattleSystem) -> None:
             f'  HP {hp_bar}  [bold]{int(opponent.hp)}/{int(opponent.max_hp)}[/]\n'
             f'  {_status_pad(opponent)} Team {team_dots(bs.ai.team)}'
         )
+        stages = _fmt_stages_lines(opponent)
+        if stages:
+            content += '\n' + stages
         console.print(Panel(content, title=f' {bs.ai.name} ', border_style='bold'))
         console.print()
 
