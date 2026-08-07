@@ -21,7 +21,9 @@ import app.data.pkmn_types as pkmn_types
 from app.core.combat import (
     calculate_damage,
     try_atk_status,
+    update_battle_stat,
 )
+from app.schemas.effect_status import EffectStatus
 from app.schemas.move import Move
 from app.schemas.typing import Typing
 
@@ -70,16 +72,27 @@ SYSTEM_PROMPT = '''You are an AI battle strategist for Pokémon Generation 1 (Re
 === BATTLE RULES ===
 STAB: 1.5x damage if move type matches attacker type.
 Type chart: Normal→Ghost=0x, Electric→Ground=0x, Fighting→Ghost=0x, etc.
-Critical hit: base_speed/2 threshold vs random 0-255 roll.
-Burn: physical moves do 50% damage. 1/16 max HP per turn.
-Paralyze: speed -75%, 25% chance can't move.
+Critical hit: base_speed/2 threshold vs random 0-255 roll; Focus Energy x4.
+Burn: physical moves do 50% damage. 1/8 max HP per turn.
+Paralyze: speed -75%, 25% chance can't move. (Electric types immune.)
+Freeze: 20% thaw chance each turn (no type is immune).
 Sleep: 33% wake chance each turn.
-Freeze: 20% thaw chance each turn.
-Poison: 1/16 max HP per turn.
+Poison: 1/16 max HP per turn (Poison types immune).
 Toxic: +1/16 max HP each turn (caps at 15/16).
-Confusion: 50% chance to self-hit (40 base power typeless).
-Reflect: halves physical damage for 5 turns.
-Light Screen: halves special damage for 5 turns.
+Confusion: 50% chance to self-hit (40 base power typeless), lasts up to 5 turns.
+Reflect: halves physical damage until the user switches out or Haze.
+Light Screen: halves special damage until the user switches out or Haze.
+Mist: blocks stat drops until the user switches out or Haze.
+Substitute: blocks status changes; absorbs damage until it breaks.
+Disable: blocks a target move for 4 turns.
+Trapping (Wrap/Bind/Clamp/Fire Spin): 2-5 turns, 50% chance target can't move,
+  and the target cannot switch.
+Rampage (Thrash/Petal Dance): 2 turns, then the user becomes confused.
+Hyper Beam: the user must recharge the next turn.
+Charge moves: Dig/Fly hide the user (unhittable that turn); Solar Beam, Razor
+  Wind, Sky Attack, Skull Bash roll damage the following turn.
+Bide: stores incoming damage for 2 turns, then deals double back.
+OHKO moves (Fissure/Guillotine/Horn Drill): fail if the target's level is higher.
 No abilities, no hold items. SpDef = SpAtk.
 
 === INSTRUCTIONS ===
@@ -250,17 +263,29 @@ def _make_tools(trainer: Trainer, rival: Trainer) -> list:
     return _make_tool_defs(lambda: (trainer, rival))
 
 
-def _stat_stage_str(mult: float) -> str:
-    """Format a stat stage multiplier as a short string.
+def _stat_stage_str(mult: int) -> str:
+    """Format a stat stage as its real Gen 1 damage multiplier.
+
+    The stage integer is converted through ``update_battle_stat`` so the
+    label matches the actual multiplier used in damage calculation: e.g.
+    +1 renders as 'x1.5', -1 as 'x0.66', +6 as 'x4'.
+
+    Args:
+        mult (int): The stat stage (-6 to +6).
 
     Returns:
         str: Formatted multiplier string like 'x1.5' or 'x0.5'.
     """
-    return f'x{mult:g}'
+    return f'x{update_battle_stat(1.0, mult):g}'
 
 
 def _build_state_str(trainer: Trainer, rival: Trainer) -> str:
     """Build a string describing the current battle state for the LLM.
+
+    Covers both active Pokémon: HP, level, primary and temporary status,
+    stat stages, remaining substitutes, and every battle flag that affects
+    decision making (charging, rampage, rage, bide, recharge, trap,
+    focus energy, transform, disabled move).
 
     Returns:
         str: Formatted battle state description.
@@ -306,14 +331,59 @@ def _build_state_str(trainer: Trainer, rival: Trainer) -> str:
             )
         return '\n'.join(lines)
 
+    def _status_line(p: BattlePokemon) -> str:
+        label = _status(p)
+        if p.status == EffectStatus.SLEEP and p.sleeping_turns > 0:
+            label = f'Sleep ({p.sleeping_turns} turns)'
+        if p.temp_status == EffectStatus.CONFUSION:
+            label += f' + Confusion ({p.confused_turns} turns)'
+        return label
+
+    def _flags(p: BattlePokemon) -> list[str]:
+        flags: list[str] = []
+        if p.recharging:
+            flags.append('Must recharge')
+        if p.biding:
+            flags.append('Biding')
+        if p.charging:
+            flags.append(f'Charging {p.charge_move}')
+        if p.rampaging:
+            flags.append(f'Rampaging {p.rampage_move}')
+        if p.raging:
+            flags.append('Raging')
+        if p.trapped:
+            flags.append(f'Trapped ({p.trapped_turns} turns)')
+        if p.focus_energy:
+            flags.append('Focus Energy')
+        if p.transformed:
+            flags.append('Transformed')
+        if p.disabled_move != -1:
+            disabled = p.moves[p.disabled_move]
+            name = disabled.name if disabled else '?'
+            flags.append(f'{name} disabled')
+        if p.substitute:
+            flags.append(f'Substitute (absorbs {255 - p.sub_damage} HP)')
+        return flags
+
+    def _active_line(p: BattlePokemon) -> str:
+        lines = [
+            f'Active: {p.name} ({p.hp}/{p.max_hp} HP) | Lv{p.level}',
+            f'  Status: {_status_line(p)}',
+            f'  {_stages(p)}',
+        ]
+        flags = _flags(p)
+        if flags:
+            lines.append('  Flags: ' + ', '.join(flags))
+        return '\n'.join(lines)
+
     state = '=== YOUR TEAM ===\n'
-    state += f'Active: {a.name} ({a.hp}/{a.max_hp} HP) | Status: {_status(a)}\n'
-    state += f'  {_stages(a)}\n'
+    state += _active_line(a) + '\n'
     state += 'Moves:\n' + _moves(a) + '\n'
     state += _bench(trainer.team, a, 'Bench:') + '\n\n'
 
     state += '=== OPPONENT TEAM ===\n'
-    state += f'Active: {d.name} ({d.hp}/{d.max_hp} HP) | Status: {_status(d)}\n'
+    state += _active_line(d) + '\n'
+    state += 'Moves:\n' + _moves(d) + '\n'
     state += _bench(rival.team, d, 'Bench:') + '\n\n'
 
     reflect_self = 'Yes' if a.reflect else 'No'
@@ -323,17 +393,12 @@ def _build_state_str(trainer: Trainer, rival: Trainer) -> str:
     ls_opp = 'Yes' if d.light_screen else 'No'
     mist_opp = 'Yes' if d.mist else 'No'
 
-    sub_self = 'Yes' if a.substitute else 'No'
-    sub_opp = 'Yes' if d.substitute else 'No'
-
     state += '=== FIELD ===\n'
     state += (
-        f'Your side: Reflect={reflect_self}, LS={ls_self}, Mist={mist_self}'
-        f' | Sub={sub_self}\n'
+        f'Your side: Reflect={reflect_self}, LS={ls_self}, Mist={mist_self}\n'
     )
     state += (
-        f'Opponent side: Reflect={reflect_opp}, LS={ls_opp}, Mist={mist_opp}'
-        f' | Sub={sub_opp}\n'
+        f'Opponent side: Reflect={reflect_opp}, LS={ls_opp}, Mist={mist_opp}\n'
     )
 
     return state

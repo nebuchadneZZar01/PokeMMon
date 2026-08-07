@@ -7,16 +7,19 @@ import pytest
 from ollama import RequestError, ResponseError
 
 from app.core.llm_strategy import (
+    SYSTEM_PROMPT,
     BattleDecision,
     LLMAgentStrategy,
     _build_state_str,
     _create_model,
     _make_tools,
     _ping,
+    _stat_stage_str,
     list_ollama_models,
     verify_llm_connection,
 )
 from app.core.player import Trainer
+from app.schemas.effect_status import EffectStatus
 from app.schemas.typing import Typing
 
 from .conftest import make_move, make_pkmn
@@ -349,6 +352,27 @@ class TestModuleMakeTools:
         assert 'neutral' in tools[1].func('Water')
 
 
+def _battle_trainer(active, opponent=None):
+    trainer = Trainer()
+    trainer.team = [active, None, None, None, None, None]
+    trainer.in_battle = active
+    return _build_state_str(trainer, opponent or _rival())
+
+
+class TestStatStageStr:
+    def test_neutral(self):
+        assert _stat_stage_str(0) == 'x1'
+
+    def test_plus_one(self):
+        assert _stat_stage_str(1) == 'x1.5'
+
+    def test_minus_one(self):
+        assert _stat_stage_str(-1) == 'x0.66'
+
+    def test_max_boost(self):
+        assert _stat_stage_str(6) == 'x4'
+
+
 class TestBuildStateStr:
     def test_fainted_bench_listed(self):
         trainer = Trainer()
@@ -360,6 +384,137 @@ class TestBuildStateStr:
         state = _build_state_str(trainer, _rival())
         assert 'Bench' in state
         assert 'Fainted' in state
+
+    def test_opponent_shows_level_stages_and_moves(self):
+        rival = _rival()
+        rival.in_battle.atk_mult = 2
+        state = _battle_trainer(make_pkmn(name='Atk'), rival)
+        assert 'OPPONENT TEAM' in state
+        assert 'Lv100' in state
+        assert 'Atkx2' in state
+        assert 'Moves:' in state
+        assert 'Tackle' in state
+
+    def test_no_flags_line_without_special_state(self):
+        state = _battle_trainer(make_pkmn(name='Atk'))
+        assert 'Flags:' not in state
+
+    def test_confusion_shown_on_active(self):
+        active = make_pkmn(name='Atk', temp_status=EffectStatus.CONFUSION)
+        active.confused_turns = 2
+        state = _battle_trainer(active)
+        assert 'Confusion (2 turns)' in state
+
+    def test_sleep_turns_shown(self):
+        active = make_pkmn(name='Atk', status=EffectStatus.SLEEP)
+        active.sleeping_turns = 3
+        state = _battle_trainer(active)
+        assert 'Sleep (3 turns)' in state
+
+    def test_sleep_and_confusion_combined(self):
+        active = make_pkmn(
+            name='Atk',
+            status=EffectStatus.SLEEP,
+            temp_status=EffectStatus.CONFUSION,
+        )
+        active.sleeping_turns = 1
+        active.confused_turns = 1
+        state = _battle_trainer(active)
+        assert 'Sleep (1 turns)' in state
+        assert '+ Confusion (1 turns)' in state
+
+    def test_opponent_confusion_shown(self):
+        rival = _rival()
+        rival.in_battle.temp_status = EffectStatus.CONFUSION
+        rival.in_battle.confused_turns = 4
+        state = _battle_trainer(make_pkmn(name='Atk'), rival)
+        assert 'Confusion (4 turns)' in state
+
+    def test_recharging_flag(self):
+        active = make_pkmn(name='Atk', recharging=True)
+        state = _battle_trainer(active)
+        assert 'Must recharge' in state
+
+    def test_biding_flag(self):
+        active = make_pkmn(name='Atk', biding=True)
+        state = _battle_trainer(active)
+        assert 'Biding' in state
+
+    def test_charging_flag(self):
+        active = make_pkmn(name='Atk', charging=True, charge_move='Dig')
+        state = _battle_trainer(active)
+        assert 'Charging Dig' in state
+
+    def test_rampaging_flag(self):
+        active = make_pkmn(name='Atk', rampaging=True, rampage_move='Thrash')
+        state = _battle_trainer(active)
+        assert 'Rampaging Thrash' in state
+
+    def test_raging_flag(self):
+        active = make_pkmn(name='Atk', raging=True)
+        state = _battle_trainer(active)
+        assert 'Raging' in state
+
+    def test_trapped_flag(self):
+        active = make_pkmn(name='Atk', trapped=True, trapped_turns=3)
+        state = _battle_trainer(active)
+        assert 'Trapped (3 turns)' in state
+
+    def test_focus_energy_flag(self):
+        active = make_pkmn(name='Atk', focus_energy=True)
+        state = _battle_trainer(active)
+        assert 'Focus Energy' in state
+
+    def test_transformed_flag(self):
+        active = make_pkmn(name='Atk', transformed=True)
+        state = _battle_trainer(active)
+        assert 'Transformed' in state
+
+    def test_disabled_move_shown(self):
+        active = make_pkmn(name='Atk', disabled_move=0)
+        active.disabled_turns = 2
+        state = _battle_trainer(active)
+        assert 'Tackle disabled' in state
+
+    def test_disabled_empty_slot_shown(self):
+        active = make_pkmn(name='Atk', disabled_move=1)
+        state = _battle_trainer(active)
+        assert '? disabled' in state
+
+    def test_substitute_hp_shown(self):
+        active = make_pkmn(name='Atk', substitute=True)
+        active.sub_damage = 55
+        state = _battle_trainer(active)
+        assert 'Substitute (absorbs 200 HP)' in state
+
+    def test_opponent_trapped_flag(self):
+        rival = _rival()
+        rival.in_battle.trapped = True
+        rival.in_battle.trapped_turns = 5
+        state = _battle_trainer(make_pkmn(name='Atk'), rival)
+        assert 'Trapped (5 turns)' in state
+
+
+class TestSystemPrompt:
+    def test_burn_one_eighth(self):
+        assert 'Burn: physical moves do 50% damage. 1/8 max HP per turn.' in SYSTEM_PROMPT
+
+    def test_no_stale_burn_one_sixteenth(self):
+        assert 'Burn: physical moves do 50% damage. 1/16 max HP per turn' not in SYSTEM_PROMPT
+
+    def test_no_stale_reflect_turn_limit(self):
+        assert 'for 5 turns' not in SYSTEM_PROMPT
+
+    def test_side_effects_persist_until_switch_or_haze(self):
+        assert 'until the user switches out or Haze.' in SYSTEM_PROMPT
+
+    def test_status_immunities_documented(self):
+        assert 'Electric types immune' in SYSTEM_PROMPT
+        assert 'Poison types immune' in SYSTEM_PROMPT
+
+    def test_mechanics_documented(self):
+        for clause in ('Disable', 'Trapping', 'Rampage', 'Hyper Beam', 'OHKO moves'):
+            assert clause in SYSTEM_PROMPT
 
 
 def _new_strategy(monkeypatch, decision=None):
