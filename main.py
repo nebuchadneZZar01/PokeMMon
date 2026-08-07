@@ -21,6 +21,22 @@ AI_THINKING_PANEL = Panel(
 )
 
 
+def _prompt_switch(bs: battle_system.TurnBattleSystem) -> int | None:
+    """Prompt the user for a replacement; return 0-based slot or None on cancel."""
+    while True:
+        sub = Prompt.ask('Switch to', choices=['0', '1', '2', '3', '4', '5', '6'])
+        if sub == '0':
+            return None
+        idx = int(sub) - 1
+        err = switch_valid(bs, idx)
+        if err:
+            console.clear()
+            render_team(bs)
+            console.print(f'[red]{err}[/]')
+            continue
+        return idx
+
+
 def main() -> None:
     """Main entry point: run setup menu, create trainers, start battle loop."""
     config = run_setup_menu()
@@ -100,17 +116,9 @@ def main() -> None:
                 console.print()
                 render_team(bs)
                 console.print('[red]Your Pokémon fainted! Choose a replacement.[/]')
-                while True:
-                    sub = Prompt.ask('Switch to', choices=['0', '1', '2', '3', '4', '5', '6'])
-                    if sub == '0':
-                        break
-                    idx = int(sub) - 1
-                    err = switch_valid(bs, idx)
-                    if err:
-                        console.print(f'[red]{err}[/]')
-                        continue
+                idx = _prompt_switch(bs)
+                if idx is not None:
                     exec_switch(bs, idx)
-                    break
                 console.clear()
                 render_core(bs)
                 time.sleep(1.2)
@@ -147,23 +155,13 @@ def main() -> None:
             elif choice == '5':
                 console.clear()
                 render_team(bs)
-                while True:
-                    sub = Prompt.ask('Switch to', choices=['0', '1', '2', '3', '4', '5', '6'])
-                    if sub == '0':
-                        break
-                    idx = int(sub) - 1
-                    err = switch_valid(bs, idx)
-                    if err:
-                        console.clear()
-                        render_team(bs)
-                        console.print(f'[red]{err}[/]')
-                        continue
+                idx = _prompt_switch(bs)
+                if idx is not None:
                     exec_switch(bs, idx)
                     bs.switch_turn()
                     console.clear()
                     render_core(bs)
                     time.sleep(1.2)
-                    break
             elif choice == '6':
                 confirm = Prompt.ask('Forfeit? (y/n)', choices=['y', 'n'], default='n')
                 if confirm == 'y':
