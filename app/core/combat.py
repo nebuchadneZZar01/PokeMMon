@@ -60,6 +60,44 @@ def update_battle_stat(stat: float, multiplier: int) -> float:
     return stat
 
 
+def _stage_stat(pokemon: BattlePokemon, mult_attr: str, max_attr: str) -> float:
+    """Recompute a battle stat from its base and current stage.
+
+    Recomputed from the max stat every time so consecutive boosts and
+    debuffs do not compound multiplicatively across stage changes.
+
+    Returns:
+        float: The stat scaled by the current stage multiplier.
+    """
+    return update_battle_stat(getattr(pokemon, max_attr), getattr(pokemon, mult_attr))
+
+
+def _accuracy_stat(pokemon: BattlePokemon) -> float:
+    """Recompute the accuracy battle stat from the 1.0 base."""
+    return update_battle_stat(1.0, pokemon.acc_mult)
+
+
+def _evasion_stat(pokemon: BattlePokemon) -> float:
+    """Recompute the evasion battle stat from the 1.0 base."""
+    return update_battle_stat(1.0, pokemon.ev_mult)
+
+
+def _defense_stat(pokemon: BattlePokemon) -> float:
+    """Recompute defense from base, stage, and Reflect (capped at 1024)."""
+    v = update_battle_stat(pokemon.max_defense, pokemon.def_mult)
+    if pokemon.reflect:
+        v = min(v * 2, 1024)
+    return v
+
+
+def _sp_def_stat(pokemon: BattlePokemon) -> float:
+    """Recompute SpDef from base, stage, and Light Screen (capped at 1024)."""
+    v = update_battle_stat(pokemon.max_sp_def, pokemon.sp_def_mult)
+    if pokemon.light_screen:
+        v = min(v * 2, 1024)
+    return v
+
+
 def handle_recoil(target: BattlePokemon, damage: int, perc_scaler: int) -> int:
     """Calculate recoil damage based on a percentage of dealt damage.
 
@@ -159,6 +197,9 @@ def reset_on_switch_out(pokemon: BattlePokemon) -> None:
     reset_stats_mult(pokemon)
     reset_battle_stats(pokemon)
     pokemon.temp_status = None
+    pokemon.confused_turns = 0
+    pokemon.disabled_move = -1
+    pokemon.disabled_turns = 0
     pokemon.on_field = False
     pokemon.biding = False
     pokemon.bide_damage = 0
@@ -207,7 +248,7 @@ def calculate_damage(
         tuple[int, str]: (damage, effectiveness_or_crit_message).
     """
     power = move.power
-    stab = 2 if has_type(attacker, move.typing) else 1
+    stab = 1.5 if has_type(attacker, move.typing) else 1
 
     a = attacker.attack if move.category == MoveCategory.PHYSICAL else attacker.sp_atk
     d = defender.defense if move.category == MoveCategory.PHYSICAL else defender.sp_def
@@ -314,6 +355,7 @@ def _apply_secondary_effect(
         return f'\n{defender.name} is poisoned!'
     if effect == EffectStatus.CONFUSION:
         defender.temp_status = EffectStatus.CONFUSION
+        defender.confused_turns = 0
         return f'\n{defender.name} is now confused!'
     return ''
 
@@ -400,60 +442,60 @@ def handle_special_physical_move(
 def _boost_def_high(attacker: BattlePokemon, defender: BattlePokemon) -> str:
     """Sharply raise user's Defense by 2 stages."""
     _, msg = inc_dec_stat_mult(attacker, attacker, 'def_mult', increase=True, highly=True)
-    attacker.defense = update_battle_stat(attacker.defense, attacker.def_mult)
+    attacker.defense = _defense_stat(attacker)
     return msg
 
 
 def _boost_speed_high(attacker: BattlePokemon, defender: BattlePokemon) -> str:
     """Sharply raise user's Speed by 2 stages."""
     _, msg = inc_dec_stat_mult(attacker, attacker, 'speed_mult', increase=True, highly=True)
-    attacker.speed = update_battle_stat(attacker.speed, attacker.speed_mult)
+    attacker.speed = _stage_stat(attacker, 'speed_mult', 'max_speed')
     return msg
 
 
 def _boost_spatk_spdef_high(attacker: BattlePokemon, defender: BattlePokemon) -> str:
     """Sharply raise user's SpAtk and SpDef by 2 stages each."""
     _, m1 = inc_dec_stat_mult(attacker, attacker, 'sp_atk_mult', increase=True, highly=True)
-    attacker.sp_atk = update_battle_stat(attacker.sp_atk, attacker.sp_atk_mult)
+    attacker.sp_atk = _stage_stat(attacker, 'sp_atk_mult', 'max_sp_atk')
     _, m2 = inc_dec_stat_mult(attacker, attacker, 'sp_def_mult', increase=True, highly=True)
-    attacker.sp_def = update_battle_stat(attacker.sp_def, attacker.sp_def_mult)
+    attacker.sp_def = _sp_def_stat(attacker)
     return m1 + m2
 
 
 def _boost_def(attacker: BattlePokemon, defender: BattlePokemon) -> str:
     """Raise user's Defense by 1 stage."""
     _, msg = inc_dec_stat_mult(attacker, attacker, 'def_mult', increase=True)
-    attacker.defense = update_battle_stat(attacker.defense, attacker.def_mult)
+    attacker.defense = _defense_stat(attacker)
     return msg
 
 
 def _boost_ev(attacker: BattlePokemon, defender: BattlePokemon) -> str:
     """Raise user's Evasion by 1 stage."""
     _, msg = inc_dec_stat_mult(attacker, attacker, 'ev_mult', increase=True)
-    attacker.evasion = update_battle_stat(attacker.evasion, attacker.ev_mult)
+    attacker.evasion = _evasion_stat(attacker)
     return msg
 
 
 def _boost_atk(attacker: BattlePokemon, defender: BattlePokemon) -> str:
     """Raise user's Attack by 1 stage."""
     _, msg = inc_dec_stat_mult(attacker, attacker, 'atk_mult', increase=True)
-    attacker.attack = update_battle_stat(attacker.attack, attacker.atk_mult)
+    attacker.attack = _stage_stat(attacker, 'atk_mult', 'max_attack')
     return msg
 
 
 def _boost_atk_high(attacker: BattlePokemon, defender: BattlePokemon) -> str:
     """Sharply raise user's Attack by 2 stages."""
     _, msg = inc_dec_stat_mult(attacker, attacker, 'atk_mult', increase=True, highly=True)
-    attacker.attack = update_battle_stat(attacker.attack, attacker.atk_mult)
+    attacker.attack = _stage_stat(attacker, 'atk_mult', 'max_attack')
     return msg
 
 
 def _boost_spatk_spdef(attacker: BattlePokemon, defender: BattlePokemon) -> str:
     """Raise user's SpAtk and SpDef by 1 stage each."""
     _, m1 = inc_dec_stat_mult(attacker, attacker, 'sp_atk_mult', increase=True)
-    attacker.sp_atk = update_battle_stat(attacker.sp_atk, attacker.sp_atk_mult)
+    attacker.sp_atk = _stage_stat(attacker, 'sp_atk_mult', 'max_sp_atk')
     _, m2 = inc_dec_stat_mult(attacker, attacker, 'sp_def_mult', increase=True)
-    attacker.sp_def = update_battle_stat(attacker.sp_def, attacker.sp_def_mult)
+    attacker.sp_def = _sp_def_stat(attacker)
     return m1 + m2
 
 
@@ -461,7 +503,7 @@ def _reduce_acc(attacker: BattlePokemon, defender: BattlePokemon) -> str:
     """Lower target's Accuracy by 1 stage (blocked by Mist)."""
     if not defender.mist:
         _, msg = inc_dec_stat_mult(attacker, defender, 'acc_mult', increase=False)
-        defender.accuracy = update_battle_stat(defender.accuracy, defender.acc_mult)
+        defender.accuracy = _accuracy_stat(defender)
         return msg
     return f'\nBut {defender.name}\'s Mist prevents its stats decrease...'
 
@@ -470,7 +512,7 @@ def _reduce_atk(attacker: BattlePokemon, defender: BattlePokemon) -> str:
     """Lower target's Attack by 1 stage (blocked by Mist)."""
     if not defender.mist:
         _, msg = inc_dec_stat_mult(attacker, defender, 'atk_mult', increase=False)
-        defender.attack = update_battle_stat(defender.attack, defender.atk_mult)
+        defender.attack = _stage_stat(defender, 'atk_mult', 'max_attack')
         return msg
     return f'\nBut {defender.name}\'s Mist prevents its stats decrease...'
 
@@ -479,7 +521,7 @@ def _reduce_def(attacker: BattlePokemon, defender: BattlePokemon) -> str:
     """Lower target's Defense by 1 stage (blocked by Mist)."""
     if not defender.mist:
         _, msg = inc_dec_stat_mult(attacker, defender, 'def_mult', increase=False)
-        defender.defense = update_battle_stat(defender.defense, defender.def_mult)
+        defender.defense = _defense_stat(defender)
         return msg
     return f'\nBut {defender.name}\'s Mist prevents its stats decrease...'
 
@@ -488,7 +530,7 @@ def _reduce_def_high(attacker: BattlePokemon, defender: BattlePokemon) -> str:
     """Sharply lower target's Defense by 2 stages (blocked by Mist)."""
     if not defender.mist:
         _, msg = inc_dec_stat_mult(attacker, defender, 'def_mult', increase=False, highly=True)
-        defender.defense = update_battle_stat(defender.defense, defender.def_mult)
+        defender.defense = _defense_stat(defender)
         return msg
     return f'\nBut {defender.name}\'s Mist prevents its stats decrease...'
 
@@ -497,7 +539,7 @@ def _reduce_speed(attacker: BattlePokemon, defender: BattlePokemon) -> str:
     """Lower target's Speed by 1 stage (blocked by Mist)."""
     if not defender.mist:
         _, msg = inc_dec_stat_mult(attacker, defender, 'speed_mult', increase=False)
-        defender.speed = update_battle_stat(defender.speed, defender.speed_mult)
+        defender.speed = _stage_stat(defender, 'speed_mult', 'max_speed')
         return msg
     return f'\nBut {defender.name}\'s Mist prevents its stats decrease...'
 
@@ -516,6 +558,7 @@ def _paralyze(attacker: BattlePokemon, defender: BattlePokemon) -> str:
 def _confuse(attacker: BattlePokemon, defender: BattlePokemon) -> str:
     """Confuse the target."""
     defender.temp_status = EffectStatus.CONFUSION
+    defender.confused_turns = 0
     return f'\n{defender.name} is now confused!'
 
 
@@ -524,6 +567,7 @@ def _sleep(attacker: BattlePokemon, defender: BattlePokemon) -> str:
     if not defender.substitute:
         if defender.status is None:
             defender.status = EffectStatus.SLEEP
+            defender.sleeping_turns = 0
             return f'\n{defender.name} is now sleeping!'
         return '\nBut nothing happened...'
     return f'\n{defender.name}\'s Substitute prevents its status change!'
@@ -547,6 +591,7 @@ def _toxic(attacker: BattlePokemon, defender: BattlePokemon) -> str:
         if defender.status is None:
             if not has_type(defender, Typing.POISON):
                 defender.status = EffectStatus.TOXIC
+                defender.toxic_turns = 0
                 return f'\n{defender.name} is intoxicated!'
             return f'\nIt has no effect on {defender.name}...'
         return '\nBut nothing happened...'
@@ -584,10 +629,7 @@ def _light_screen(attacker: BattlePokemon, defender: BattlePokemon) -> str:
     """Halve incoming special damage for 5 turns."""
     if not attacker.light_screen:
         attacker.light_screen = True
-        if attacker.sp_def * 2 > 1024:
-            attacker.sp_def = 1024
-        else:
-            attacker.sp_def *= 2
+        attacker.sp_def = _sp_def_stat(attacker)
         return f'\n{attacker.name} protected against special attacks!'
     return f'\nBut Light Screen is already covering {attacker.name}...'
 
@@ -596,10 +638,7 @@ def _reflect(attacker: BattlePokemon, defender: BattlePokemon) -> str:
     """Halve incoming physical damage for 5 turns."""
     if not attacker.reflect:
         attacker.reflect = True
-        if attacker.defense * 2 > 1024:
-            attacker.defense = 1024
-        else:
-            attacker.defense *= 2
+        attacker.defense = _defense_stat(attacker)
         return f'\n{attacker.name} gained armor!'
     return f'\nBut Reflect is already covering {attacker.name}...'
 
@@ -647,6 +686,7 @@ def _rest(attacker: BattlePokemon, defender: BattlePokemon) -> str:
             attacker.temp_status = None
         attacker.hp = attacker.max_hp
         attacker.status = EffectStatus.SLEEP
+        attacker.sleeping_turns = 0
         return f'\n{attacker.name} went to sleep and regained health!'
     return f'\nBut {attacker.name} already has all its hp!'
 
@@ -887,6 +927,7 @@ def atk(
 
             if attacker.temp_status == EffectStatus.CONFUSION and attacker.confused_turns >= 5:
                 attacker.temp_status = None
+                attacker.confused_turns = 0
                 msg += f'\n{attacker.name} is not confused anymore!'
             elif attacker.temp_status == EffectStatus.CONFUSION:
                 attacker.confused_turns += 1
@@ -1001,10 +1042,15 @@ def try_atk_status(attacker: BattlePokemon, move: Move, defender: BattlePokemon)
     if attacker.trapped and random.random() < 0.5:
         return f'{attacker.name} is trapped and can\'t move!'
 
+    if attacker.disabled_move != -1:
+        disabled = attacker.moves[attacker.disabled_move]
+        if disabled is move:
+            return f'{attacker.name}\'s {move.name} is disabled!'
+
     if attacker.status is not None:
         if attacker.status == EffectStatus.PARALYZE:
             p = random.random()
-            if p <= 0.25:
+            if p > 0.25:
                 return atk(attacker, move, defender)
             return f'{attacker.name} is paralyzed and can\'t move!'
         if attacker.status == EffectStatus.SLEEP:
@@ -1012,11 +1058,13 @@ def try_atk_status(attacker: BattlePokemon, move: Move, defender: BattlePokemon)
                 p = random.random()
                 if p <= 0.33:
                     attacker.status = None
+                    attacker.sleeping_turns = 0
                     msg = atk(attacker, move, defender)
                     return msg + f'\n{attacker.name} woke up!'
                 attacker.sleeping_turns += 1
                 return f'{attacker.name} is sleeping...'
             attacker.status = None
+            attacker.sleeping_turns = 0
             msg = atk(attacker, move, defender)
             return f'{attacker.name} woke up!\n' + msg
         if attacker.status == EffectStatus.FREEZE:
@@ -1059,17 +1107,19 @@ def handle_toxicity(player_mon: BattlePokemon, enemy_mon: BattlePokemon) -> str:
     if player_mon.status == EffectStatus.TOXIC:
         player_mon.toxic_turns += 1
         player_mon_max_hp = player_mon.max_hp
-        damage = math.floor(1 / 16 * player_mon_max_hp) * player_mon.toxic_turns
-        if damage >= 15 * math.floor(1 / 16 * player_mon_max_hp):
-            damage = math.floor(1 / 16 * player_mon_max_hp)
+        base = math.floor(1 / 16 * player_mon_max_hp)
+        damage = base * player_mon.toxic_turns
+        if damage > 15 * base:
+            damage = 15 * base
         hit(player_mon, damage, None, status=True)
         msg += f'\n{player_mon.name} is hurt by toxine!'
     if enemy_mon.status == EffectStatus.TOXIC:
         enemy_mon.toxic_turns += 1
         enemy_mon_max_hp = enemy_mon.max_hp
-        damage = math.floor(1 / 16 * enemy_mon_max_hp) * enemy_mon.toxic_turns
-        if damage >= 15 * math.floor(1 / 16 * enemy_mon_max_hp):
-            damage = math.floor(1 / 16 * enemy_mon_max_hp)
+        base = math.floor(1 / 16 * enemy_mon_max_hp)
+        damage = base * enemy_mon.toxic_turns
+        if damage > 15 * base:
+            damage = 15 * base
         hit(enemy_mon, damage, None, status=True)
         msg += f'\n{enemy_mon.name} is hurt by toxine!'
     return msg

@@ -220,3 +220,21 @@ class TestHandleStatusByTurn:
         bs.handle_status_by_turn()
         assert 'Go, Pikachu!' in bs.player_msg
         assert 'hurt' in bs.player_msg.lower()
+
+    def test_disable_countdown_expires(self, bs):
+        pkmn = make_pkmn(disabled_move=0, disabled_turns=1)
+        bs.player.team[0] = pkmn
+        bs.player.in_battle = pkmn
+        bs.enemy_mon = make_pkmn()
+        bs.handle_status_by_turn()
+        assert pkmn.disabled_move == -1
+        assert pkmn.disabled_turns == 0
+
+    def test_disable_countdown_decrements(self, bs):
+        pkmn = make_pkmn(disabled_move=0, disabled_turns=3)
+        bs.player.team[0] = pkmn
+        bs.player.in_battle = pkmn
+        bs.enemy_mon = make_pkmn()
+        bs.handle_status_by_turn()
+        assert pkmn.disabled_move == 0
+        assert pkmn.disabled_turns == 2

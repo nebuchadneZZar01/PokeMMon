@@ -71,7 +71,7 @@ class TestCalculateDamage:
         df = make_pkmn(defense=50)
         move = make_move(typing=Typing.NORMAL, power=40)
         dmg, msg = calculate_damage(atk, move, df)
-        expected = damage_no_var(100, 40, 50, 50, stab=2)
+        expected = damage_no_var(100, 40, 50, 50, stab=1.5)
         assert dmg == expected
         assert msg == ''
 
@@ -272,7 +272,15 @@ class TestHandleToxicity:
         base = math.floor(1 / 16 * 300)
         p.toxic_turns = 14
         handle_toxicity(p, e)
-        assert p.hp == 300 - base  # capped, not 300 - base*15
+        assert p.toxic_turns == 15
+        assert p.hp == 300 - base * 15  # capped at 15/16 max HP
+
+    def test_player_toxic_exceeding_cap(self):
+        p = make_pkmn(name='A', hp=300, max_hp=300, status=EffectStatus.TOXIC, toxic_turns=50)
+        e = make_pkmn(name='B')
+        base = math.floor(1 / 16 * 300)
+        handle_toxicity(p, e)
+        assert p.hp == 300 - base * 15
 
 
 class TestHandleLeechSeed:
@@ -508,6 +516,26 @@ class TestMoveHandlers:
         msg = MOVE_HANDLERS['Disable'](atk_pkmn, df_pkmn)
         assert 'nothing' in msg
 
+    def test_disable_blocks_disabled_move(self):
+        atk_pkmn = make_pkmn(name='A')
+        move = make_move(name='Tackle')
+        df_pkmn = make_pkmn(name='B', moves=[move, make_move(name='Growl'), None, None])
+        df_pkmn.disabled_move = 0
+        df_pkmn.disabled_turns = 1
+        msg = try_atk_status(df_pkmn, move, atk_pkmn)
+        assert 'disabled' in msg
+        assert 'Tackle' in msg
+
+    def test_disable_does_not_block_other_moves(self):
+        atk_pkmn = make_pkmn(name='A')
+        tackle = make_move(name='Tackle')
+        growl = make_move(name='Growl')
+        df_pkmn = make_pkmn(name='B', moves=[tackle, growl, None, None])
+        df_pkmn.disabled_move = 0
+        df_pkmn.disabled_turns = 1
+        msg = try_atk_status(df_pkmn, growl, atk_pkmn)
+        assert 'disabled' not in msg
+
     def test_focus_energy_sets_flag(self):
         atk_pkmn = make_pkmn(name='A')
         df_pkmn = make_pkmn(name='B')
@@ -577,6 +605,24 @@ class TestMoveHandlers:
         assert atk_pkmn.atk_mult == 1
         assert atk_pkmn.attack > 100
 
+    def test_stat_stages_do_not_compound(self):
+        atk = make_pkmn(name='A', atk_mult=0, attack=100)
+        df = make_pkmn(name='B')
+        MOVE_HANDLERS['Swords Dance'](atk, df)
+        assert atk.atk_mult == 2
+        assert atk.attack == 200
+        MOVE_HANDLERS['Swords Dance'](atk, df)
+        assert atk.atk_mult == 4
+        assert atk.attack == 300
+
+    def test_stat_stage_lower_returns_to_base(self):
+        atk = make_pkmn(name='A', atk_mult=0, attack=100)
+        df = make_pkmn(name='B', atk_mult=0, attack=100)
+        MOVE_HANDLERS['Swords Dance'](atk, df)
+        MOVE_HANDLERS['Growl'](df, atk)
+        assert atk.atk_mult == 1
+        assert atk.attack == 150
+
     def test_metronome_calls_random_move(self, monkeypatch):
         monkeypatch.setattr(random, 'randint', lambda a, b: 255)
         chosen = make_move(name='Tackle', power=40)
@@ -584,7 +630,7 @@ class TestMoveHandlers:
         atk_pkmn = make_pkmn(name='Attacker', attack=50)
         df_pkmn = make_pkmn(name='Defender', hp=200, defense=50)
         msg = MOVE_HANDLERS['Metronome'](atk_pkmn, df_pkmn)
-        expected_dmg = damage_no_var(100, 40, 50, 50, stab=2)
+        expected_dmg = damage_no_var(100, 40, 50, 50, stab=1.5)
         assert df_pkmn.hp == 200 - expected_dmg
         assert 'Tackle' in msg
 
@@ -653,7 +699,7 @@ class TestAtkRecoil:
         atk_pkmn = make_pkmn(name='Attacker', hp=200, attack=50)
         df_pkmn = make_pkmn(name='Defender', hp=200, defense=50)
         move = make_move(name='Double-Edge', power=100)
-        expected_dmg = damage_no_var(100, 100, 50, 50, stab=2)
+        expected_dmg = damage_no_var(100, 100, 50, 50, stab=1.5)
         atk(atk_pkmn, move, df_pkmn)
         assert df_pkmn.hp == 200 - expected_dmg
         assert atk_pkmn.hp == 200 - expected_dmg // 3
@@ -663,7 +709,7 @@ class TestAtkRecoil:
         atk_pkmn = make_pkmn(name='Attacker', hp=200, attack=50)
         df_pkmn = make_pkmn(name='Defender', hp=200, defense=50)
         move = make_move(name='Take Down', power=90)
-        expected_dmg = damage_no_var(100, 90, 50, 50, stab=2)
+        expected_dmg = damage_no_var(100, 90, 50, 50, stab=1.5)
         atk(atk_pkmn, move, df_pkmn)
         assert df_pkmn.hp == 200 - expected_dmg
         assert atk_pkmn.hp == 200 - expected_dmg // 4
@@ -673,7 +719,7 @@ class TestAtkRecoil:
         atk_pkmn = make_pkmn(name='Attacker', hp=200, attack=50)
         df_pkmn = make_pkmn(name='Defender', hp=200, defense=50)
         move = make_move(name='Submission', power=80)
-        expected_dmg = damage_no_var(100, 80, 50, 50, stab=2)
+        expected_dmg = damage_no_var(100, 80, 50, 50, stab=1.5)
         atk(atk_pkmn, move, df_pkmn)
         assert df_pkmn.hp == 200 - expected_dmg
         assert atk_pkmn.hp == 200 - expected_dmg // 4
@@ -757,7 +803,7 @@ class TestAtkBurnAndConfusion:
         atk_pkmn = make_pkmn(attack=50, status=EffectStatus.BURN)
         df_pkmn = make_pkmn(hp=200, defense=50)
         move = make_move(power=40)
-        expected = damage_no_var(100, 40, 50, 50, stab=2) // 2
+        expected = damage_no_var(100, 40, 50, 50, stab=1.5) // 2
         hp_before = df_pkmn.hp
         atk(atk_pkmn, move, df_pkmn)
         assert df_pkmn.hp == hp_before - expected
@@ -1467,7 +1513,7 @@ class TestTryAtkStatus:
     def test_paralyzed_can_still_act(self, monkeypatch):
         atk = make_pkmn(name='Atk', status=EffectStatus.PARALYZE)
         df = make_pkmn(name='Df', hp=200)
-        monkeypatch.setattr(random, 'random', lambda: 0.1)
+        monkeypatch.setattr(random, 'random', lambda: 0.9)
         monkeypatch.setattr(random, 'randint', lambda a, b: 255)
         try_atk_status(atk, make_move(), df)
         assert df.hp < 200
@@ -1475,7 +1521,7 @@ class TestTryAtkStatus:
     def test_paralyzed_full_paralysis(self, monkeypatch):
         atk = make_pkmn(name='Atk', status=EffectStatus.PARALYZE)
         df = make_pkmn(name='Df')
-        monkeypatch.setattr(random, 'random', lambda: 0.9)
+        monkeypatch.setattr(random, 'random', lambda: 0.1)
         msg = try_atk_status(atk, make_move(), df)
         assert msg == 'Atk is paralyzed and can\'t move!'
 
@@ -2008,7 +2054,7 @@ class TestToxicityEnemy:
         e = make_pkmn(name='E', hp=200, status=EffectStatus.TOXIC, toxic_turns=50)
         msg = handle_toxicity(p, e)
         assert 'hurt by toxine' in msg
-        assert e.hp == 188
+        assert e.hp == 200 - math.floor(1 / 16 * 200) * 15
 
 
 class TestLeechSeedEnemyCap:

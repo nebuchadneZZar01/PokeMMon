@@ -134,6 +134,12 @@ class TurnBattleSystem:
         self.enemy_mon = self.ai.in_battle
 
         msgs = []
+        for mon in (self.player_mon, self.enemy_mon):
+            if mon.disabled_move != -1:
+                mon.disabled_turns -= 1
+                if mon.disabled_turns <= 0:
+                    mon.disabled_move = -1
+                    mon.disabled_turns = 0
         for fn in (handle_burn_poison, handle_toxicity, handle_leech_seed, handle_trapped):
             msg = fn(self.player_mon, self.enemy_mon)
             if msg:
